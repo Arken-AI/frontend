@@ -42,11 +42,11 @@ export default function MessageBubble({ message }) {
     );
   }
   
-  // Assistant message
+  // Assistant message - full width
   return (
-    <div className="flex justify-start mb-4 group">
-      <div className="max-w-[85%] md:max-w-[80%]">
-        <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 relative">
+    <div className="mb-4 group w-full">
+      <div className="w-full">
+        <div className="bg-white px-6 py-4 relative">
           {/* Markdown content */}
           <div className="prose prose-sm max-w-none">
             <MarkdownRenderer content={message.content} />
@@ -55,7 +55,7 @@ export default function MessageBubble({ message }) {
           {/* Copy button - appears on hover */}
           <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-2 right-2 p-1.5 rounded-md bg-gray-100/80 hover:bg-gray-200 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
             title="Copy message"
           >
             {copied ? (
@@ -67,7 +67,7 @@ export default function MessageBubble({ message }) {
         </div>
         
         {/* Timestamp and metadata */}
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 px-6">
           {timestamp && (
             <p className="text-xs text-gray-400">{timestamp}</p>
           )}
