@@ -83,6 +83,9 @@ export function handleSSEEvent(event, dispatch) {
           metadata: event.metadata,
         },
       });
+      // Explicitly disable streaming to close SSE connection
+      dispatch({ type: ACTIONS.SET_STREAMING, payload: false });
+      dispatch({ type: ACTIONS.SET_THINKING, payload: false });
       break;
 
     case "app_error":
@@ -100,4 +103,32 @@ export function handleSSEEvent(event, dispatch) {
     default:
       console.warn("[Event] Unknown event type:", event.event_type);
   }
+}
+
+/**
+ * Create event handlers object for useSSE hook
+ * @param {function} dispatch - Dispatch function from useChatState
+ * @returns {Object} - Object with event type handlers
+ */
+export function createEventHandlers(dispatch) {
+  return {
+    onMessage: (event) => handleSSEEvent(event, dispatch),
+    onError: (error) => {
+      console.error("[SSE] Error:", error);
+      dispatch({
+        type: ACTIONS.APP_ERROR,
+        payload: {
+          error_type: "stream_error",
+          error_message: error.message || "Stream connection error",
+          recoverable: true,
+        },
+      });
+    },
+    onOpen: () => {
+      console.log("[SSE] Connection opened");
+    },
+    onClose: () => {
+      console.log("[SSE] Connection closed");
+    },
+  };
 }

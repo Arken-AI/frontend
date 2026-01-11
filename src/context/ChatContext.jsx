@@ -117,12 +117,43 @@ export function ChatProvider({ children }) {
 
   // Load context when conversation changes
   useEffect(() => {
-    if (conversationId) {
-      loadConversationContext(conversationId);
-    } else {
-      setCurrentContext(null);
-    }
-  }, [conversationId, loadConversationContext]);
+    let isMounted = true;
+    
+    const loadContext = async () => {
+      if (!conversationId) {
+        setCurrentContext(null);
+        return;
+      }
+      
+      setContextLoading(true);
+      
+      try {
+        const context = await getContext(conversationId);
+        if (isMounted) {
+          setCurrentContext(context);
+        }
+      } catch (error) {
+        console.error('Failed to load conversation context:', error);
+        if (isMounted) {
+          // If conversation not found, clear it
+          if (error.message === 'Conversation not found') {
+            setConversationId(null);
+          }
+          setCurrentContext(null);
+        }
+      } finally {
+        if (isMounted) {
+          setContextLoading(false);
+        }
+      }
+    };
+    
+    loadContext();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [conversationId]); // Only depend on conversationId, not on loadConversationContext
 
   // Context value
   const value = {

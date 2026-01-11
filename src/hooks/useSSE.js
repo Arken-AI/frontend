@@ -13,22 +13,41 @@ import { getStreamUrl } from "../api/client";
  * @param {string|null} conversationId - Conversation ID to stream events for
  * @param {function} onEvent - Callback for each event received
  * @param {boolean} enabled - Whether to connect (default: true)
+ * @param {string|null} customStreamUrl - Custom stream URL (overrides conversationId if provided)
+ * @param {number} initialSequence - Starting sequence number for existing conversations (default: 0)
  * @returns {Object} { isConnected, lastSequence, error, reconnect }
  */
-export function useSSE(conversationId, onEvent, enabled = true) {
+export function useSSE(
+  conversationId,
+  onEvent,
+  enabled = true,
+  customStreamUrl = null,
+  initialSequence = 0
+) {
   const [isConnected, setIsConnected] = useState(false);
-  const [lastSequence, setLastSequence] = useState(0);
+  const [lastSequence, setLastSequence] = useState(initialSequence);
   const [error, setError] = useState(null);
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
+  const enabledRef = useRef(enabled); // Track enabled state in ref
 
   // Maximum reconnect attempts
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_DELAY = 2000; // 2 seconds
 
+  // Update enabled ref when it changes
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
+  // Reset lastSequence when conversationId changes
+  useEffect(() => {
+    setLastSequence(initialSequence);
+  }, [conversationId, initialSequence]);
+
   const connect = () => {
-    if (!conversationId || !enabled) return;
+    if ((!conversationId && !customStreamUrl) || !enabled) return;
 
     // Close existing connection
     if (eventSourceRef.current) {
@@ -36,14 +55,14 @@ export function useSSE(conversationId, onEvent, enabled = true) {
     }
 
     try {
-      const url = getStreamUrl(conversationId, lastSequence);
+      const url = customStreamUrl || getStreamUrl(conversationId, lastSequence);
       const eventSource = new EventSource(url);
 
       eventSource.onopen = () => {
         console.log("[SSE] Connected to stream:", conversationId);
         setIsConnected(true);
         setError(null);
-        reconnectAttemptsRef.current = 0;
+        reconnectAttemptsRef.current = 0; // Reset on successful connection
       };
 
       eventSource.onmessage = (e) => {
@@ -92,9 +111,28 @@ export function useSSE(conversationId, onEvent, enabled = true) {
       });
 
       eventSource.onerror = (err) => {
+        // Check the readyState to see if stream closed naturally
+        const readyState = eventSource.readyState;
+
+        // If readyState is CLOSED (2), the server closed the connection
+        // This is normal after message_final, so don't treat it as an error
+        if (readyState === EventSource.CLOSED) {
+          console.log("[SSE] Stream completed successfully");
+          setIsConnected(false);
+          eventSource.close();
+          return;
+        }
+
+        // For other errors, log them
         console.error("[SSE] Connection error:", err);
         setIsConnected(false);
         eventSource.close();
+
+        // Don't reconnect if streaming is disabled
+        if (!enabledRef.current) {
+          console.log("[SSE] Stream ended - not reconnecting (disabled)");
+          return;
+        }
 
         // Auto-reconnect with exponential backoff
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
@@ -104,6 +142,11 @@ export function useSSE(conversationId, onEvent, enabled = true) {
           setError(`Connection lost. Reconnecting in ${delay / 1000}s...`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
+            // Double-check enabled state before reconnecting
+            if (!enabledRef.current) {
+              console.log("[SSE] Cancelling reconnect - streaming disabled");
+              return;
+            }
             console.log(
               `[SSE] Reconnecting (attempt ${reconnectAttemptsRef.current})...`
             );
@@ -130,19 +173,28 @@ export function useSSE(conversationId, onEvent, enabled = true) {
   };
 
   useEffect(() => {
+    let isActive = true; // Track if effect is still active
+
     if (enabled && conversationId) {
       connect();
     }
 
     // Cleanup
     return () => {
+      isActive = false; // Mark as inactive
+
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
+
+      // Reset state
+      setIsConnected(false);
+      setError(null);
     };
   }, [conversationId, enabled]);
 

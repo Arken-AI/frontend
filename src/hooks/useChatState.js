@@ -30,10 +30,16 @@ export const ACTIONS = {
   MESSAGE_DELTA: "MESSAGE_DELTA",
   MESSAGE_FINAL: "MESSAGE_FINAL",
   APP_ERROR: "APP_ERROR",
+  ADD_MESSAGE: "ADD_MESSAGE",
   ADD_USER_MESSAGE: "ADD_USER_MESSAGE",
   LOAD_MESSAGES: "LOAD_MESSAGES",
   RESET: "RESET",
+  RESET_RESPONSE: "RESET_RESPONSE",
+  SET_THINKING: "SET_THINKING",
+  SET_STREAMING: "SET_STREAMING",
+  SET_ERROR: "SET_ERROR",
   CLEAR_ERROR: "CLEAR_ERROR",
+  CANCEL_REQUEST: "CANCEL_REQUEST",
 };
 
 // Reducer function
@@ -113,9 +119,10 @@ function chatReducer(state, action) {
             content: action.payload.content,
             timestamp: new Date().toISOString(),
             metadata: action.payload.metadata,
+            toolExecutions: state.toolExecutions, // Store tool executions with message
           },
         ],
-        toolExecutions: [], // Clear tool executions after message
+        toolExecutions: [], // Clear temporary state (tools now in message)
         runProgress: null, // Clear progress
       };
 
@@ -131,6 +138,23 @@ function chatReducer(state, action) {
         isThinking: false,
         activeTool: null,
         isStreaming: false,
+      };
+
+    case ACTIONS.ADD_MESSAGE:
+      return {
+        ...state,
+        messages: [
+          ...state.messages,
+          {
+            role: action.payload.role,
+            content: action.payload.content,
+            timestamp: action.payload.timestamp || new Date().toISOString(),
+            metadata: action.payload.metadata,
+            run_ids: action.payload.run_ids,
+            tool_executions: action.payload.tool_executions,
+          },
+        ],
+        error: null,
       };
 
     case ACTIONS.ADD_USER_MESSAGE:
@@ -158,10 +182,54 @@ function chatReducer(state, action) {
         ...initialState,
       };
 
+    case ACTIONS.RESET_RESPONSE:
+      return {
+        ...state,
+        streamingText: "",
+        activeTool: null,
+        runProgress: null,
+        error: null,
+      };
+
+    case ACTIONS.SET_THINKING:
+      return {
+        ...state,
+        isThinking: action.payload,
+        thinkingStartTime: action.payload ? Date.now() : null,
+      };
+
+    case ACTIONS.SET_STREAMING:
+      return {
+        ...state,
+        isStreaming: action.payload,
+      };
+
+    case ACTIONS.SET_ERROR:
+      return {
+        ...state,
+        error: {
+          type: "client_error",
+          message: action.payload,
+          recoverable: true,
+        },
+        isThinking: false,
+        isStreaming: false,
+      };
+
     case ACTIONS.CLEAR_ERROR:
       return {
         ...state,
         error: null,
+      };
+
+    case ACTIONS.CANCEL_REQUEST:
+      return {
+        ...state,
+        isThinking: false,
+        isStreaming: false,
+        activeTool: null,
+        runProgress: null,
+        streamingText: "",
       };
 
     default:

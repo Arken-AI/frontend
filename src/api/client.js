@@ -8,18 +8,24 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
 /**
  * Send a chat message
- * @param {string|null} conversationId - Existing conversation ID or null for new
- * @param {string} message - User message
+ * @param {Object} params - Message parameters
+ * @param {string} params.message - User message
+ * @param {string|null} params.conversation_id - Existing conversation ID or null for new
+ * @param {boolean} params.stream - Whether to stream the response (default: true)
  * @returns {Promise<Object>} Response with conversation_id, message, run_ids, etc.
  */
-export async function sendMessage(conversationId, message) {
+export async function sendMessage({
+  message,
+  conversation_id = null,
+  stream = true,
+}) {
   const response = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      conversation_id: conversationId,
+      conversation_id,
       message: message.trim(),
     }),
   });
@@ -107,4 +113,12 @@ export async function checkHealth() {
  */
 export function getStreamUrl(conversationId, afterSequence = 0) {
   return `${API_BASE}/chat/${conversationId}/stream?after_sequence=${afterSequence}`;
+}
+
+/**
+ * Get test SSE stream URL (dummy stream without LLM calls)
+ * @returns {string} Test SSE endpoint URL
+ */
+export function getTestStreamUrl() {
+  return `${API_BASE}/test/stream`;
 }
