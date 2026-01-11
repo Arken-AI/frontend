@@ -71,7 +71,7 @@ export default function MessageBubble({ message }) {
           {timestamp && (
             <p className="text-xs text-gray-400">{timestamp}</p>
           )}
-          {message.metadata?.tool_calls && (
+          {message.metadata?.tool_calls && message.metadata.tool_calls.length > 0 && (
             <span className="text-xs text-gray-400">
               • {message.metadata.tool_calls.length} tool{message.metadata.tool_calls.length > 1 ? 's' : ''} used
             </span>

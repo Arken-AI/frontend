@@ -206,9 +206,9 @@ function ChatContainer() {
   useEffect(() => {
     const previousId = previousConversationIdRef.current;
     
-    // Only reset if switching between different existing conversations
+    // Reset when switching conversations or starting new chat
     // Don't reset when going from null -> new conv (that's creation, not switching)
-    if (conversationId !== previousId && previousId !== null && conversationId !== null) {
+    if (conversationId !== previousId && previousId !== null) {
       console.log('[ChatContainer] Switching conversations, resetting state');
       dispatch({ type: 'RESET' });
       setInputDisabled(false);
@@ -323,11 +323,6 @@ function ChatContainer() {
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
             Thinking
-          </span>
-        )}
-        {conversationId && (
-          <span>
-            ID: {conversationId.slice(0, 8)}...
           </span>
         )}
       </div>
