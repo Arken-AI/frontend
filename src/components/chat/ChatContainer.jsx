@@ -72,14 +72,19 @@ function ChatContainer() {
     }
   }, []);
 
-  // Handle message_final received - clear timer and enable input
+  // Handle message_final received - clear timer, enable input, and refresh conversations
   useEffect(() => {
     if (!state.isStreaming && !state.isThinking) {
       clearFallbackTimer();
       setInputDisabled(false);
       pendingMessageRef.current = null;
+      
+      // Refresh conversations list to show the new/updated conversation
+      if (conversationId) {
+        refreshConversations();
+      }
     }
-  }, [state.isStreaming, state.isThinking, clearFallbackTimer]);
+  }, [state.isStreaming, state.isThinking, clearFallbackTimer, conversationId, refreshConversations]);
 
   // Handle fallback when SSE doesn't deliver message_final
   const handleFallback = useCallback(async () => {
