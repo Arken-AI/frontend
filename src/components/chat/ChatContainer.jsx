@@ -10,7 +10,7 @@ import { useChatContext } from '../../context/ChatContext';
 import { useChatState } from '../../hooks/useChatState';
 import { useSSE } from '../../hooks/useSSE';
 import { handleSSEEvent } from '../../utils/eventHandlers';
-import { sendMessage, getTestStreamUrl } from '../../api/client';
+import { sendMessage, getTestStreamUrl, getContext } from '../../api/client';
 
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -94,21 +94,56 @@ function ChatContainer() {
     dispatch({ type: 'SET_STREAMING', payload: false });
     dispatch({ type: 'SET_THINKING', payload: false });
     
-    // If we have a pending message, try to show it was sent
-    if (pendingMessageRef.current) {
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          role: 'assistant',
-          content: '_Response received but streaming interrupted. Please check the conversation history._',
-          timestamp: new Date().toISOString(),
-        },
-      });
+    // Step 2.4: Try to fetch the actual response from context API
+    // The response should be saved in MongoDB even if SSE failed
+    if (conversationId) {
+      try {
+        console.log('[Fallback] Fetching conversation context...');
+        const contextData = await getContext(conversationId);
+        
+        // Get the last assistant message (the one we missed via SSE)
+        const lastMessage = contextData.messages?.[contextData.messages.length - 1];
+        
+        if (lastMessage && lastMessage.role === 'assistant') {
+          console.log('[Fallback] Found assistant response in context, displaying it');
+          dispatch({
+            type: 'ADD_MESSAGE',
+            payload: {
+              role: 'assistant',
+              content: lastMessage.content,
+              timestamp: lastMessage.timestamp || new Date().toISOString(),
+              metadata: lastMessage.metadata,
+            },
+          });
+        } else {
+          // No assistant message found - show error message
+          console.warn('[Fallback] No assistant message found in context');
+          dispatch({
+            type: 'ADD_MESSAGE',
+            payload: {
+              role: 'assistant',
+              content: '_Response received but streaming interrupted. Please refresh to see the response._',
+              timestamp: new Date().toISOString(),
+            },
+          });
+        }
+      } catch (error) {
+        console.error('[Fallback] Failed to fetch context:', error);
+        // Fallback to generic message if context fetch fails
+        dispatch({
+          type: 'ADD_MESSAGE',
+          payload: {
+            role: 'assistant',
+            content: '_Response received but streaming interrupted. Please refresh to see the response._',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
     }
     
     setInputDisabled(false);
     await refreshConversations();
-  }, [dispatch, refreshConversations]);
+  }, [dispatch, refreshConversations, conversationId]);
 
   // Send message handler
   const handleSendMessage = useCallback(async (content) => {
