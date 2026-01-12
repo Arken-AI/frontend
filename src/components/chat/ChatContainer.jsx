@@ -331,8 +331,9 @@ function ChatContainer() {
             isThinking={state.isThinking}
             activeTool={state.activeTool}
             toolExecutions={state.toolExecutions}
-            progress={state.runProgress}
+            runProgress={state.runProgress}
             streamingText={state.streamingText}
+            isStreaming={state.isStreaming}
             error={state.error}
           />
         )}
