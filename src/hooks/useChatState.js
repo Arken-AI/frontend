@@ -108,10 +108,14 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.MESSAGE_FINAL:
+      // Check if this is an intermediate message (before tool calls)
+      const isIntermediate = action.payload.metadata?.is_intermediate;
+
       return {
         ...state,
-        isStreaming: false,
-        streamingText: "",
+        // Only stop streaming for final messages, not intermediate ones
+        isStreaming: isIntermediate ? state.isStreaming : false,
+        streamingText: "", // Always clear streaming text (it's now in messages)
         messages: [
           ...state.messages,
           {
@@ -119,11 +123,14 @@ function chatReducer(state, action) {
             content: action.payload.content,
             timestamp: new Date().toISOString(),
             metadata: action.payload.metadata,
-            toolExecutions: state.toolExecutions, // Store tool executions with message
+            // Only attach tool executions to final message, not intermediate
+            toolExecutions: isIntermediate ? [] : state.toolExecutions,
           },
         ],
-        toolExecutions: [], // Clear temporary state (tools now in message)
-        runProgress: null, // Clear progress
+        // Only clear tool executions for final message
+        toolExecutions: isIntermediate ? state.toolExecutions : [],
+        // Only clear progress for final message
+        runProgress: isIntermediate ? state.runProgress : null,
       };
 
     case ACTIONS.APP_ERROR:

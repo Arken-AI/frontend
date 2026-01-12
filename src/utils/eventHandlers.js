@@ -83,9 +83,12 @@ export function handleSSEEvent(event, dispatch) {
           metadata: event.metadata,
         },
       });
-      // Explicitly disable streaming to close SSE connection
-      dispatch({ type: ACTIONS.SET_STREAMING, payload: false });
-      dispatch({ type: ACTIONS.SET_THINKING, payload: false });
+      // Only stop streaming if this is NOT an intermediate message
+      // Intermediate messages (before tool calls) have is_intermediate: true
+      if (!event.metadata?.is_intermediate) {
+        dispatch({ type: ACTIONS.SET_STREAMING, payload: false });
+        dispatch({ type: ACTIONS.SET_THINKING, payload: false });
+      }
       break;
 
     case "app_error":
