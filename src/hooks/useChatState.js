@@ -179,9 +179,27 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.LOAD_MESSAGES:
+      // Step 4.2: Load historical messages with proper formatting
+      // Convert backend message format to frontend format
+      const loadedMessages = action.payload.messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp || new Date().toISOString(),
+        metadata: msg.metadata,
+        // Tool executions are stored per-message for historical display
+        toolExecutions: msg.toolExecutions || msg.tool_executions || [],
+      }));
+
       return {
         ...state,
-        messages: action.payload.messages,
+        messages: loadedMessages,
+        // Clear streaming state when loading historical messages
+        streamingText: "",
+        isStreaming: false,
+        isThinking: false,
+        activeTool: null,
+        toolExecutions: [],
+        runProgress: null,
       };
 
     case ACTIONS.RESET:

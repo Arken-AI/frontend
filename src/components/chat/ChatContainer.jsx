@@ -267,8 +267,25 @@ function ChatContainer() {
         type: 'LOAD_MESSAGES', 
         payload: { messages: currentContext.messages } 
       });
+      
+      // Step 4.3: Handle "in-progress" conversations on reload
+      // If user refreshes while a request was processing, reconnect to SSE
+      if (currentContext.status === 'processing') {
+        console.log('[ChatContainer] Detected in-progress conversation, reconnecting to stream...');
+        dispatch({ type: 'SET_THINKING', payload: true });
+        dispatch({ type: 'SET_STREAMING', payload: true });
+        setInputDisabled(true);
+        
+        // Update sequence to resume from where we left off
+        if (currentContext.last_event_sequence) {
+          lastSequenceRef.current = currentContext.last_event_sequence;
+        }
+        
+        // Start fallback timer in case stream doesn't complete
+        fallbackTimerRef.current = setTimeout(handleFallback, FALLBACK_TIMEOUT);
+      }
     }
-  }, [currentContext, dispatch]);
+  }, [currentContext, dispatch, handleFallback]);
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
