@@ -103,6 +103,36 @@ export function handleSSEEvent(event, dispatch) {
       });
       break;
 
+    // Step 5.3: Handle stream timeout gracefully
+    case "stream_timeout":
+      console.warn("[Event] Stream timeout:", event.message);
+      dispatch({
+        type: ACTIONS.APP_ERROR,
+        payload: {
+          error_type: "stream_timeout",
+          error_message:
+            event.message || "Stream timeout - please refresh to see results",
+          recoverable: true,
+        },
+      });
+      // Stop streaming/thinking state
+      dispatch({ type: ACTIONS.SET_STREAMING, payload: false });
+      dispatch({ type: ACTIONS.SET_THINKING, payload: false });
+      break;
+
+    // Step 5.3: Handle generic errors sent via SSE
+    case "error":
+      console.error("[Event] Stream error:", event.message);
+      dispatch({
+        type: ACTIONS.APP_ERROR,
+        payload: {
+          error_type: "stream_error",
+          error_message: event.message || "Stream error occurred",
+          recoverable: true,
+        },
+      });
+      break;
+
     default:
       console.warn("[Event] Unknown event type:", event.event_type);
   }
