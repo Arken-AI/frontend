@@ -327,11 +327,35 @@ function ChatContainer() {
       
       {/* Error display */}
       {state.error && (
-        <div className="bg-red-50 text-red-800 text-sm px-4 py-2 text-center border-b border-red-200 flex items-center justify-center gap-2">
-          <span>Error: {state.error.message}</span>
+        <div className={`text-sm px-4 py-3 text-center border-b flex items-center justify-center gap-3 ${
+          state.error.type === 'rate_limit_error' 
+            ? 'bg-yellow-50 text-yellow-900 border-yellow-200' 
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
+          <div className="flex-1 flex items-center justify-center gap-2">
+            {state.error.type === 'rate_limit_error' ? (
+              <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <div className="text-left">
+              <div className="font-medium">{state.error.message}</div>
+              {state.error.details?.suggestion && (
+                <div className="text-xs mt-1 opacity-75">{state.error.details.suggestion}</div>
+              )}
+            </div>
+          </div>
           <button 
             onClick={() => dispatch({ type: 'CLEAR_ERROR' })}
-            className="text-red-600 hover:text-red-800 underline"
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+              state.error.type === 'rate_limit_error'
+                ? 'text-yellow-700 hover:bg-yellow-100'
+                : 'text-red-700 hover:bg-red-100'
+            }`}
           >
             Dismiss
           </button>
