@@ -52,6 +52,17 @@ function ChatContainer() {
     if (event.sequence && event.sequence > lastSequenceRef.current) {
       lastSequenceRef.current = event.sequence;
     }
+    
+    // Clear fallback timer immediately when message_final is received
+    // This prevents race condition between state updates and timer firing
+    if (event.event_type === 'message_final' && !event.metadata?.is_intermediate) {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+        console.log('[ChatContainer] Cleared fallback timer on message_final');
+      }
+    }
+    
     handleSSEEvent(event, dispatch);
   }, [dispatch]);
   

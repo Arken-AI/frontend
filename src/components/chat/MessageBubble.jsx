@@ -4,18 +4,53 @@
  * Displays individual chat messages (user or assistant).
  * User messages are right-aligned with blue background.
  * Assistant messages are left-aligned with gray background and markdown support.
+ * Shows status indicators for incomplete/error/cancelled messages.
  */
 
 import { useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, AlertCircle, XCircle, Loader2 } from 'lucide-react';
 import { formatTime } from '../../utils/formatters';
 import MarkdownRenderer from '../markdown/MarkdownRenderer';
+
+// Status indicator component
+function MessageStatusIndicator({ status }) {
+  if (!status || status === 'complete') return null;
+  
+  const statusConfig = {
+    streaming: {
+      icon: <Loader2 className="w-4 h-4 animate-spin" />,
+      text: 'Response may be incomplete',
+      className: 'text-yellow-600 bg-yellow-50 border-yellow-200'
+    },
+    error: {
+      icon: <AlertCircle className="w-4 h-4" />,
+      text: 'Response was interrupted',
+      className: 'text-red-600 bg-red-50 border-red-200'
+    },
+    cancelled: {
+      icon: <XCircle className="w-4 h-4" />,
+      text: 'Response was cancelled',
+      className: 'text-gray-600 bg-gray-50 border-gray-200'
+    }
+  };
+  
+  const config = statusConfig[status];
+  if (!config) return null;
+  
+  return (
+    <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-md border mt-2 ${config.className}`}>
+      {config.icon}
+      <span>{config.text}</span>
+    </div>
+  );
+}
 
 export default function MessageBubble({ message }) {
   const [copied, setCopied] = useState(false);
   
   const isUser = message.role === 'user';
   const timestamp = message.timestamp ? formatTime(message.timestamp) : '';
+  const status = message.status || 'complete';
   
   const handleCopy = async () => {
     try {
@@ -46,11 +81,14 @@ export default function MessageBubble({ message }) {
   return (
     <div className="mb-4 group w-full">
       <div className="w-full">
-        <div className="bg-white px-6 py-4 relative">
+        <div className={`bg-white px-6 py-4 relative ${status === 'error' ? 'border-l-4 border-red-300' : ''}`}>
           {/* Markdown content */}
           <div className="prose prose-sm max-w-none">
             <MarkdownRenderer content={message.content} />
           </div>
+          
+          {/* Status indicator for incomplete messages */}
+          <MessageStatusIndicator status={status} />
           
           {/* Copy button - appears on hover */}
           <button

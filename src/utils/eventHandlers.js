@@ -75,6 +75,10 @@ export function handleSSEEvent(event, dispatch) {
       break;
 
     case "message_final":
+      console.log(
+        "[EventHandler] Received message_final, is_intermediate:",
+        event.metadata?.is_intermediate
+      );
       dispatch({
         type: ACTIONS.MESSAGE_FINAL,
         payload: {
