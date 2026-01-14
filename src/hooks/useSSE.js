@@ -88,8 +88,6 @@ export function useSSE(
         "tool_start",
         "tool_end",
         "run_progress",
-        "message_delta",
-        "message_final",
         "app_error",
       ];
 
@@ -115,7 +113,7 @@ export function useSSE(
         const readyState = eventSource.readyState;
 
         // If readyState is CLOSED (2), the server closed the connection
-        // This is normal after message_final, so don't treat it as an error
+        // This is normal when all events are sent, so don't treat it as an error
         if (readyState === EventSource.CLOSED) {
           console.log("[SSE] Stream completed successfully");
           setIsConnected(false);

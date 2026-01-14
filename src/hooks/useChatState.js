@@ -15,8 +15,6 @@ const initialState = {
   activeTool: null, // Currently executing tool { name, args, startTime }
   toolExecutions: [], // Completed tool executions
   runProgress: null, // Current simulation progress { stage, percentage, etc }
-  streamingText: "", // Accumulating streaming text
-  isStreaming: false, // Is currently receiving streaming text?
   error: null, // Current error message
 };
 
@@ -27,8 +25,6 @@ export const ACTIONS = {
   TOOL_START: "TOOL_START",
   TOOL_END: "TOOL_END",
   RUN_PROGRESS: "RUN_PROGRESS",
-  MESSAGE_DELTA: "MESSAGE_DELTA",
-  MESSAGE_FINAL: "MESSAGE_FINAL",
   APP_ERROR: "APP_ERROR",
   ADD_MESSAGE: "ADD_MESSAGE",
   ADD_USER_MESSAGE: "ADD_USER_MESSAGE",
@@ -36,7 +32,6 @@ export const ACTIONS = {
   RESET: "RESET",
   RESET_RESPONSE: "RESET_RESPONSE",
   SET_THINKING: "SET_THINKING",
-  SET_STREAMING: "SET_STREAMING",
   SET_ERROR: "SET_ERROR",
   CLEAR_ERROR: "CLEAR_ERROR",
   CANCEL_REQUEST: "CANCEL_REQUEST",
@@ -100,39 +95,6 @@ function chatReducer(state, action) {
         },
       };
 
-    case ACTIONS.MESSAGE_DELTA:
-      return {
-        ...state,
-        isStreaming: true,
-        streamingText: state.streamingText + action.payload.delta,
-      };
-
-    case ACTIONS.MESSAGE_FINAL:
-      // Check if this is an intermediate message (before tool calls)
-      const isIntermediate = action.payload.metadata?.is_intermediate;
-
-      return {
-        ...state,
-        // Only stop streaming for final messages, not intermediate ones
-        isStreaming: isIntermediate ? state.isStreaming : false,
-        streamingText: "", // Always clear streaming text (it's now in messages)
-        messages: [
-          ...state.messages,
-          {
-            role: action.payload.role,
-            content: action.payload.content,
-            timestamp: new Date().toISOString(),
-            metadata: action.payload.metadata,
-            // Only attach tool executions to final message, not intermediate
-            toolExecutions: isIntermediate ? [] : state.toolExecutions,
-          },
-        ],
-        // Only clear tool executions for final message
-        toolExecutions: isIntermediate ? state.toolExecutions : [],
-        // Only clear progress for final message
-        runProgress: isIntermediate ? state.runProgress : null,
-      };
-
     case ACTIONS.APP_ERROR:
       return {
         ...state,
@@ -144,7 +106,6 @@ function chatReducer(state, action) {
         },
         isThinking: false,
         activeTool: null,
-        isStreaming: false,
       };
 
     case ACTIONS.ADD_MESSAGE:
@@ -193,9 +154,7 @@ function chatReducer(state, action) {
       return {
         ...state,
         messages: loadedMessages,
-        // Clear streaming state when loading historical messages
-        streamingText: "",
-        isStreaming: false,
+        // Clear state when loading historical messages
         isThinking: false,
         activeTool: null,
         toolExecutions: [],
@@ -210,7 +169,6 @@ function chatReducer(state, action) {
     case ACTIONS.RESET_RESPONSE:
       return {
         ...state,
-        streamingText: "",
         activeTool: null,
         runProgress: null,
         error: null,
@@ -223,12 +181,6 @@ function chatReducer(state, action) {
         thinkingStartTime: action.payload ? Date.now() : null,
       };
 
-    case ACTIONS.SET_STREAMING:
-      return {
-        ...state,
-        isStreaming: action.payload,
-      };
-
     case ACTIONS.SET_ERROR:
       return {
         ...state,
@@ -238,7 +190,6 @@ function chatReducer(state, action) {
           recoverable: true,
         },
         isThinking: false,
-        isStreaming: false,
       };
 
     case ACTIONS.CLEAR_ERROR:
@@ -251,10 +202,8 @@ function chatReducer(state, action) {
       return {
         ...state,
         isThinking: false,
-        isStreaming: false,
         activeTool: null,
         runProgress: null,
-        streamingText: "",
       };
 
     default:

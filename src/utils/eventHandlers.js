@@ -64,37 +64,6 @@ export function handleSSEEvent(event, dispatch) {
       });
       break;
 
-    case "message_delta":
-      dispatch({
-        type: ACTIONS.MESSAGE_DELTA,
-        payload: {
-          delta: event.delta,
-          accumulated_length: event.accumulated_length,
-        },
-      });
-      break;
-
-    case "message_final":
-      console.log(
-        "[EventHandler] Received message_final, is_intermediate:",
-        event.metadata?.is_intermediate
-      );
-      dispatch({
-        type: ACTIONS.MESSAGE_FINAL,
-        payload: {
-          content: event.content,
-          role: event.role,
-          metadata: event.metadata,
-        },
-      });
-      // Only stop streaming if this is NOT an intermediate message
-      // Intermediate messages (before tool calls) have is_intermediate: true
-      if (!event.metadata?.is_intermediate) {
-        dispatch({ type: ACTIONS.SET_STREAMING, payload: false });
-        dispatch({ type: ACTIONS.SET_THINKING, payload: false });
-      }
-      break;
-
     case "app_error":
       dispatch({
         type: ACTIONS.APP_ERROR,
@@ -107,24 +76,13 @@ export function handleSSEEvent(event, dispatch) {
       });
       break;
 
-    // Step 5.3: Handle stream timeout gracefully
+    // Handle stream timeout gracefully
     case "stream_timeout":
       console.warn("[Event] Stream timeout:", event.message);
-      dispatch({
-        type: ACTIONS.APP_ERROR,
-        payload: {
-          error_type: "stream_timeout",
-          error_message:
-            event.message || "Stream timeout - please refresh to see results",
-          recoverable: true,
-        },
-      });
-      // Stop streaming/thinking state
-      dispatch({ type: ACTIONS.SET_STREAMING, payload: false });
-      dispatch({ type: ACTIONS.SET_THINKING, payload: false });
+      // Just log it - response will come via HTTP
       break;
 
-    // Step 5.3: Handle generic errors sent via SSE
+    // Handle generic errors sent via SSE
     case "error":
       console.error("[Event] Stream error:", event.message);
       dispatch({
@@ -152,14 +110,7 @@ export function createEventHandlers(dispatch) {
     onMessage: (event) => handleSSEEvent(event, dispatch),
     onError: (error) => {
       console.error("[SSE] Error:", error);
-      dispatch({
-        type: ACTIONS.APP_ERROR,
-        payload: {
-          error_type: "stream_error",
-          error_message: error.message || "Stream connection error",
-          recoverable: true,
-        },
-      });
+      // Don't dispatch error - SSE is optional, response comes via HTTP
     },
     onOpen: () => {
       console.log("[SSE] Connection opened");

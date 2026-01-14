@@ -2,7 +2,12 @@
  * ChatContainer Component
  * 
  * Main container orchestrating the full chat interface.
- * Handles message sending, SSE streaming, and state management.
+ * Handles message sending and optional SSE for tool progress updates.
+ * 
+ * Architecture (Simplified):
+ * - Messages are sent via POST /chat and response is returned directly
+ * - SSE is optional - only used to show real-time tool progress (tool_start, tool_end)
+ * - No fallback timers needed - response is guaranteed via HTTP
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -10,26 +15,18 @@ import { useChatContext } from '../../context/ChatContext';
 import { useChatState } from '../../hooks/useChatState';
 import { useSSE } from '../../hooks/useSSE';
 import { handleSSEEvent } from '../../utils/eventHandlers';
-import { sendMessage, getTestStreamUrl, getContext } from '../../api/client';
+import { sendMessage } from '../../api/client';
 
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import WelcomeScreen from './WelcomeScreen';
 
-// Toggle for testing: set to true to use mock stream instead of real LLM
-const USE_TEST_STREAM = false;
-
-// Fallback timer duration (ms) - if SSE doesn't receive message_final
-const FALLBACK_TIMEOUT = 30000;
-
 function ChatContainer() {
   const { conversationId, setConversationId, refreshConversations, currentContext, contextLoading } = useChatContext();
   const [state, dispatch] = useChatState();
   const [inputDisabled, setInputDisabled] = useState(false);
-  const fallbackTimerRef = useRef(null);
-  const pendingMessageRef = useRef(null);
-  const previousConversationIdRef = useRef(conversationId); // Track previous conversation ID
-  const lastSequenceRef = useRef(0); // Track last sequence number for this conversation
+  const previousConversationIdRef = useRef(conversationId);
+  const lastSequenceRef = useRef(0);
   
   // Update lastSequence when context loads (for existing conversations)
   useEffect(() => {
@@ -40,129 +37,38 @@ function ChatContainer() {
   }, [currentContext]);
   
   // Calculate the highest sequence number from loaded context
-  // This ensures SSE starts from the right point for existing conversations  
   const getInitialSequence = useCallback(() => {
-    // Return the last sequence we tracked for this conversation
     return lastSequenceRef.current;
   }, []);
   
-  // Track sequence numbers from SSE events
+  // Handle SSE events (for tool progress updates only)
   const onSSEEvent = useCallback((event) => {
-    // Update last sequence if present
     if (event.sequence && event.sequence > lastSequenceRef.current) {
       lastSequenceRef.current = event.sequence;
     }
-    
-    // Clear fallback timer immediately when message_final is received
-    // This prevents race condition between state updates and timer firing
-    if (event.event_type === 'message_final' && !event.metadata?.is_intermediate) {
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
-        console.log('[ChatContainer] Cleared fallback timer on message_final');
-      }
+    // Only handle tool progress events from SSE
+    // message_final is now handled via HTTP response
+    if (['thinking_start', 'thinking_end', 'tool_start', 'tool_end', 'run_progress', 'app_error'].includes(event.event_type)) {
+      handleSSEEvent(event, dispatch);
     }
-    
-    handleSSEEvent(event, dispatch);
   }, [dispatch]);
   
-  // SSE connection for streaming events
+  // SSE connection for tool progress updates (only when actively thinking)
+  // This prevents unnecessary long-lived connections when just viewing history
   const { isConnected, error: sseError } = useSSE(
     conversationId,
     onSSEEvent,
-    !!conversationId && state.isStreaming,
-    USE_TEST_STREAM ? getTestStreamUrl() : null,
-    getInitialSequence() // Pass the initial sequence
+    !!conversationId && state.isThinking,  // Only connect during active message processing
+    null,
+    getInitialSequence()
   );
 
-  // Clear fallback timer
-  const clearFallbackTimer = useCallback(() => {
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
-  }, []);
-
-  // Handle message_final received - clear timer, enable input, and refresh conversations
-  useEffect(() => {
-    if (!state.isStreaming && !state.isThinking) {
-      clearFallbackTimer();
-      setInputDisabled(false);
-      pendingMessageRef.current = null;
-      
-      // Refresh conversations list to show the new/updated conversation
-      if (conversationId) {
-        refreshConversations();
-      }
-    }
-  }, [state.isStreaming, state.isThinking, clearFallbackTimer, conversationId, refreshConversations]);
-
-  // Handle fallback when SSE doesn't deliver message_final
-  const handleFallback = useCallback(async () => {
-    console.warn('Fallback triggered - SSE did not deliver message_final');
-    
-    // Reset streaming state
-    dispatch({ type: 'SET_STREAMING', payload: false });
-    dispatch({ type: 'SET_THINKING', payload: false });
-    
-    // Step 2.4: Try to fetch the actual response from context API
-    // The response should be saved in MongoDB even if SSE failed
-    if (conversationId) {
-      try {
-        console.log('[Fallback] Fetching conversation context...');
-        const contextData = await getContext(conversationId);
-        
-        // Get the last assistant message (the one we missed via SSE)
-        const lastMessage = contextData.messages?.[contextData.messages.length - 1];
-        
-        if (lastMessage && lastMessage.role === 'assistant') {
-          console.log('[Fallback] Found assistant response in context, displaying it');
-          dispatch({
-            type: 'ADD_MESSAGE',
-            payload: {
-              role: 'assistant',
-              content: lastMessage.content,
-              timestamp: lastMessage.timestamp || new Date().toISOString(),
-              metadata: lastMessage.metadata,
-            },
-          });
-        } else {
-          // No assistant message found - show error message
-          console.warn('[Fallback] No assistant message found in context');
-          dispatch({
-            type: 'ADD_MESSAGE',
-            payload: {
-              role: 'assistant',
-              content: '_Response received but streaming interrupted. Please refresh to see the response._',
-              timestamp: new Date().toISOString(),
-            },
-          });
-        }
-      } catch (error) {
-        console.error('[Fallback] Failed to fetch context:', error);
-        // Fallback to generic message if context fetch fails
-        dispatch({
-          type: 'ADD_MESSAGE',
-          payload: {
-            role: 'assistant',
-            content: '_Response received but streaming interrupted. Please refresh to see the response._',
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    }
-    
-    setInputDisabled(false);
-    await refreshConversations();
-  }, [dispatch, refreshConversations, conversationId]);
-
-  // Send message handler
+  // Send message handler - now synchronous with direct response
   const handleSendMessage = useCallback(async (content) => {
     if (!content.trim() || inputDisabled) return;
     
     // Disable input while processing
     setInputDisabled(true);
-    clearFallbackTimer();
     
     // Add user message immediately
     const userMessage = {
@@ -175,29 +81,12 @@ function ChatContainer() {
     // Reset state for new response
     dispatch({ type: 'RESET_RESPONSE' });
     dispatch({ type: 'SET_THINKING', payload: true });
-    dispatch({ type: 'SET_STREAMING', payload: true });
-    
-    // Store pending message for fallback
-    pendingMessageRef.current = content.trim();
     
     try {
-      // In test mode, skip backend call and use fake conversation ID
-      if (USE_TEST_STREAM) {
-        const fakeConversationId = conversationId || `test_conv_${Date.now()}`;
-        if (!conversationId) {
-          setConversationId(fakeConversationId);
-        }
-        
-        // Start fallback timer for streaming
-        fallbackTimerRef.current = setTimeout(handleFallback, FALLBACK_TIMEOUT);
-        return;
-      }
-      
-      // Send message to backend
+      // Send message to backend - waits for complete response
       const response = await sendMessage({
         message: content.trim(),
         conversation_id: conversationId,
-        stream: true,
       });
       
       // Update conversation ID if new
@@ -205,71 +94,59 @@ function ChatContainer() {
         setConversationId(response.conversation_id);
       }
       
-      // If we got a synchronous response (non-streaming fallback)
-      if (response.response && !response.stream_started) {
-        dispatch({ type: 'SET_THINKING', payload: false });
-        dispatch({ type: 'SET_STREAMING', payload: false });
+      // Stop thinking state
+      dispatch({ type: 'SET_THINKING', payload: false });
+      
+      // Handle response
+      if (response.status === 'completed' && response.message) {
         dispatch({
           type: 'ADD_MESSAGE',
           payload: {
             role: 'assistant',
-            content: response.response,
+            content: response.message,
             timestamp: new Date().toISOString(),
             run_ids: response.run_ids,
             tool_executions: response.tool_executions,
+            token_usage: response.token_usage,
           },
         });
-        setInputDisabled(false);
-        pendingMessageRef.current = null;
-        await refreshConversations();
-        return;
+      } else if (response.status === 'error') {
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: response.message || 'An error occurred while processing your request' 
+        });
       }
       
-      // Start fallback timer for streaming
-      fallbackTimerRef.current = setTimeout(handleFallback, FALLBACK_TIMEOUT);
+      setInputDisabled(false);
+      await refreshConversations();
       
     } catch (error) {
       console.error('Error sending message:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to send message' });
       dispatch({ type: 'SET_THINKING', payload: false });
-      dispatch({ type: 'SET_STREAMING', payload: false });
       setInputDisabled(false);
-      pendingMessageRef.current = null;
     }
   }, [
     conversationId,
     inputDisabled,
-    clearFallbackTimer,
     dispatch,
-    handleFallback,
     refreshConversations,
     setConversationId,
   ]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearFallbackTimer();
-    };
-  }, [clearFallbackTimer]);
-
-  // Reset state when conversation changes (but not when creating new conversation)
+  // Reset state when conversation changes
   useEffect(() => {
     const previousId = previousConversationIdRef.current;
     
-    // Reset when switching conversations or starting new chat
-    // Don't reset when going from null -> new conv (that's creation, not switching)
     if (conversationId !== previousId && previousId !== null) {
       console.log('[ChatContainer] Switching conversations, resetting state');
       dispatch({ type: 'RESET' });
       setInputDisabled(false);
-      clearFallbackTimer();
-      lastSequenceRef.current = 0; // Reset sequence tracking for new conversation
+      lastSequenceRef.current = 0;
     }
     
-    // Update the ref for next comparison
     previousConversationIdRef.current = conversationId;
-  }, [conversationId, dispatch, clearFallbackTimer]);
+  }, [conversationId, dispatch]);
 
   // Load messages from context when conversation changes
   useEffect(() => {
@@ -278,61 +155,28 @@ function ChatContainer() {
         type: 'LOAD_MESSAGES', 
         payload: { messages: currentContext.messages } 
       });
-      
-      // Step 4.3: Handle "in-progress" conversations on reload
-      // If user refreshes while a request was processing, reconnect to SSE
-      if (currentContext.status === 'processing') {
-        console.log('[ChatContainer] Detected in-progress conversation, reconnecting to stream...');
-        dispatch({ type: 'SET_THINKING', payload: true });
-        dispatch({ type: 'SET_STREAMING', payload: true });
-        setInputDisabled(true);
-        
-        // Update sequence to resume from where we left off
-        if (currentContext.last_event_sequence) {
-          lastSequenceRef.current = currentContext.last_event_sequence;
-        }
-        
-        // Start fallback timer in case stream doesn't complete
-        fallbackTimerRef.current = setTimeout(handleFallback, FALLBACK_TIMEOUT);
-      }
     }
-  }, [currentContext, dispatch, handleFallback]);
+  }, [currentContext, dispatch]);
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
     console.log('Request cancelled by user');
-    clearFallbackTimer();
     dispatch({ type: 'CANCEL_REQUEST' });
     setInputDisabled(false);
-    pendingMessageRef.current = null;
-  }, [clearFallbackTimer, dispatch]);
+  }, [dispatch]);
 
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
   
   // Is request currently processing?
-  const isProcessing = state.isThinking || state.isStreaming || inputDisabled;
+  const isProcessing = state.isThinking || inputDisabled;
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Test mode indicator */}
-      {USE_TEST_STREAM && (
-        <div className="bg-blue-50 text-blue-800 text-sm px-4 py-2 text-center border-b border-blue-200 font-medium">
-          🧪 Test Mode: Using mock stream (no LLM calls)
-        </div>
-      )}
-      
-      {/* Connection indicator */}
-      {state.isStreaming && !isConnected && (
-        <div className="bg-yellow-50 text-yellow-800 text-sm px-4 py-2 text-center border-b border-yellow-200">
-          Connecting to stream...
-        </div>
-      )}
-      
       {/* SSE Error indicator */}
       {sseError && (
-        <div className="bg-red-50 text-red-800 text-sm px-4 py-2 text-center border-b border-red-200">
-          Stream error: {sseError}
+        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-2 text-center border-b border-yellow-200">
+          Progress stream unavailable (response will still be delivered)
         </div>
       )}
       
@@ -384,8 +228,6 @@ function ChatContainer() {
             activeTool={state.activeTool}
             toolExecutions={state.toolExecutions}
             runProgress={state.runProgress}
-            streamingText={state.streamingText}
-            isStreaming={state.isStreaming}
             error={state.error}
           />
         )}
@@ -406,13 +248,7 @@ function ChatContainer() {
       
       {/* Status indicator */}
       <div className="flex items-center justify-center gap-2 py-2 text-xs text-gray-400 border-t border-gray-100">
-        {state.isStreaming && (
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Streaming
-          </span>
-        )}
-        {state.isThinking && !state.isStreaming && (
+        {state.isThinking && (
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
             Thinking

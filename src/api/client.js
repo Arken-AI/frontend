@@ -2,23 +2,22 @@
  * API Client for Backend Communication
  *
  * Provides functions to interact with the FastAPI backend.
+ *
+ * Architecture:
+ * - POST /chat: Send message and receive complete response (synchronous)
+ * - SSE /chat/{id}/stream: Optional real-time tool progress updates
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
 /**
- * Send a chat message
+ * Send a chat message and wait for complete response
  * @param {Object} params - Message parameters
  * @param {string} params.message - User message
  * @param {string|null} params.conversation_id - Existing conversation ID or null for new
- * @param {boolean} params.stream - Whether to stream the response (default: true)
- * @returns {Promise<Object>} Response with conversation_id, message, run_ids, etc.
+ * @returns {Promise<Object>} Response with conversation_id, message, status, run_ids, tool_executions, token_usage
  */
-export async function sendMessage({
-  message,
-  conversation_id = null,
-  stream = true,
-}) {
+export async function sendMessage({ message, conversation_id = null }) {
   const response = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     headers: {
@@ -106,19 +105,11 @@ export async function checkHealth() {
 }
 
 /**
- * Get SSE stream URL for a conversation
+ * Get SSE stream URL for a conversation (used for tool progress updates)
  * @param {string} conversationId - Conversation ID
  * @param {number} afterSequence - Resume from this sequence number
  * @returns {string} SSE endpoint URL
  */
 export function getStreamUrl(conversationId, afterSequence = 0) {
   return `${API_BASE}/chat/${conversationId}/stream?after_sequence=${afterSequence}`;
-}
-
-/**
- * Get test SSE stream URL (dummy stream without LLM calls)
- * @returns {string} Test SSE endpoint URL
- */
-export function getTestStreamUrl() {
-  return `${API_BASE}/test/stream`;
 }

@@ -93,7 +93,7 @@ export default function MarkdownRenderer({ content }) {
           return <CodeBlock className={className}>{children}</CodeBlock>;
         },
         
-        // Pre (wraps code blocks) - prevent wrapping in paragraph
+        // Pre (wraps code blocks) - render as fragment to prevent p > pre nesting
         pre({ children }) {
           return <>{children}</>;
         },
@@ -119,16 +119,22 @@ export default function MarkdownRenderer({ content }) {
           );
         },
         
-        // Paragraphs - check for block-level children
+        // Paragraphs - avoid wrapping block-level elements
         p({ children, node }) {
-          // Check if paragraph contains code blocks (which render as divs)
+          // Check if paragraph contains code blocks, which are block-level
           const hasCodeBlock = node?.children?.some(
             child => child.type === 'element' && child.tagName === 'code' && 
             child.properties?.className?.some(c => c.startsWith('language-'))
           );
           
-          // If it contains block elements, render as div to avoid nesting errors
-          if (hasCodeBlock) {
+          // Check if contains other block elements (divs, pre tags, etc.)
+          const hasBlockElement = node?.children?.some(
+            child => child.type === 'element' && 
+            ['pre', 'div', 'table', 'blockquote'].includes(child.tagName)
+          );
+          
+          // If it contains block elements, render as div to maintain valid HTML
+          if (hasCodeBlock || hasBlockElement) {
             return <div className="mb-2 last:mb-0">{children}</div>;
           }
           

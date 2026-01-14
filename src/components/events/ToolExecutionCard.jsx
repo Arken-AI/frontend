@@ -46,10 +46,10 @@ export default function ToolExecutionCard({
   
   const config = statusConfig[status] || statusConfig.running;
   
-  // Format tool name for display
+  // Format tool name for display (with safety check)
   const displayName = toolName
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase());
+    ? toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    : 'Unknown Tool';
   
   return (
     <div className={`rounded-lg border ${config.border} ${config.bg} overflow-hidden`}>
