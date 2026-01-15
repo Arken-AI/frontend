@@ -9,7 +9,6 @@
 
 import { useState } from 'react';
 import { Copy, Check, AlertCircle, XCircle, Loader2 } from 'lucide-react';
-import { formatTime } from '../../utils/formatters';
 import MarkdownRenderer from '../markdown/MarkdownRenderer';
 
 // Status indicator component
@@ -49,7 +48,6 @@ export default function MessageBubble({ message }) {
   const [copied, setCopied] = useState(false);
   
   const isUser = message.role === 'user';
-  const timestamp = message.timestamp ? formatTime(message.timestamp) : '';
   const status = message.status || 'complete';
   
   const handleCopy = async () => {
@@ -69,9 +67,6 @@ export default function MessageBubble({ message }) {
           <div className="bg-blue-500 text-white rounded-2xl rounded-br-md px-4 py-3">
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           </div>
-          {timestamp && (
-            <p className="text-xs text-gray-400 mt-1 text-right">{timestamp}</p>
-          )}
         </div>
       </div>
     );
@@ -104,17 +99,14 @@ export default function MessageBubble({ message }) {
           </button>
         </div>
         
-        {/* Timestamp and metadata */}
-        <div className="flex items-center gap-2 mt-1 px-6">
-          {timestamp && (
-            <p className="text-xs text-gray-400">{timestamp}</p>
-          )}
-          {message.metadata?.tool_calls && message.metadata.tool_calls.length > 0 && (
+        {/* Metadata */}
+        {message.metadata?.tool_calls && message.metadata.tool_calls.length > 0 && (
+          <div className="flex items-center gap-2 mt-1 px-6">
             <span className="text-xs text-gray-400">
-              • {message.metadata.tool_calls.length} tool{message.metadata.tool_calls.length > 1 ? 's' : ''} used
+              {message.metadata.tool_calls.length} tool{message.metadata.tool_calls.length > 1 ? 's' : ''} used
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

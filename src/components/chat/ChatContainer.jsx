@@ -24,7 +24,6 @@ import WelcomeScreen from './WelcomeScreen';
 function ChatContainer() {
   const { conversationId, setConversationId, refreshConversations, currentContext, contextLoading } = useChatContext();
   const [state, dispatch] = useChatState();
-  const [inputDisabled, setInputDisabled] = useState(false);
   const previousConversationIdRef = useRef(conversationId);
   const lastSequenceRef = useRef(0);
   
@@ -65,10 +64,7 @@ function ChatContainer() {
 
   // Send message handler - now synchronous with direct response
   const handleSendMessage = useCallback(async (content) => {
-    if (!content.trim() || inputDisabled) return;
-    
-    // Disable input while processing
-    setInputDisabled(true);
+    if (!content.trim() || state.isThinking) return;
     
     // Add user message immediately
     const userMessage = {
@@ -117,18 +113,15 @@ function ChatContainer() {
         });
       }
       
-      setInputDisabled(false);
       await refreshConversations();
       
     } catch (error) {
       console.error('Error sending message:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to send message' });
       dispatch({ type: 'SET_THINKING', payload: false });
-      setInputDisabled(false);
     }
   }, [
     conversationId,
-    inputDisabled,
     dispatch,
     refreshConversations,
     setConversationId,
@@ -141,7 +134,6 @@ function ChatContainer() {
     if (conversationId !== previousId && previousId !== null) {
       console.log('[ChatContainer] Switching conversations, resetting state');
       dispatch({ type: 'RESET' });
-      setInputDisabled(false);
       lastSequenceRef.current = 0;
     }
     
@@ -162,14 +154,13 @@ function ChatContainer() {
   const handleCancelRequest = useCallback(() => {
     console.log('Request cancelled by user');
     dispatch({ type: 'CANCEL_REQUEST' });
-    setInputDisabled(false);
   }, [dispatch]);
 
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
   
   // Is request currently processing?
-  const isProcessing = state.isThinking || inputDisabled;
+  const isProcessing = state.isThinking;
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -239,11 +230,7 @@ function ChatContainer() {
         onCancel={handleCancelRequest}
         disabled={false}
         isProcessing={isProcessing}
-        placeholder={
-          isProcessing
-            ? 'Waiting for response...'
-            : 'Ask about sugar processing calculations...'
-        }
+        placeholder="Ask about sugar processing calculations..."
       />
       
       {/* Status indicator */}

@@ -170,11 +170,6 @@ function ConversationItem({ conversation, isActive, isDeleting, onClick, onDelet
                 ⚙️ Simulated
               </span>
             )}
-            
-            {/* Time */}
-            <span className="text-xs text-gray-400">
-              {formatRelativeTime(conversation.updated_at)}
-            </span>
           </div>
         </div>
 

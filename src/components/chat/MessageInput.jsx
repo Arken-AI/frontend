@@ -48,14 +48,18 @@ export default function MessageInput({
   
   const handleSend = async () => {
     const trimmedMessage = message.trim();
-    if (!trimmedMessage || disabled || isSending || isProcessing) return;
+    if (!trimmedMessage || disabled || isSending) return;
     
+    // Clear message immediately before sending
+    setMessage('');
     setIsSending(true);
+    
     try {
       await onSend(trimmedMessage);
-      setMessage('');
     } catch (err) {
       console.error('Failed to send message:', err);
+      // Restore message on error
+      setMessage(trimmedMessage);
     } finally {
       setIsSending(false);
     }
@@ -67,8 +71,8 @@ export default function MessageInput({
     }
   };
   
-  const isDisabled = disabled || isSending || isProcessing;
-  const canSend = message.trim().length > 0 && !isDisabled;
+  const isDisabled = disabled || isSending;
+  const canSend = message.trim().length > 0 && !isDisabled && !isProcessing;
   
   return (
     <div className="border-t bg-white p-4">
@@ -82,7 +86,7 @@ export default function MessageInput({
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              disabled={isDisabled}
+              disabled={disabled}
               rows={1}
               className={`
                 w-full resize-none rounded-xl border border-gray-300 

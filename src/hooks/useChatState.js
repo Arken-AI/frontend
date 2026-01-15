@@ -170,6 +170,7 @@ function chatReducer(state, action) {
       return {
         ...state,
         activeTool: null,
+        toolExecutions: [], // Clear tool executions when starting new response
         runProgress: null,
         error: null,
       };
@@ -179,6 +180,10 @@ function chatReducer(state, action) {
         ...state,
         isThinking: action.payload,
         thinkingStartTime: action.payload ? Date.now() : null,
+        // Clear transient UI elements when thinking stops
+        toolExecutions: action.payload ? state.toolExecutions : [],
+        activeTool: action.payload ? state.activeTool : null,
+        runProgress: action.payload ? state.runProgress : null,
       };
 
     case ACTIONS.SET_ERROR:
