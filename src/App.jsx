@@ -1,20 +1,23 @@
 /**
  * Main App Component
  * 
- * Wraps the application with providers and renders the main layout.
+ * Sets up routing for the application:
+ * - "/" : Chat interface (existing)
+ * - "/results/:runId" : Results viewer (new)
  */
 
-import { ChatProvider } from './context/ChatContext';
-import Layout from './components/layout/Layout';
-import ChatContainer from './components/chat/ChatContainer';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import ChatPage from './pages/ChatPage';
+import ResultsPage from './pages/ResultsPage';
 
 function App() {
   return (
-    <ChatProvider>
-      <Layout>
-        <ChatContainer />
-      </Layout>
-    </ChatProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<ChatPage />} />
+        <Route path="/results/:runId" element={<ResultsPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
