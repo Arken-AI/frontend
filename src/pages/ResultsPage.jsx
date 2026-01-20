@@ -5,7 +5,7 @@
  * Displays flowsheet diagram, equipment details, and contextual chat.
  */
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 // Sidebar sections configuration
@@ -17,12 +17,24 @@ const SIDEBAR_SECTIONS = [
   { id: 'history', icon: '📊', label: 'Run History', title: 'Run History' },
 ];
 
+// Sidebar size constraints
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH = 500;
+const SIDEBAR_DEFAULT_WIDTH = 288;
+const SIDEBAR_COLLAPSE_THRESHOLD = 150;
+
 export default function ResultsPage() {
   const { runId } = useParams();
   
   // Left sidebar state
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('equipment');
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
 
   // Handle activity bar icon click
   const handleActivityBarClick = (sectionId) => {
@@ -36,11 +48,56 @@ export default function ResultsPage() {
     }
   };
 
+  // Handle drag start
+  const handleDragStart = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = sidebarWidth;
+    
+    // Add event listeners for drag
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+  }, [sidebarWidth]);
+
+  // Handle drag move
+  const handleDragMove = useCallback((e) => {
+    const delta = e.clientX - dragStartX.current;
+    let newWidth = dragStartWidth.current + delta;
+    
+    // Collapse if dragged below threshold
+    if (newWidth < SIDEBAR_COLLAPSE_THRESHOLD) {
+      setIsLeftSidebarOpen(false);
+      return;
+    }
+    
+    // Ensure sidebar is open when dragging
+    if (!isLeftSidebarOpen && newWidth >= SIDEBAR_COLLAPSE_THRESHOLD) {
+      setIsLeftSidebarOpen(true);
+    }
+    
+    // Clamp to min/max
+    newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, newWidth));
+    setSidebarWidth(newWidth);
+  }, [isLeftSidebarOpen]);
+
+  // Handle drag end
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+  }, [handleDragMove]);
+
+  // Handle double-click to toggle
+  const handleDoubleClick = () => {
+    setIsLeftSidebarOpen(!isLeftSidebarOpen);
+  };
+
   // Get current section config
   const currentSection = SIDEBAR_SECTIONS.find(s => s.id === activeSection);
 
   return (
-    <div className="h-screen flex flex-col bg-surface">
+    <div className={`h-screen flex flex-col bg-surface ${isDragging ? 'select-none' : ''}`}>
       {/* Header */}
       <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-surface">
         <div className="flex items-center gap-4">
@@ -70,7 +127,7 @@ export default function ResultsPage() {
       {/* Main Content - 3 Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Activity Bar */}
-        <div className="w-12 bg-surface-secondary border-r border-border flex flex-col items-center py-2 gap-1">
+        <div className="w-12 bg-surface-secondary border-r border-border flex flex-col items-center py-2 gap-1 flex-shrink-0">
           {SIDEBAR_SECTIONS.map((section) => (
             <button
               key={section.id}
@@ -85,22 +142,45 @@ export default function ResultsPage() {
           ))}
         </div>
 
-        {/* Left Sidebar - Collapsible */}
+        {/* Left Sidebar - Resizable */}
         <div 
-          className={`bg-surface border-r border-border flex flex-col overflow-hidden transition-all duration-200 ease-in-out ${
-            isLeftSidebarOpen ? 'w-72' : 'w-0'
-          }`}
+          className="bg-surface flex flex-shrink-0 relative"
+          style={{ 
+            width: isLeftSidebarOpen ? sidebarWidth : 0,
+            transition: isDragging ? 'none' : 'width 200ms ease-in-out'
+          }}
         >
-          {/* Sidebar Header */}
-          <div className="p-3 border-b border-border min-w-[288px]">
-            <h2 className="text-sm font-semibold text-content">{currentSection?.label}</h2>
+          {/* Sidebar Content Container */}
+          <div 
+            className="flex flex-col overflow-hidden h-full"
+            style={{ width: sidebarWidth }}
+          >
+            {/* Sidebar Header */}
+            <div className="p-3 border-b border-border">
+              <h2 className="text-sm font-semibold text-content whitespace-nowrap">{currentSection?.label}</h2>
+            </div>
+            
+            {/* Sidebar Content */}
+            <div className="flex-1 p-4 overflow-auto">
+              <SidebarContent section={activeSection} />
+            </div>
           </div>
-          
-          {/* Sidebar Content */}
-          <div className="flex-1 p-4 overflow-auto min-w-[288px]">
-            <SidebarContent section={activeSection} />
+
+          {/* Resize Handle */}
+          <div
+            className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group z-10
+              ${isDragging ? 'bg-primary' : 'bg-transparent hover:bg-primary'}
+              transition-colors duration-150`}
+            onMouseDown={handleDragStart}
+            onDoubleClick={handleDoubleClick}
+          >
+            {/* Wider hit area for easier grabbing */}
+            <div className="absolute -left-1 -right-1 top-0 bottom-0" />
           </div>
         </div>
+
+        {/* Border between sidebar and canvas (only when sidebar is open) */}
+        {isLeftSidebarOpen && <div className="w-px bg-border flex-shrink-0" />}
 
         {/* Middle Canvas */}
         <div className="flex-1 canvas-grid flex items-center justify-center">
