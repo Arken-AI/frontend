@@ -1,26 +1,148 @@
 @import "tailwindcss";
 
-/* Custom scrollbar */
+/* ============================================
+   CSS Variables
+   ============================================ */
+:root {
+  /* Primary brand colors */
+  --color-primary: #0066CC;
+  --color-primary-hover: #0052A3;
+  --color-primary-light: #E6F0FA;
+  
+  /* Surface colors (backgrounds) */
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F5F5F5;
+  --color-surface-tertiary: #EBEBEB;
+  
+  /* Border colors */
+  --color-border: #E0E0E0;
+  --color-border-secondary: #D0D0D0;
+  
+  /* Text colors */
+  --color-text-primary: #212529;
+  --color-text-secondary: #6C757D;
+  --color-text-tertiary: #9CA3AF;
+  
+  /* Status colors */
+  --color-success: #28A745;
+  --color-warning: #FFC107;
+  --color-error: #DC3545;
+  --color-info: #0066CC;
+  
+  /* Activity bar */
+  --color-activity-bar: #F0F0F0;
+  --color-activity-bar-active: #E0E0E0;
+  
+  /* Canvas */
+  --color-canvas-bg: #FAFAFA;
+  --color-canvas-grid: #E8E8E8;
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* ============================================
+   Custom Scrollbar
+   ============================================ */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background-color: rgb(243 244 246);
+  background-color: var(--color-surface-secondary);
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgb(209 213 219);
+  background-color: var(--color-border);
   border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(156 163 175);
+  background-color: var(--color-border-secondary);
 }
 
-/* Typing cursor animation */
+/* ============================================
+   Typing Cursor Animation
+   ============================================ */
 .typing-cursor::after {
   content: '|';
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   margin-left: 0.125rem;
+}
+
+/* ============================================
+   Skeleton Loading
+   ============================================ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-secondary) 25%,
+    var(--color-surface-tertiary) 50%,
+    var(--color-surface-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   Panel Resize Handle
+   ============================================ */
+.resize-handle {
+  background-color: transparent;
+  transition: background-color 150ms ease;
+}
+
+.resize-handle:hover {
+  background-color: var(--color-primary);
+}
+
+.resize-handle:active {
+  background-color: var(--color-primary);
+}
+
+/* ============================================
+   Focus Styles
+   ============================================ */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-light), 0 0 0 4px var(--color-primary);
+}
+
+/* ============================================
+   Activity Bar Styles
+   ============================================ */
+.activity-bar-item {
+  color: var(--color-text-secondary);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.activity-bar-item:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-activity-bar-active);
+}
+
+.activity-bar-item.active {
+  color: var(--color-primary);
+  background-color: var(--color-activity-bar-active);
+  border-left: 2px solid var(--color-primary);
+}
+
+/* ============================================
+   Canvas Grid Background
+   ============================================ */
+.canvas-grid {
+  background-color: var(--color-canvas-bg);
+  background-image: radial-gradient(circle, var(--color-canvas-grid) 1px, transparent 1px);
+  background-size: 20px 20px;
 }

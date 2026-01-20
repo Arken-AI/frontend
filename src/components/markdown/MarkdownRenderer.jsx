@@ -24,22 +24,22 @@ function CodeBlock({ children, className }) {
   return (
     <div className="relative group my-2">
       {language && (
-        <div className="absolute top-0 left-0 px-2 py-1 text-xs text-gray-500 bg-gray-200 rounded-tl-md rounded-br-md">
+        <div className="absolute top-0 left-0 px-2 py-1 text-xs text-content-secondary bg-surface-tertiary rounded-tl-md rounded-br-md">
           {language}
         </div>
       )}
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded bg-gray-200 hover:bg-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 p-1.5 rounded bg-surface-tertiary hover:bg-border opacity-0 group-hover:opacity-100 transition-opacity"
         title="Copy code"
       >
         {copied ? (
           <Check className="w-3.5 h-3.5 text-green-600" />
         ) : (
-          <Copy className="w-3.5 h-3.5 text-gray-600" />
+          <Copy className="w-3.5 h-3.5 text-content-secondary" />
         )}
       </button>
-      <pre className={`bg-gray-800 text-gray-100 rounded-md p-4 overflow-x-auto text-sm ${language ? 'pt-8' : ''}`}>
+      <pre className={`bg-gray-800 dark:bg-gray-900 text-gray-100 rounded-md p-4 overflow-x-auto text-sm ${language ? 'pt-8' : ''}`}>
         <code>{code}</code>
       </pre>
     </div>
@@ -50,7 +50,7 @@ function CodeBlock({ children, className }) {
 function Table({ children }) {
   return (
     <div className="overflow-x-auto my-4">
-      <table className="min-w-full border-collapse border border-gray-300 text-sm">
+      <table className="min-w-full border-collapse border border-border text-sm">
         {children}
       </table>
     </div>
@@ -58,17 +58,17 @@ function Table({ children }) {
 }
 
 function TableHead({ children }) {
-  return <thead className="bg-gray-100">{children}</thead>;
+  return <thead className="bg-surface-secondary">{children}</thead>;
 }
 
 function TableRow({ children }) {
-  return <tr className="border-b border-gray-200 hover:bg-gray-50">{children}</tr>;
+  return <tr className="border-b border-border hover:bg-surface-secondary">{children}</tr>;
 }
 
 function TableCell({ children, isHeader }) {
   const Component = isHeader ? 'th' : 'td';
   return (
-    <Component className={`border border-gray-300 px-3 py-2 text-left ${isHeader ? 'font-semibold bg-gray-100' : ''}`}>
+    <Component className={`border border-border px-3 py-2 text-left ${isHeader ? 'font-semibold bg-surface-secondary' : ''}`}>
       {children}
     </Component>
   );
@@ -85,7 +85,7 @@ export default function MarkdownRenderer({ content }) {
         code({ node, inline, className, children, ...props }) {
           if (inline) {
             return (
-              <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+              <code className="bg-surface-tertiary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                 {children}
               </code>
             );
@@ -112,7 +112,7 @@ export default function MarkdownRenderer({ content }) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline"
+              className="text-primary hover:text-primary-hover underline"
             >
               {children}
             </a>
@@ -163,15 +163,15 @@ export default function MarkdownRenderer({ content }) {
         // Blockquote
         blockquote({ children }) {
           return (
-            <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-2">
+            <blockquote className="border-l-4 border-border pl-4 italic text-content-secondary my-2">
               {children}
             </blockquote>
           );
         },
         
-        // Horizontal rule
+        // Horizontal rule - very subtle, almost invisible
         hr() {
-          return <hr className="my-4 border-gray-300" />;
+          return <hr className="my-4 border-0 h-px" style={{ backgroundColor: 'rgba(128, 128, 128, 0.15)' }} />;
         },
       }}
     >

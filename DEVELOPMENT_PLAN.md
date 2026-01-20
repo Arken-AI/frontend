@@ -733,7 +733,6 @@ Example:
 - Activity bar with clickable icons (VS Code style)
 - Sidebar sections (placeholder content)
 - Panel collapse/expand functionality
-- Dark mode support from start
 - Skeleton loading components
 - Basic transition animations
 
@@ -746,7 +745,6 @@ Example:
 - [ ] Panels resize smoothly with drag handles
 - [ ] Activity bar switches sidebar content
 - [ ] Responsive on different screen sizes
-- [ ] Dark/light mode toggle works
 - [ ] Skeleton loaders display during data fetch
 
 ---
@@ -900,16 +898,16 @@ Example:
 
 ### 8.1 Color Palette
 
-| Purpose | Light Mode | Dark Mode |
-|---------|------------|-----------|
-| Background | #FFFFFF | #1E1E1E |
-| Surface | #F5F5F5 | #252526 |
-| Primary | #0066CC | #4DA6FF |
-| Success | #28A745 | #4CAF50 |
-| Warning | #FFC107 | #FFB300 |
-| Error | #DC3545 | #F44336 |
-| Text Primary | #212529 | #E0E0E0 |
-| Text Secondary | #6C757D | #9E9E9E |
+| Purpose | Color |
+|---------|-------|
+| Background | #FFFFFF |
+| Surface | #F5F5F5 |
+| Primary | #0066CC |
+| Success | #28A745 |
+| Warning | #FFC107 |
+| Error | #DC3545 |
+| Text Primary | #212529 |
+| Text Secondary | #6C757D |
 
 ### 8.2 Status Indicators
 
@@ -990,26 +988,25 @@ Each equipment type has a distinct icon (from `topology.nodes[].icon`):
 
 | # | Question | Decision |
 |---|----------|----------|
-| 1 | Dark mode from Phase 1 or Phase 6? | **Phase 1** - Include from start |
-| 2 | Run history persist to localStorage? | Session-based (in-memory) for now |
-| 3 | Equipment selection mode? | **Single selection only** (multi-select later) |
-| 4 | Activity bar icons? | **Fixed set** (Equipment, Details, Thermo, Warnings, History) |
-| 5 | Flow direction? | **Left-to-right** following process topology |
-| 6 | Zoom/Pan enabled? | **Yes** |
-| 7 | Layout mode? | **Both**: Auto-layout default + user-draggable when unlocked |
-| 8 | Chat API? | Use existing backend SSE implementation |
-| 9 | Constraint display? | **Always visible** below input (label style) |
-| 10 | Validation behavior? | **Block invalid values** - user cannot exceed constraints |
-| 11 | Equipment inputs source? | Include in original simulation request (display those) |
-| 12 | Feed/Product nodes? | **Visible nodes** on left/right edges (not floating edges) |
-| 13 | Edge routing? | **Straight lines** for simple, **waypoints** for complex routing |
-| 14 | Application architecture? | **Two-page app**: `/` (chat), `/results/:runId` (3-panel viewer) |
-| 15 | Results page navigation? | **Route-based** with URL reflecting current run ID |
-| 16 | Run switching behavior? | **URL updates** (`pushState`), browser back/forward works |
-| 17 | Run caching? | **In-memory cache** (last 10 runs) for instant switching |
-| 18 | Transition animations? | **Framer Motion** for smooth fade transitions (≤300ms) |
-| 19 | Chat trigger from results page? | User can simulate via chat, URL auto-updates to new run |
-| 20 | Integration with existing chat? | Results page is **new route**, existing chat unchanged |
+| 1 | Run history persist to localStorage? | Session-based (in-memory) for now |
+| 2 | Equipment selection mode? | **Single selection only** (multi-select later) |
+| 3 | Activity bar icons? | **Fixed set** (Equipment, Details, Thermo, Warnings, History) |
+| 4 | Flow direction? | **Left-to-right** following process topology |
+| 5 | Zoom/Pan enabled? | **Yes** |
+| 6 | Layout mode? | **Both**: Auto-layout default + user-draggable when unlocked |
+| 7 | Chat API? | Use existing backend SSE implementation |
+| 8 | Constraint display? | **Always visible** below input (label style) |
+| 9 | Validation behavior? | **Block invalid values** - user cannot exceed constraints |
+| 10 | Equipment inputs source? | Include in original simulation request (display those) |
+| 11 | Feed/Product nodes? | **Visible nodes** on left/right edges (not floating edges) |
+| 12 | Edge routing? | **Straight lines** for simple, **waypoints** for complex routing |
+| 13 | Application architecture? | **Two-page app**: `/` (chat), `/results/:runId` (3-panel viewer) |
+| 14 | Results page navigation? | **Route-based** with URL reflecting current run ID |
+| 15 | Run switching behavior? | **URL updates** (`pushState`), browser back/forward works |
+| 16 | Run caching? | **In-memory cache** (last 10 runs) for instant switching |
+| 17 | Transition animations? | **Framer Motion** for smooth fade transitions (≤300ms) |
+| 18 | Chat trigger from results page? | User can simulate via chat, URL auto-updates to new run |
+| 19 | Integration with existing chat? | Results page is **new route**, existing chat unchanged |
 
 ---
 
