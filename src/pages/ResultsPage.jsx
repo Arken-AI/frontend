@@ -23,6 +23,12 @@ const SIDEBAR_MAX_WIDTH = 500;
 const SIDEBAR_DEFAULT_WIDTH = 288;
 const SIDEBAR_COLLAPSE_THRESHOLD = 150;
 
+// Right chat panel size constraints
+const CHAT_MIN_WIDTH = 280;
+const CHAT_MAX_WIDTH = 500;
+const CHAT_DEFAULT_WIDTH = 320;
+const CHAT_COLLAPSE_THRESHOLD = 200;
+
 export default function ResultsPage() {
   const { runId } = useParams();
   
@@ -31,8 +37,13 @@ export default function ResultsPage() {
   const [activeSection, setActiveSection] = useState('equipment');
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   
+  // Right chat panel state
+  const [isRightChatOpen, setIsRightChatOpen] = useState(true);
+  const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT_WIDTH);
+  
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingChat, setIsDraggingChat] = useState(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
 
@@ -93,11 +104,56 @@ export default function ResultsPage() {
     setIsLeftSidebarOpen(!isLeftSidebarOpen);
   };
 
+  // Handle chat panel drag start
+  const handleChatDragStart = useCallback((e) => {
+    e.preventDefault();
+    setIsDraggingChat(true);
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = chatWidth;
+    
+    document.addEventListener('mousemove', handleChatDragMove);
+    document.addEventListener('mouseup', handleChatDragEnd);
+  }, [chatWidth]);
+
+  // Handle chat panel drag move
+  const handleChatDragMove = useCallback((e) => {
+    // For right panel, dragging left increases width
+    const delta = dragStartX.current - e.clientX;
+    let newWidth = dragStartWidth.current + delta;
+    
+    // Collapse if dragged below threshold
+    if (newWidth < CHAT_COLLAPSE_THRESHOLD) {
+      setIsRightChatOpen(false);
+      return;
+    }
+    
+    // Ensure panel is open when dragging
+    if (!isRightChatOpen && newWidth >= CHAT_COLLAPSE_THRESHOLD) {
+      setIsRightChatOpen(true);
+    }
+    
+    // Clamp to min/max
+    newWidth = Math.max(CHAT_MIN_WIDTH, Math.min(CHAT_MAX_WIDTH, newWidth));
+    setChatWidth(newWidth);
+  }, [isRightChatOpen]);
+
+  // Handle chat panel drag end
+  const handleChatDragEnd = useCallback(() => {
+    setIsDraggingChat(false);
+    document.removeEventListener('mousemove', handleChatDragMove);
+    document.removeEventListener('mouseup', handleChatDragEnd);
+  }, [handleChatDragMove]);
+
+  // Handle chat double-click to toggle
+  const handleChatDoubleClick = () => {
+    setIsRightChatOpen(!isRightChatOpen);
+  };
+
   // Get current section config
   const currentSection = SIDEBAR_SECTIONS.find(s => s.id === activeSection);
 
   return (
-    <div className={`h-screen flex flex-col bg-surface ${isDragging ? 'select-none' : ''}`}>
+    <div className={`h-screen flex flex-col bg-surface ${isDragging || isDraggingChat ? 'select-none' : ''}`}>
       {/* Header */}
       <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-surface">
         <div className="flex items-center gap-4">
@@ -183,7 +239,7 @@ export default function ResultsPage() {
         {isLeftSidebarOpen && <div className="w-px bg-border flex-shrink-0" />}
 
         {/* Middle Canvas */}
-        <div className="flex-1 canvas-grid flex items-center justify-center">
+        <div className="flex-1 canvas-grid flex items-center justify-center relative">
           <div className="text-center">
             <div className="text-6xl mb-4">🔬</div>
             <h3 className="text-lg font-medium text-content mb-2">Flowsheet Diagram</h3>
@@ -194,32 +250,82 @@ export default function ResultsPage() {
               Equipment and streams will render here
             </p>
           </div>
+          
+          {/* Chat Toggle Button - shown when chat is closed */}
+          {!isRightChatOpen && (
+            <button
+              onClick={() => setIsRightChatOpen(true)}
+              className="absolute top-3 right-3 w-10 h-10 bg-primary text-white rounded-lg shadow-lg hover:bg-primary-hover transition-colors flex items-center justify-center"
+              title="Open Chat"
+            >
+              <span className="text-lg">💬</span>
+            </button>
+          )}
         </div>
 
-        {/* Right Chat Panel */}
-        <div className="w-80 bg-surface border-l border-border flex flex-col">
-          <div className="p-3 border-b border-border">
-            <h2 className="text-sm font-semibold text-content">Chat</h2>
+        {/* Border between canvas and chat (only when chat is open) */}
+        {isRightChatOpen && <div className="w-px bg-border flex-shrink-0" />}
+
+        {/* Right Chat Panel - Resizable */}
+        <div 
+          className="bg-surface flex flex-shrink-0 relative"
+          style={{ 
+            width: isRightChatOpen ? chatWidth : 0,
+            transition: isDraggingChat ? 'none' : 'width 200ms ease-in-out'
+          }}
+        >
+          {/* Resize Handle */}
+          <div
+            className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize group z-10
+              ${isDraggingChat ? 'bg-primary' : 'bg-transparent hover:bg-primary'}
+              transition-colors duration-150`}
+            onMouseDown={handleChatDragStart}
+            onDoubleClick={handleChatDoubleClick}
+          >
+            {/* Wider hit area for easier grabbing */}
+            <div className="absolute -left-1 -right-1 top-0 bottom-0" />
           </div>
-          <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-            <p className="text-sm text-content-secondary text-center">
-              Continue conversation about this run
-            </p>
-          </div>
-          <div className="p-3 border-t border-border">
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Ask about results..."
-                className="flex-1 px-3 py-2 border border-border rounded-md bg-surface text-sm text-content placeholder:text-content-tertiary focus:outline-none focus:border-primary"
-                disabled
-              />
-              <button 
-                className="px-4 py-2 bg-primary text-white rounded-md text-sm disabled:opacity-50"
-                disabled
+
+          {/* Chat Content Container */}
+          <div 
+            className="flex flex-col overflow-hidden h-full"
+            style={{ width: chatWidth }}
+          >
+            {/* Chat Header */}
+            <div className="p-3 border-b border-border flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-content whitespace-nowrap">💬 Chat</h2>
+              <button
+                onClick={() => setIsRightChatOpen(false)}
+                className="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-secondary text-content-secondary hover:text-content transition-colors"
+                title="Close Chat"
               >
-                Send
+                ✕
               </button>
+            </div>
+            
+            {/* Chat Messages */}
+            <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
+              <p className="text-sm text-content-secondary text-center">
+                Continue conversation about this run
+              </p>
+            </div>
+            
+            {/* Chat Input */}
+            <div className="p-3 border-t border-border">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Ask about results..."
+                  className="flex-1 px-3 py-2 border border-border rounded-md bg-surface text-sm text-content placeholder:text-content-tertiary focus:outline-none focus:border-primary"
+                  disabled
+                />
+                <button 
+                  className="px-4 py-2 bg-primary text-white rounded-md text-sm disabled:opacity-50"
+                  disabled
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         </div>
