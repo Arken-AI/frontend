@@ -338,20 +338,12 @@ export default function ResultsPage() {
  * Sidebar Content Component
  * Renders different content based on active section
  */
+import EquipmentBrowser from '../components/EquipmentBrowser';
+
 function SidebarContent({ section }) {
   switch (section) {
     case 'equipment':
-      return (
-        <>
-          <p className="text-sm text-content-secondary">Equipment list will appear here</p>
-          <div className="mt-4 space-y-2">
-            <div className="skeleton h-8 w-full rounded"></div>
-            <div className="skeleton h-8 w-full rounded"></div>
-            <div className="skeleton h-8 w-full rounded"></div>
-            <div className="skeleton h-8 w-3/4 rounded"></div>
-          </div>
-        </>
-      );
+      return <EquipmentBrowser />;
     
     case 'details':
       return (

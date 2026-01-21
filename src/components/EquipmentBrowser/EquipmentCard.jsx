@@ -1,0 +1,141 @@
+/**
+ * Equipment Card
+ * 
+ * Accordion card showing equipment details.
+ * Collapsed: Shows header only (icon, name, status)
+ * Expanded: Shows inputs (with constraints inline), outputs
+ * 
+ * Note: Constraints are now merged into inputs - no separate section
+ */
+
+import { useState } from 'react';
+import StreamSection from './StreamSection';
+
+export default function EquipmentCard({ equipment, index, isExpanded, onToggle }) {
+  const {
+    id,
+    name,
+    type,
+    icon,
+    converged,
+    warnings,
+    constraints,
+    inputs,
+    outputs,
+    energyStreams,
+    metadata
+  } = equipment;
+
+  // Status badge
+  const getStatusBadge = () => {
+    if (converged) {
+      return (
+        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-status-success/10 text-status-success">
+          ✓ Converged
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-status-error/10 text-status-error">
+        ✗ Not Converged
+      </span>
+    );
+  };
+
+  return (
+    <div className={`equipment-card border rounded-lg overflow-hidden transition-all duration-200 ${
+      isExpanded ? 'border-primary shadow-sm' : 'border-border hover:border-border-hover'
+    }`}>
+      {/* Header - Always Visible */}
+      <button
+        onClick={onToggle}
+        className="w-full px-3 py-2.5 flex items-center gap-3 bg-surface hover:bg-surface-secondary transition-colors text-left"
+      >
+        {/* Sequence Number */}
+        <span className="w-5 h-5 flex items-center justify-center text-xs font-medium text-content-tertiary bg-surface-secondary rounded">
+          {index}
+        </span>
+        
+        {/* Icon */}
+        <span className="text-lg" title={type}>{icon}</span>
+        
+        {/* Name */}
+        <span className="flex-1 font-medium text-sm text-content truncate">{name}</span>
+        
+        {/* Status Badge */}
+        {getStatusBadge()}
+        
+        {/* Chevron */}
+        <span className={`text-content-tertiary transition-transform duration-200 ${
+          isExpanded ? 'rotate-90' : ''
+        }`}>
+          ▶
+        </span>
+      </button>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="border-t border-border">
+          {/* Inputs Section - includes equipment constraints */}
+          {(inputs.length > 0 || constraints.length > 0) && (
+            <StreamSection 
+              title="INPUTS" 
+              streams={inputs} 
+              type="input"
+              constraints={constraints}
+            />
+          )}
+
+          {/* Outputs Section */}
+          {outputs.length > 0 && (
+            <StreamSection 
+              title="OUTPUTS" 
+              streams={outputs} 
+              type="output"
+            />
+          )}
+
+          {/* Energy Streams (for columns, reactors) */}
+          {Object.keys(energyStreams).length > 0 && (
+            <div className="px-3 py-2 border-t border-border bg-surface-secondary/50">
+              <h4 className="text-xs font-semibold text-content-secondary mb-2">⚡ ENERGY</h4>
+              <div className="space-y-1">
+                {Object.entries(energyStreams).map(([key, stream]) => (
+                  <div key={key} className="flex justify-between text-xs">
+                    <span className="text-content-secondary capitalize">
+                      {key.replace(/_/g, ' ')}
+                    </span>
+                    <span className={`font-mono ${
+                      stream.energy_type === 'cooling' ? 'text-blue-600' : 'text-orange-600'
+                    }`}>
+                      {stream.duty_kW?.toFixed(2)} kW
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {warnings.length > 0 && (
+            <div className="px-3 py-2 border-t border-border bg-status-warning/5">
+              <h4 className="text-xs font-semibold text-status-warning mb-1">⚠️ Warnings ({warnings.length})</h4>
+              <ul className="space-y-1">
+                {warnings.slice(0, 3).map((warning, idx) => (
+                  <li key={idx} className="text-xs text-content-secondary leading-tight">
+                    • {warning.length > 80 ? warning.slice(0, 80) + '...' : warning}
+                  </li>
+                ))}
+                {warnings.length > 3 && (
+                  <li className="text-xs text-content-tertiary">
+                    +{warnings.length - 3} more warnings
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
