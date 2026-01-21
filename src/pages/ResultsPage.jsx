@@ -36,8 +36,8 @@ const CHAT_COLLAPSE_THRESHOLD = 200;
 export default function ResultsPage() {
   const { runId } = useParams();
   
-  // Get active panel from Zustand store
-  const { activePanel, setActivePanel } = useSelectionStore();
+  // Get active panel and selection from Zustand store
+  const { activePanel, setActivePanel, selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
   
   // Left sidebar state
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
@@ -59,6 +59,70 @@ export default function ResultsPage() {
       setIsLeftSidebarOpen(true);
     }
   }, [activePanel]);
+  
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if user is typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      switch (e.key) {
+        case 'Escape':
+          // Clear selection
+          clearSelection();
+          break;
+          
+        case 'Tab':
+          e.preventDefault();
+          // Cycle through equipment
+          if (mockEquipmentData.length === 0) return;
+          
+          const currentIndex = selectedEquipmentId 
+            ? mockEquipmentData.findIndex(eq => eq.id === selectedEquipmentId)
+            : -1;
+          
+          let nextIndex;
+          if (e.shiftKey) {
+            // Shift+Tab: previous equipment
+            nextIndex = currentIndex <= 0 ? mockEquipmentData.length - 1 : currentIndex - 1;
+          } else {
+            // Tab: next equipment
+            nextIndex = currentIndex >= mockEquipmentData.length - 1 ? 0 : currentIndex + 1;
+          }
+          
+          selectEquipment(mockEquipmentData[nextIndex].id);
+          break;
+          
+        case 'ArrowDown':
+        case 'ArrowUp':
+          e.preventDefault();
+          // Navigate through equipment list
+          if (mockEquipmentData.length === 0) return;
+          
+          const currentIdx = selectedEquipmentId 
+            ? mockEquipmentData.findIndex(eq => eq.id === selectedEquipmentId)
+            : -1;
+          
+          let newIdx;
+          if (e.key === 'ArrowDown') {
+            newIdx = currentIdx >= mockEquipmentData.length - 1 ? 0 : currentIdx + 1;
+          } else {
+            newIdx = currentIdx <= 0 ? mockEquipmentData.length - 1 : currentIdx - 1;
+          }
+          
+          selectEquipment(mockEquipmentData[newIdx].id);
+          break;
+          
+        default:
+          break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEquipmentId, selectEquipment, clearSelection]);
 
   // Handle activity bar icon click
   const handleActivityBarClick = (sectionId) => {

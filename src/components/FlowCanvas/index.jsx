@@ -4,9 +4,10 @@
  * Main React Flow canvas for displaying flowsheet diagram.
  * Shows equipment nodes, feed streams, product streams, and connections.
  * Syncs selection with Equipment Browser via Zustand store.
+ * Click on edges to view stream details.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -19,6 +20,7 @@ import 'reactflow/dist/style.css';
 import EquipmentNode from './EquipmentNode';
 import FeedNode from './FeedNode';
 import ProductNode from './ProductNode';
+import StreamTooltip from './StreamTooltip';
 import useFlowLayout from './useFlowLayout';
 import useSelectionStore from '../../store/useSelectionStore';
 
@@ -40,6 +42,9 @@ const minimapNodeColor = (node) => {
 export default function FlowCanvas({ equipmentData }) {
   // Get selection state from store
   const { selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
+  
+  // Stream tooltip state
+  const [selectedEdge, setSelectedEdge] = useState(null);
   
   // Transform data to nodes and edges with layout
   const { nodes: layoutNodes, edges: layoutEdges } = useFlowLayout(equipmentData);
@@ -128,6 +133,17 @@ export default function FlowCanvas({ equipmentData }) {
     }
   }, [selectedEquipmentId, selectEquipment, clearSelection]);
   
+  // Handle edge click - show stream details
+  const onEdgeClick = useCallback((event, edge) => {
+    event.stopPropagation();
+    setSelectedEdge(edge);
+  }, []);
+  
+  // Close stream tooltip
+  const closeTooltip = useCallback(() => {
+    setSelectedEdge(null);
+  }, []);
+  
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -136,6 +152,7 @@ export default function FlowCanvas({ equipmentData }) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{
@@ -180,6 +197,33 @@ export default function FlowCanvas({ equipmentData }) {
           }}
         />
       </ReactFlow>
+      
+      {/* Keyboard Shortcuts Hint */}
+      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-sm z-10">
+        <div className="text-xs text-content-secondary space-y-1">
+          <div className="flex items-center gap-2">
+            <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Tab</kbd>
+            <span>Next equipment</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">↑↓</kbd>
+            <span>Navigate list</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Esc</kbd>
+            <span>Deselect</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Stream Tooltip - shown when edge is clicked */}
+      {selectedEdge && (
+        <StreamTooltip 
+          edge={selectedEdge}
+          equipmentData={equipmentData}
+          onClose={closeTooltip}
+        />
+      )}
     </div>
   );
 }
