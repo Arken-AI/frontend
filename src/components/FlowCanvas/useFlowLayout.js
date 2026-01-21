@@ -116,6 +116,12 @@ export default function useFlowLayout(equipmentData) {
         type: "smoothstep",
         animated: false,
         label: streamNumber ? `S${streamNumber}` : feed.stream_id,
+        markerEnd: {
+          type: "arrowclosed",
+          width: 10,
+          height: 10,
+          color: "#22c55e",
+        },
         style: {
           stroke: "#22c55e",
           strokeWidth: 2,
@@ -164,6 +170,12 @@ export default function useFlowLayout(equipmentData) {
         type: "smoothstep",
         animated: false,
         label: streamNumber ? `S${streamNumber}` : edge.id,
+        markerEnd: {
+          type: "arrowclosed",
+          width: 10,
+          height: 10,
+          color: "#94a3b8",
+        },
         style: {
           stroke: "#94a3b8",
           strokeWidth: 2,
@@ -212,6 +224,12 @@ export default function useFlowLayout(equipmentData) {
             type: "smoothstep",
             animated: false,
             label: streamNumber ? `S${streamNumber}` : streamId,
+            markerEnd: {
+              type: "arrowclosed",
+              width: 10,
+              height: 10,
+              color: "#f97316",
+            },
             style: {
               stroke: "#f97316",
               strokeWidth: 2,

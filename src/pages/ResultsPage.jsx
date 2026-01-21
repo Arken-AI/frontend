@@ -45,7 +45,7 @@ export default function ResultsPage() {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   
   // Right chat panel state
-  const [isRightChatOpen, setIsRightChatOpen] = useState(true);
+  const [isRightChatOpen, setIsRightChatOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT_WIDTH);
   
   // Drag state
@@ -249,6 +249,18 @@ export default function ResultsPage() {
           >
             ← Back to Chat
           </Link>
+          
+          {/* Chat Toggle Button */}
+          {!isRightChatOpen && (
+            <button
+              onClick={() => setIsRightChatOpen(true)}
+              className="w-9 h-9 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors flex items-center justify-center"
+              title="Open Chat"
+            >
+              <span className="text-base">💬</span>
+            </button>
+          )}
+          
           <button 
             className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors text-sm font-medium disabled:opacity-50"
             disabled
@@ -323,17 +335,6 @@ export default function ResultsPage() {
           <ErrorBoundary fallbackMessage="Unable to load flowsheet. Please refresh the page.">
             <FlowCanvas equipmentData={mockEquipmentData} />
           </ErrorBoundary>
-          
-          {/* Chat Toggle Button - shown when chat is closed */}
-          {!isRightChatOpen && (
-            <button
-              onClick={() => setIsRightChatOpen(true)}
-              className="absolute top-3 right-3 w-10 h-10 bg-primary text-white rounded-lg shadow-lg hover:bg-primary-hover transition-colors flex items-center justify-center z-10"
-              title="Open Chat"
-            >
-              <span className="text-lg">💬</span>
-            </button>
-          )}
         </div>
 
         {/* Border between canvas and chat (only when chat is open) */}

@@ -60,7 +60,7 @@ function FlowCanvasInner({ equipmentData }) {
   const [selectedEdge, setSelectedEdge] = useState(null);
   
   // Keyboard shortcuts visibility
-  const [showShortcuts, setShowShortcuts] = useState(true);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   
   // Loading state for initial render
   const [isLoading, setIsLoading] = useState(true);
