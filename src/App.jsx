@@ -8,12 +8,14 @@
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { ChatProvider } from './context/ChatContext';
 import ChatPage from './pages/ChatPage';
 import ResultsPage from './pages/ResultsPage';
 
 function App() {
   return (
     <BrowserRouter>
+    <ChatProvider>
       {/* Toast notification container */}
       <Toaster
         position="bottom-right"
@@ -54,6 +56,7 @@ function App() {
         <Route path="/" element={<ChatPage />} />
         <Route path="/results/:runId" element={<ResultsPage />} />
       </Routes>
+    </ChatProvider>
     </BrowserRouter>
   );
 }

@@ -47,12 +47,45 @@ const SUGGESTED_PROMPTS = [
   },
 ];
 
-function WelcomeScreen({ onSend }) {
+function WelcomeScreen({ onSend, compact = false }) {
   const handlePromptClick = (prompt) => {
     if (onSend) {
       onSend(prompt);
     }
   };
+
+  // Compact mode for sidebar panels
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-4 py-6">
+        <div className="text-center mb-4">
+          <div className="text-4xl mb-2">💬</div>
+          <h2 className="text-lg font-semibold text-content mb-1">
+            Start a Conversation
+          </h2>
+          <p className="text-sm text-content-secondary">
+            Ask questions about your simulation results
+          </p>
+        </div>
+
+        <div className="w-full space-y-2">
+          {SUGGESTED_PROMPTS.slice(0, 3).map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={index}
+                onClick={() => handlePromptClick(item.prompt)}
+                className="flex items-center gap-2 w-full p-3 rounded-lg border border-border text-left transition-colors hover:bg-surface-secondary"
+              >
+                <Icon className="h-4 w-4 text-content-secondary flex-shrink-0" />
+                <span className="text-sm text-content truncate">{item.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-4 py-8">

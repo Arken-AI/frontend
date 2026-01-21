@@ -17,20 +17,24 @@ export default function MessageInput({
   onCancel,
   disabled = false, 
   isProcessing = false,
-  placeholder = "Type your message..." 
+  placeholder = "Type your message...",
+  compact = false
 }) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef(null);
   
-  // Auto-resize textarea
+  // Auto-resize textarea (only for non-compact mode)
   useEffect(() => {
+    if (compact) return; // Skip for compact mode - uses fixed-height input
+    
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+      textarea.style.height = '48px';
+      const newHeight = Math.max(48, Math.min(textarea.scrollHeight, 200));
+      textarea.style.height = newHeight + 'px';
     }
-  }, [message]);
+  }, [message, compact]);
   
   // Focus textarea on mount
   useEffect(() => {
@@ -75,36 +79,33 @@ export default function MessageInput({
   const canSend = message.trim().length > 0 && !isDisabled && !isProcessing;
   
   return (
-    <div className="border-t border-border-faint bg-surface p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-3">
-          {/* Textarea */}
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              disabled={disabled}
-              rows={1}
-              className={`
-                w-full resize-none rounded-xl border border-border 
-                bg-surface text-content
-                px-4 py-3 pr-12
-                focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-                disabled:bg-surface-secondary disabled:text-content-secondary disabled:cursor-not-allowed
-                placeholder:text-content-tertiary
-                transition-colors
-              `}
-              style={{ maxHeight: '200px', minHeight: '48px' }}
-            />
-            
-            {/* Character count (optional, shown when near limit) */}
-            {message.length > 8000 && (
-              <span className={`absolute bottom-2 right-14 text-xs ${message.length > 10000 ? 'text-red-500' : 'text-content-tertiary'}`}>
-                {message.length}/10000
-              </span>
+    <div className={`border-t border-border-faint bg-surface ${compact ? 'p-2' : 'p-4'}`}>
+      <div className={compact ? '' : 'max-w-4xl mx-auto'}>
+        <div className="flex items-center gap-2">
+          {/* Textarea or Input */}
+          <div className="flex-1">
+            {compact ? (
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                disabled={disabled}
+                className="w-full h-10 px-3 text-sm rounded-lg border border-border bg-surface text-content focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:text-content-secondary placeholder:text-content-tertiary"
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                disabled={disabled}
+                rows={1}
+                className="w-full resize-none rounded-lg border border-border bg-surface text-content px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:text-content-secondary placeholder:text-content-tertiary transition-colors"
+                style={{ minHeight: '48px', maxHeight: '200px' }}
+              />
             )}
           </div>
           
@@ -112,36 +113,37 @@ export default function MessageInput({
           {isProcessing ? (
             <button
               onClick={handleCancel}
-              className="flex-shrink-0 p-3 rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg transition-all duration-200"
+              className={`flex-shrink-0 ${compact ? 'w-10 h-10' : 'p-3'} flex items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white shadow-sm hover:shadow transition-all duration-200`}
               title="Stop request"
             >
-              <Square className="w-5 h-5 fill-current" />
+              <Square className={compact ? 'w-4 h-4 fill-current' : 'w-5 h-5 fill-current'} />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!canSend}
               className={`
-                flex-shrink-0 p-3 rounded-xl
+                flex-shrink-0 ${compact ? 'w-10 h-10' : 'p-3'} flex items-center justify-center rounded-lg
                 transition-all duration-200
                 ${canSend 
-                  ? 'bg-primary hover:bg-primary-hover text-white shadow-md hover:shadow-lg' 
-                  : 'bg-surface-secondary text-content-tertiary cursor-not-allowed'
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow' 
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }
               `}
               title={isDisabled ? 'Please wait...' : 'Send message (Enter)'}
             >
               {isSending ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className={compact ? 'w-4 h-4 animate-spin' : 'w-5 h-5 animate-spin'} />
               ) : (
-                <Send className="w-5 h-5" />
+                <Send className={compact ? 'w-4 h-4' : 'w-5 h-5'} />
               )}
             </button>
           )}
         </div>
         
-        {/* Helper text */}
-        <p className="text-xs text-content-tertiary mt-2 text-center">
+        {/* Helper text - hide in compact mode */}
+        {!compact && (
+          <p className="text-xs text-content-tertiary mt-2 text-center">
           {isProcessing ? (
             <span className="text-orange-500 dark:text-orange-400">Processing... Click stop button to cancel</span>
           ) : (
@@ -151,6 +153,7 @@ export default function MessageInput({
             </>
           )}
         </p>
+        )}
       </div>
     </div>
   );

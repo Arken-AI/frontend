@@ -9,6 +9,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import FlowCanvas from '../components/FlowCanvas';
+import ChatPanel from '../components/chat/ChatPanel';
 import { mockEquipmentData } from '../data/mockSimulationData';
 import useSelectionStore from '../store/useSelectionStore';
 import useEquipmentStore from '../stores/useEquipmentStore';
@@ -71,6 +72,13 @@ export default function ResultsPage() {
       setIsLeftSidebarOpen(true);
     }
   }, [activePanel]);
+  
+  // Ensure sidebar opens when equipment is selected (even if panel is already "equipment")
+  useEffect(() => {
+    if (selectedEquipmentId) {
+      setIsLeftSidebarOpen(true);
+    }
+  }, [selectedEquipmentId]);
   
   // Keyboard navigation
   useEffect(() => {
@@ -458,44 +466,12 @@ export default function ResultsPage() {
             className="flex flex-col overflow-hidden h-full"
             style={{ width: chatWidth }}
           >
-            {/* Chat Header */}
-            <div className="p-3 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-content whitespace-nowrap">💬 Chat</h2>
-              <button
-                onClick={() => setIsRightChatOpen(false)}
-                className="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-secondary text-content-secondary hover:text-content transition-colors"
-                title="Close Chat"
-              >
-                ✕
-              </button>
-            </div>
-            
-            {/* Chat Messages */}
-            <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-              <ErrorBoundary fallbackMessage="Chat is temporarily unavailable.">
-                <p className="text-sm text-content-secondary text-center">
-                  Continue conversation about this run
-                </p>
-              </ErrorBoundary>
-            </div>
-            
-            {/* Chat Input */}
-            <div className="p-3 border-t border-border">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Ask about results..."
-                  className="flex-1 px-3 py-2 border border-border rounded-md bg-surface text-sm text-content placeholder:text-content-tertiary focus:outline-none focus:border-primary"
-                  disabled
-                />
-                <button 
-                  className="px-4 py-2 bg-primary text-white rounded-md text-sm disabled:opacity-50"
-                  disabled
-                >
-                  Send
-                </button>
-              </div>
-            </div>
+            <ErrorBoundary fallbackMessage="Chat is temporarily unavailable.">
+              <ChatPanel 
+                onClose={() => setIsRightChatOpen(false)}
+                placeholder="Ask about this simulation..."
+              />
+            </ErrorBoundary>
           </div>
         </div>
       </div>
