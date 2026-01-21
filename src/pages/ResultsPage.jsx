@@ -3,12 +3,14 @@
  * 
  * The 3-panel results viewer at route "/results/:runId"
  * Displays flowsheet diagram, equipment details, and contextual chat.
+ * Panel switching controlled by Zustand store.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import FlowCanvas from '../components/FlowCanvas';
 import { mockEquipmentData } from '../data/mockSimulationData';
+import useSelectionStore from '../store/useSelectionStore';
 
 // Sidebar sections configuration
 const SIDEBAR_SECTIONS = [
@@ -34,9 +36,11 @@ const CHAT_COLLAPSE_THRESHOLD = 200;
 export default function ResultsPage() {
   const { runId } = useParams();
   
+  // Get active panel from Zustand store
+  const { activePanel, setActivePanel } = useSelectionStore();
+  
   // Left sidebar state
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState('equipment');
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   
   // Right chat panel state
@@ -48,15 +52,22 @@ export default function ResultsPage() {
   const [isDraggingChat, setIsDraggingChat] = useState(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
+  
+  // Ensure sidebar opens when active panel changes (e.g., from Warnings "View Equipment")
+  useEffect(() => {
+    if (activePanel) {
+      setIsLeftSidebarOpen(true);
+    }
+  }, [activePanel]);
 
   // Handle activity bar icon click
   const handleActivityBarClick = (sectionId) => {
-    if (activeSection === sectionId && isLeftSidebarOpen) {
+    if (activePanel === sectionId && isLeftSidebarOpen) {
       // Clicking active section when open → close sidebar
       setIsLeftSidebarOpen(false);
     } else {
       // Clicking different section OR clicking when closed → open and switch
-      setActiveSection(sectionId);
+      setActivePanel(sectionId);
       setIsLeftSidebarOpen(true);
     }
   };
@@ -152,7 +163,7 @@ export default function ResultsPage() {
   };
 
   // Get current section config
-  const currentSection = SIDEBAR_SECTIONS.find(s => s.id === activeSection);
+  const currentSection = SIDEBAR_SECTIONS.find(s => s.id === activePanel);
 
   return (
     <div className={`h-screen flex flex-col bg-surface ${isDragging || isDraggingChat ? 'select-none' : ''}`}>
@@ -191,7 +202,7 @@ export default function ResultsPage() {
               key={section.id}
               onClick={() => handleActivityBarClick(section.id)}
               className={`activity-bar-item w-10 h-10 flex items-center justify-center rounded ${
-                activeSection === section.id && isLeftSidebarOpen ? 'active' : ''
+                activePanel === section.id && isLeftSidebarOpen ? 'active' : ''
               }`}
               title={section.title}
             >
@@ -219,8 +230,8 @@ export default function ResultsPage() {
             </div>
             
             {/* Sidebar Content */}
-            <div className={`flex-1 overflow-auto ${activeSection === 'warnings' ? '' : 'p-4'}`}>
-              <SidebarContent section={activeSection} />
+            <div className={`flex-1 overflow-auto ${activePanel === 'warnings' ? '' : 'p-4'}`}>
+              <SidebarContent section={activePanel} />
             </div>
           </div>
 

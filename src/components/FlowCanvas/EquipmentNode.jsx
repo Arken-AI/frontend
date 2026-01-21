@@ -94,8 +94,9 @@ function getInputHandlePositions(inputIds) {
 function EquipmentNode({ data, selected }) {
   const { name, inputHandles = [], outputHandles = [] } = data;
   
+  // Enhanced border styling with glow effect for selection
   const borderColor = selected 
-    ? 'border-primary shadow-lg' 
+    ? 'border-primary shadow-lg ring-2 ring-primary/30' 
     : 'border-border hover:border-border-hover';
   
   // Calculate handle positions

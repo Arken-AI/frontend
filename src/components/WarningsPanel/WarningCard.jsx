@@ -3,13 +3,17 @@
  * 
  * Individual card for equipment with warnings.
  * Shows equipment name, icon, and list of warnings.
+ * "View Equipment" button syncs selection with canvas and Equipment Browser.
  */
 
+import useSelectionStore from '../../store/useSelectionStore';
+
 export default function WarningCard({ equipmentId, equipmentName, icon, warnings }) {
+  const { selectEquipment } = useSelectionStore();
+  
   const handleViewEquipment = () => {
-    // TODO: Navigate to equipment in Equipment Browser
-    // Will implement with Zustand state management
-    console.log('Navigate to equipment:', equipmentId);
+    // Select equipment and auto-switch to Equipment Browser
+    selectEquipment(equipmentId);
   };
   
   return (

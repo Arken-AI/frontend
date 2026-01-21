@@ -4,14 +4,13 @@
  * Accordion card showing equipment details.
  * Collapsed: Shows header only (icon, name, status)
  * Expanded: Shows inputs (with constraints inline), outputs
- * 
- * Note: Constraints are now merged into inputs - no separate section
+ * Highlights when selected via Zustand store.
  */
 
-import { useState } from 'react';
+import { forwardRef } from 'react';
 import StreamSection from './StreamSection';
 
-export default function EquipmentCard({ equipment, index, isExpanded, onToggle }) {
+const EquipmentCard = forwardRef(({ equipment, index, isExpanded, isSelected = false, onToggle, onClick }, ref) => {
   const {
     id,
     name,
@@ -43,12 +42,22 @@ export default function EquipmentCard({ equipment, index, isExpanded, onToggle }
   };
 
   return (
-    <div className={`equipment-card border rounded-lg overflow-hidden transition-all duration-200 ${
-      isExpanded ? 'border-primary shadow-sm' : 'border-border hover:border-border-hover'
-    }`}>
+    <div 
+      ref={ref}
+      className={`equipment-card border-2 rounded-lg overflow-hidden transition-all duration-200 ${
+        isSelected 
+          ? 'border-primary shadow-lg ring-2 ring-primary/20' 
+          : isExpanded 
+            ? 'border-primary shadow-sm' 
+            : 'border-border hover:border-border-hover'
+      }`}
+    >
       {/* Header - Always Visible */}
       <button
-        onClick={onToggle}
+        onClick={(e) => {
+          onToggle();
+          if (onClick) onClick();
+        }}
         className="w-full px-3 py-2.5 flex items-center gap-3 bg-surface hover:bg-surface-secondary transition-colors text-left"
       >
         {/* Sequence Number */}
@@ -191,4 +200,8 @@ export default function EquipmentCard({ equipment, index, isExpanded, onToggle }
       )}
     </div>
   );
-}
+});
+
+EquipmentCard.displayName = 'EquipmentCard';
+
+export default EquipmentCard;
