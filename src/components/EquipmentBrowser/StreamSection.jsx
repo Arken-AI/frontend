@@ -22,23 +22,27 @@ function formatConstraintLabel(key) {
     .replace(/ Kw$/, '');
 }
 
-export default function StreamSection({ title, streams, type, constraints = [] }) {
+export default function StreamSection({ title, streams, type, constraints = [], showHeader = true }) {
   const isOutput = type === 'output';
+  const isConfig = type === 'config';
   
   return (
-    <div className="px-3 py-2 border-t border-border">
-      <h4 className={`text-xs font-semibold mb-2 flex items-center gap-1 ${
-        isOutput ? 'text-orange-600' : 'text-green-600'
-      }`}>
-        <span>{isOutput ? '⬆️' : '⬇️'}</span>
-        <span>{title}</span>
-        <span className="text-content-tertiary font-normal">
-          ({streams.length} stream{streams.length !== 1 ? 's' : ''})
-        </span>
-      </h4>
+    <div className={showHeader ? "" : ""}>
+      {/* Section Header - only if showHeader=true */}
+      {showHeader && streams.length > 0 && (
+        <h4 className={`text-xs font-semibold mb-2 flex items-center gap-1 ${
+          isOutput ? 'text-orange-600' : 'text-green-600'
+        }`}>
+          <span>{isOutput ? '📤' : '📥'}</span>
+          <span>{title}</span>
+          <span className="text-content-tertiary font-normal">
+            ({streams.length} stream{streams.length !== 1 ? 's' : ''})
+          </span>
+        </h4>
+      )}
       
-      {/* Equipment Constraints (only for inputs) */}
-      {!isOutput && constraints.length > 0 && (
+      {/* Equipment Constraints (only for config type) */}
+      {isConfig && constraints.length > 0 && (
         <ConstraintsCard constraints={constraints} />
       )}
       
@@ -96,6 +100,7 @@ function ConstraintsCard({ constraints }) {
 function StreamCard({ stream, isOutput }) {
   const streamId = stream.streamId || stream.stream_id;
   const editable = stream.editable && !isOutput;
+  const streamNumber = stream.streamNumber;
   
   const borderColor = isOutput ? 'border-l-orange-400' : 'border-l-green-400';
   const bgColor = isOutput ? 'bg-surface-secondary/30' : 'bg-surface';
@@ -106,6 +111,9 @@ function StreamCard({ stream, isOutput }) {
       <div className="px-2 py-1.5 border-b border-border bg-surface-secondary/30">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-content">
+            {streamNumber && (
+              <span className="text-primary font-semibold mr-1.5">Stream {streamNumber}:</span>
+            )}
             {stream.name || streamId}
           </span>
           {isOutput && (

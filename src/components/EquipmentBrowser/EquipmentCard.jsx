@@ -76,24 +76,77 @@ export default function EquipmentCard({ equipment, index, isExpanded, onToggle }
       {/* Expanded Content */}
       {isExpanded && (
         <div className="border-t border-border">
-          {/* Inputs Section - includes equipment constraints */}
-          {(inputs.length > 0 || constraints.length > 0) && (
-            <StreamSection 
-              title="INPUTS" 
-              streams={inputs} 
-              type="input"
-              constraints={constraints}
-            />
-          )}
+          {/* Separate editable vs read-only streams */}
+          {(() => {
+            const editableInputs = inputs.filter(s => s.editable);
+            const readonlyInputs = inputs.filter(s => !s.editable);
+            
+            return (
+              <>
+                {/* SECTION 1: Editable Configuration */}
+                {(constraints.length > 0 || editableInputs.length > 0) && (
+                  <div className="bg-blue-50 border-b border-blue-200 p-3">
+                    <h3 className="text-xs font-semibold text-primary mb-2 flex items-center gap-1.5">
+                      <span>⚙️</span>
+                      <span>EQUIPMENT CONFIGURATION</span>
+                      <span className="text-content-tertiary font-normal text-[10px]">(editable)</span>
+                    </h3>
+                    
+                    {/* Equipment Parameters */}
+                    {constraints.length > 0 && (
+                      <StreamSection 
+                        streams={[]} 
+                        type="config"
+                        constraints={constraints}
+                        showHeader={false}
+                      />
+                    )}
+                    
+                    {/* Editable Feed Streams */}
+                    {editableInputs.length > 0 && (
+                      <StreamSection 
+                        title="FEED STREAMS" 
+                        streams={editableInputs} 
+                        type="input"
+                        showHeader={true}
+                      />
+                    )}
+                  </div>
+                )}
 
-          {/* Outputs Section */}
-          {outputs.length > 0 && (
-            <StreamSection 
-              title="OUTPUTS" 
-              streams={outputs} 
-              type="output"
-            />
-          )}
+                {/* SECTION 2: Calculated Results */}
+                {(readonlyInputs.length > 0 || outputs.length > 0) && (
+                  <div className="bg-gray-50 border-b border-gray-200 p-3">
+                    <h3 className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <span>📊</span>
+                      <span>SIMULATION RESULTS</span>
+                      <span className="text-content-tertiary font-normal text-[10px]">(read-only)</span>
+                    </h3>
+                    
+                    {/* Read-only Inputs (intermediate streams) */}
+                    {readonlyInputs.length > 0 && (
+                      <StreamSection 
+                        title="INPUTS" 
+                        streams={readonlyInputs} 
+                        type="input"
+                        showHeader={true}
+                      />
+                    )}
+
+                    {/* Outputs */}
+                    {outputs.length > 0 && (
+                      <StreamSection 
+                        title="OUTPUTS" 
+                        streams={outputs} 
+                        type="output"
+                        showHeader={true}
+                      />
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Energy Streams (for columns, reactors) */}
           {Object.keys(energyStreams).length > 0 && (

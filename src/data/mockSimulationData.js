@@ -968,6 +968,7 @@ export const mockApiResponse = {
 
 /**
  * Transform API response to UI-friendly format
+ * Includes global stream numbering for easy reference
  */
 export function transformEquipmentData(apiResponse) {
   const { result, input } = apiResponse;
@@ -975,6 +976,36 @@ export function transformEquipmentData(apiResponse) {
   // Get feed stream IDs for editability check
   const feedStreamIds = input.feed_streams.map((f) => f.stream_id);
 
+  // STEP 1: Build stream numbering map
+  // Track all unique streams in order of appearance
+  const streamNumberMap = new Map();
+  let streamCounter = 1;
+
+  result.execution_order
+    .filter((id) => id !== "FEED" && id !== "PRODUCT")
+    .forEach((equipmentId) => {
+      const nodeResult = result.node_results[equipmentId];
+      const equipmentInput = result.equipment_inputs[equipmentId];
+
+      if (!nodeResult || !equipmentInput) return;
+
+      // Number input streams (if not already numbered)
+      equipmentInput.inlet_ports.forEach((streamId) => {
+        if (!streamNumberMap.has(streamId)) {
+          streamNumberMap.set(streamId, streamCounter++);
+        }
+      });
+
+      // Number output streams
+      Object.values(nodeResult.outlets).forEach((stream) => {
+        const streamId = stream.stream_id;
+        if (!streamNumberMap.has(streamId)) {
+          streamNumberMap.set(streamId, streamCounter++);
+        }
+      });
+    });
+
+  // STEP 2: Transform equipment with stream numbers
   return result.execution_order
     .filter((id) => id !== "FEED" && id !== "PRODUCT") // Skip pseudo-nodes
     .map((equipmentId) => {
@@ -993,7 +1024,7 @@ export function transformEquipmentData(apiResponse) {
           ...(equipmentInput.parameter_constraints[key] || {}),
         }));
 
-      // Build inputs array
+      // Build inputs array with stream numbers
       const inputs = equipmentInput.inlet_ports.map((streamId) => {
         const streamData = result.stream_results[streamId] || {};
         const feedStream = input.feed_streams.find(
@@ -1001,6 +1032,7 @@ export function transformEquipmentData(apiResponse) {
         );
         return {
           streamId,
+          streamNumber: streamNumberMap.get(streamId),
           name: feedStream?.stream_id || streamId,
           ...streamData,
           ...(feedStream || {}),
@@ -1008,10 +1040,11 @@ export function transformEquipmentData(apiResponse) {
         };
       });
 
-      // Build outputs array
+      // Build outputs array with stream numbers
       const outputs = Object.entries(nodeResult.outlets).map(
         ([port, stream]) => ({
           port,
+          streamNumber: streamNumberMap.get(stream.stream_id),
           ...stream,
           editable: false,
         })
