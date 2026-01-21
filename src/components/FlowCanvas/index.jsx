@@ -64,6 +64,58 @@ export default function FlowCanvas({ equipmentData }) {
     );
   }, [selectedEquipmentId, setNodes]);
   
+  // Update edge highlighting based on selected equipment
+  useEffect(() => {
+    if (!selectedEquipmentId) {
+      // No selection: show all edges normally
+      setEdges((eds) =>
+        eds.map((edge) => ({
+          ...edge,
+          animated: false,
+          style: {
+            ...edge.style,
+            opacity: 1,
+            strokeWidth: 2,
+          },
+        }))
+      );
+      return;
+    }
+
+    // Selection active: highlight connected edges, dim others
+    setEdges((eds) =>
+      eds.map((edge) => {
+        const isConnected =
+          edge.source === selectedEquipmentId ||
+          edge.target === selectedEquipmentId;
+
+        if (isConnected) {
+          // Highlight connected edges
+          return {
+            ...edge,
+            animated: true,
+            style: {
+              ...edge.style,
+              opacity: 1,
+              strokeWidth: 3,
+            },
+          };
+        } else {
+          // Dim non-connected edges
+          return {
+            ...edge,
+            animated: false,
+            style: {
+              ...edge.style,
+              opacity: 0.2,
+              strokeWidth: 2,
+            },
+          };
+        }
+      })
+    );
+  }, [selectedEquipmentId, setEdges]);
+  
   // Handle node click
   const onNodeClick = useCallback((event, node) => {
     if (node.type === 'equipment') {
