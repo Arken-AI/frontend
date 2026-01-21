@@ -14,8 +14,13 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
+  getNodesBounds,
+  getViewportForBounds,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { toPng } from 'html-to-image';
 
 import EquipmentNode from './EquipmentNode';
 import FeedNode from './FeedNode';
@@ -23,6 +28,7 @@ import ProductNode from './ProductNode';
 import StreamTooltip from './StreamTooltip';
 import useFlowLayout from './useFlowLayout';
 import useSelectionStore from '../../store/useSelectionStore';
+import { useParams } from 'react-router-dom';
 
 // Register custom node types
 const nodeTypes = {
@@ -39,12 +45,22 @@ const minimapNodeColor = (node) => {
   return '#ef4444'; // Red for not converged
 };
 
-export default function FlowCanvas({ equipmentData }) {
+// Inner component that uses useReactFlow (must be inside ReactFlowProvider)
+function FlowCanvasInner({ equipmentData }) {
   // Get selection state from store
   const { selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
   
+  // Get runId for export filename
+  const { runId } = useParams();
+  
   // Stream tooltip state
   const [selectedEdge, setSelectedEdge] = useState(null);
+  
+  // Keyboard shortcuts visibility
+  const [showShortcuts, setShowShortcuts] = useState(true);
+  
+  // React Flow instance for camera controls
+  const { fitView, setCenter } = useReactFlow();
   
   // Transform data to nodes and edges with layout
   const { nodes: layoutNodes, edges: layoutEdges } = useFlowLayout(equipmentData);
@@ -144,6 +160,81 @@ export default function FlowCanvas({ equipmentData }) {
     setSelectedEdge(null);
   }, []);
   
+  // Zoom to selected equipment
+  const zoomToSelected = useCallback(() => {
+    if (!selectedEquipmentId) return;
+    
+    const selectedNode = nodes.find(n => n.id === selectedEquipmentId);
+    if (!selectedNode) return;
+    
+    // Center on node with zoom level 1.2
+    const x = selectedNode.position.x + (selectedNode.width || 220) / 2;
+    const y = selectedNode.position.y + (selectedNode.height || 60) / 2;
+    
+    setCenter(x, y, { zoom: 1.2, duration: 800 });
+  }, [selectedEquipmentId, nodes, setCenter]);
+  
+  // Reset view to fit all equipment
+  const resetView = useCallback(() => {
+    fitView({ padding: 0.2, duration: 800 });
+  }, [fitView]);
+  
+  // Get React Flow instance for viewport control
+  const reactFlowInstance = useReactFlow();
+  
+  // Export canvas as PNG - captures FULL flowsheet regardless of current view
+  const exportPNG = useCallback(async () => {
+    // Find the viewport element inside React Flow
+    const viewportElement = document.querySelector('.react-flow__viewport');
+    if (!viewportElement) return;
+    
+    // Calculate bounds of ALL nodes to capture full flowsheet
+    const nodesBounds = getNodesBounds(nodes);
+    
+    // Add minimal padding around the flowsheet
+    const padding = 30;
+    const imageWidth = nodesBounds.width + padding * 2;
+    const imageHeight = nodesBounds.height + padding * 2;
+    
+    // Calculate the viewport transform needed to show all nodes
+    const viewport = getViewportForBounds(
+      nodesBounds,
+      imageWidth,
+      imageHeight,
+      0.5,  // minZoom
+      1,    // maxZoom - use exactly 1 for crisp export
+      padding
+    );
+    
+    // Store current transform to restore later
+    const currentTransform = viewportElement.style.transform;
+    
+    // Temporarily set viewport to calculated transform
+    viewportElement.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+    
+    try {
+      const dataUrl = await toPng(viewportElement, {
+        backgroundColor: '#ffffff',
+        width: imageWidth,
+        height: imageHeight,
+        style: {
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+        },
+      });
+      
+      const link = document.createElement('a');
+      link.download = `flowsheet-${runId || 'export'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to export PNG:', err);
+    } finally {
+      // Restore original transform
+      viewportElement.style.transform = currentTransform;
+    }
+  }, [runId, nodes]);
+  
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -198,22 +289,74 @@ export default function FlowCanvas({ equipmentData }) {
         />
       </ReactFlow>
       
-      {/* Keyboard Shortcuts Hint */}
-      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-sm z-10">
-        <div className="text-xs text-content-secondary space-y-1">
-          <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Tab</kbd>
-            <span>Next equipment</span>
+      {/* Canvas Controls - Top Right */}
+      <div className="canvas-controls absolute top-3 right-3 flex flex-col gap-2 z-20">
+        <button
+          onClick={zoomToSelected}
+          disabled={!selectedEquipmentId}
+          className="px-3 py-2 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+          title="Zoom to selected equipment"
+        >
+          <span>🎯</span>
+          <span className="text-content">Focus</span>
+        </button>
+        
+        <button
+          onClick={resetView}
+          className="px-3 py-2 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-2 text-sm"
+          title="Reset view to fit all equipment"
+        >
+          <span>⟲</span>
+          <span className="text-content">Reset</span>
+        </button>
+        
+        <button
+          onClick={exportPNG}
+          className="px-3 py-2 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-2 text-sm"
+          title="Export flowsheet as PNG"
+        >
+          <span>📷</span>
+          <span className="text-content">Export</span>
+        </button>
+      </div>
+      
+      {/* Keyboard Shortcuts Hint - Collapsible */}
+      <div className="keyboard-shortcuts absolute top-3 left-3 z-20">
+        {showShortcuts ? (
+          <div className="bg-white/90 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-content">Shortcuts</span>
+              <button
+                onClick={() => setShowShortcuts(false)}
+                className="text-content-tertiary hover:text-content transition-colors text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="text-xs text-content-secondary space-y-1">
+              <div className="flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Tab</kbd>
+                <span>Next equipment</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">↑↓</kbd>
+                <span>Navigate list</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Esc</kbd>
+                <span>Deselect</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">↑↓</kbd>
-            <span>Navigate list</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Esc</kbd>
-            <span>Deselect</span>
-          </div>
-        </div>
+        ) : (
+          <button
+            onClick={() => setShowShortcuts(true)}
+            className="w-8 h-8 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center justify-center text-sm font-semibold text-primary"
+            title="Show keyboard shortcuts"
+          >
+            ?
+          </button>
+        )}
       </div>
       
       {/* Stream Tooltip - shown when edge is clicked */}
@@ -225,5 +368,14 @@ export default function FlowCanvas({ equipmentData }) {
         />
       )}
     </div>
+  );
+}
+
+// Wrapper component that provides ReactFlowProvider context
+export default function FlowCanvas({ equipmentData }) {
+  return (
+    <ReactFlowProvider>
+      <FlowCanvasInner equipmentData={equipmentData} />
+    </ReactFlowProvider>
   );
 }
