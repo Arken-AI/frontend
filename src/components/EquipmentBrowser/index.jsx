@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from 'react';
 import { mockEquipmentData } from '../../data/mockSimulationData';
 import EquipmentCard from './EquipmentCard';
 import useSelectionStore from '../../store/useSelectionStore';
+import useEquipmentStore from '../../stores/useEquipmentStore';
 import { SkeletonEquipmentCard } from '../common/SkeletonLoader';
 import { NoEquipmentFound } from '../common/EmptyState';
 
@@ -19,6 +20,14 @@ export default function EquipmentBrowser() {
   
   // Get selection state from store
   const { selectedEquipmentId, selectEquipment } = useSelectionStore();
+  
+  // Get equipment parameter state from store
+  const { 
+    editedParams, 
+    validationErrors, 
+    updateParameter,
+    validateParameter
+  } = useEquipmentStore();
   
   // Refs for auto-scroll functionality
   const cardRefs = useRef({});
@@ -48,6 +57,31 @@ export default function EquipmentBrowser() {
     // Update selection in store (this will sync with canvas)
     selectEquipment(equipmentId);
   };
+  
+  /**
+   * Handle parameter change from equipment card
+   * @param {string} equipmentId - Equipment identifier
+   * @param {string} paramName - Parameter name
+   * @param {number} value - New value
+   * @param {boolean} isValid - Whether value passes validation
+   */
+  const handleParameterChange = (equipmentId, paramName, value, isValid) => {
+    // Get constraints for validation (from equipment data)
+    const equipment = equipmentList.find(eq => eq.id === equipmentId);
+    if (!equipment) return;
+    
+    // Find constraint for this parameter
+    const constraint = equipment.constraints.find(c => c.key === paramName);
+    const constraints = constraint ? { min: constraint.min, max: constraint.max } : {};
+    
+    // Validate parameter
+    const error = validateParameter(equipmentId, paramName, value, constraints);
+    
+    // Update parameter value in store (only if valid)
+    if (!error) {
+      updateParameter(equipmentId, paramName, value);
+    }
+  };
 
   return (
     <div className="equipment-browser flex flex-col gap-2">
@@ -66,6 +100,11 @@ export default function EquipmentBrowser() {
             isSelected={selectedEquipmentId === equipment.id}
             onToggle={() => handleToggle(equipment.id)}
             onClick={() => handleCardClick(equipment.id)}
+            editedValues={editedParams[equipment.id] || {}}
+            validationErrors={validationErrors[equipment.id] || {}}
+            onParameterChange={(paramName, value, isValid) => 
+              handleParameterChange(equipment.id, paramName, value, isValid)
+            }
           />
         ))
       )}

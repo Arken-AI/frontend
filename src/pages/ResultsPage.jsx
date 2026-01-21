@@ -7,11 +7,13 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import FlowCanvas from '../components/FlowCanvas';
 import { mockEquipmentData } from '../data/mockSimulationData';
 import useSelectionStore from '../store/useSelectionStore';
+import useEquipmentStore from '../stores/useEquipmentStore';
 import ErrorBoundary from '../components/common/ErrorBoundary';
+import toast from 'react-hot-toast';
 
 // Sidebar sections configuration
 const SIDEBAR_SECTIONS = [
@@ -36,9 +38,18 @@ const CHAT_COLLAPSE_THRESHOLD = 200;
 
 export default function ResultsPage() {
   const { runId } = useParams();
+  const navigate = useNavigate();
   
   // Get active panel and selection from Zustand store
   const { activePanel, setActivePanel, selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
+  
+  // Get equipment parameter state from store
+  const { 
+    hasUnsavedChanges, 
+    hasValidationErrors,
+    getEditedCount,
+    resetAll
+  } = useEquipmentStore();
   
   // Left sidebar state
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
@@ -226,6 +237,54 @@ export default function ResultsPage() {
   const handleChatDoubleClick = () => {
     setIsRightChatOpen(!isRightChatOpen);
   };
+  
+  // Handle discard changes
+  const handleDiscardChanges = () => {
+    if (window.confirm('Are you sure you want to discard all changes? This cannot be undone.')) {
+      resetAll();
+      toast.success('All changes discarded');
+    }
+  };
+  
+  // Handle back to chat with unsaved changes check
+  const handleBackToChat = (e) => {
+    if (hasUnsavedChanges) {
+      e.preventDefault();
+      if (window.confirm('You have unsaved changes. Discard changes and return to chat?')) {
+        resetAll();
+        navigate('/');
+      }
+    }
+  };
+  
+  // Handle simulate button click
+  const handleSimulate = () => {
+    if (hasValidationErrors()) {
+      toast.error('Please fix validation errors before simulating');
+      return;
+    }
+    
+    if (!hasUnsavedChanges) {
+      toast.error('No changes to simulate');
+      return;
+    }
+    
+    // TODO: Phase 4 - Call simulation API with edited parameters
+    toast.success('Simulation started (API integration pending)');
+  };
+  
+  // Warn user before leaving page with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Get current section config
   const currentSection = SIDEBAR_SECTIONS.find(s => s.id === activePanel);
@@ -233,19 +292,60 @@ export default function ResultsPage() {
   return (
     <div className={`h-screen flex flex-col bg-surface ${isDragging || isDraggingChat ? 'select-none' : ''}`}>
       {/* Header */}
-      <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-surface">
-        <div className="flex items-center gap-4">
+      <header className="h-14 border-b border-border flex items-center px-4 bg-surface">
+        {/* Left Side */}
+        <div className="flex items-center gap-3 flex-1">
           <h1 className="text-lg font-semibold text-content">ARKEN AI Results</h1>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-secondary rounded-md border border-border">
             <span className="text-sm text-content-secondary">Run:</span>
             <span className="text-sm font-medium text-content">{runId}</span>
           </div>
+          
+          {/* Pending Changes Indicator */}
+          {hasUnsavedChanges && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-300 rounded-md">
+              <span className="text-amber-600">⚠️</span>
+              <span className="text-sm text-amber-700 font-medium">
+                {getEditedCount()} equipment modified
+              </span>
+            </div>
+          )}
         </div>
         
-        <div className="flex items-center gap-4">
+        {/* Right Side - Reordered buttons */}
+        <div className="flex items-center gap-2">
+          {/* Simulate Button */}
+          <button 
+            onClick={handleSimulate}
+            disabled={!hasUnsavedChanges || hasValidationErrors()}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            title={
+              hasValidationErrors() 
+                ? 'Fix validation errors first' 
+                : !hasUnsavedChanges 
+                  ? 'No changes to simulate' 
+                  : 'Run simulation with edited parameters'
+            }
+          >
+            {hasUnsavedChanges ? 'Run New Simulation' : 'Simulate'}
+          </button>
+          
+          {/* Discard Changes Button */}
+          {hasUnsavedChanges && (
+            <button
+              onClick={handleDiscardChanges}
+              className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-300"
+              title="Discard all changes"
+            >
+              Discard Changes
+            </button>
+          )}
+          
+          {/* Back to Chat Link */}
           <Link 
             to="/" 
-            className="text-sm text-primary hover:text-primary-hover transition-colors"
+            onClick={handleBackToChat}
+            className="px-3 py-2 text-sm font-medium text-primary hover:text-primary-hover hover:bg-primary/5 rounded-md transition-colors"
           >
             ← Back to Chat
           </Link>
@@ -260,13 +360,6 @@ export default function ResultsPage() {
               <span className="text-base">💬</span>
             </button>
           )}
-          
-          <button 
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors text-sm font-medium disabled:opacity-50"
-            disabled
-          >
-            Simulate
-          </button>
         </div>
       </header>
 

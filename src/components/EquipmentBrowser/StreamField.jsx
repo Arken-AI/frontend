@@ -22,11 +22,15 @@ export default function StreamField({
   description,
   editable = false, 
   locked = false,
+  error: externalError,
   onChange 
 }) {
   const [localValue, setLocalValue] = useState(value ?? '');
-  const [error, setError] = useState(null);
+  const [internalError, setInternalError] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
+  
+  // Use external error if provided, otherwise internal
+  const error = externalError || internalError;
 
   // Sync local value when prop changes
   useEffect(() => {
@@ -79,11 +83,11 @@ export default function StreamField({
     // Validate
     const numValue = parseFloat(newValue);
     const validationError = validate(numValue);
-    setError(validationError);
+    setInternalError(validationError);
     
-    // Only call onChange if valid
-    if (!validationError) {
-      onChange?.(numValue);
+    // Call onChange with value and validity flag
+    if (onChange) {
+      onChange(numValue, !validationError);
     }
   };
 
@@ -94,7 +98,7 @@ export default function StreamField({
     } else if (e.key === 'Escape') {
       // Cancel edit - reset to original value
       setLocalValue(value ?? '');
-      setError(null);
+      setInternalError(null);
       e.target.blur();
     }
   };
