@@ -85,10 +85,7 @@ export default function StreamField({
     const validationError = validate(numValue);
     setInternalError(validationError);
     
-    // Call onChange with value and validity flag
-    if (onChange) {
-      onChange(numValue, !validationError);
-    }
+    // Do NOT call onChange here - only on blur to avoid marking as modified on every keystroke
   };
 
   // Handle key press (Enter to confirm, Escape to cancel)
@@ -111,7 +108,7 @@ export default function StreamField({
     if (isNaN(numValue)) {
       // Reset to original value
       setLocalValue(value ?? '');
-      setError(null);
+      setInternalError(null);
       return;
     }
     
@@ -124,10 +121,15 @@ export default function StreamField({
       clampedValue = max;
     }
     
-    // Always update to clamped value (even if same)
-    setLocalValue(clampedValue);
-    onChange?.(clampedValue);
-    setError(null);
+    // Only call onChange if the value actually changed
+    if (clampedValue !== value) {
+      setLocalValue(clampedValue);
+      onChange?.(clampedValue);
+    } else {
+      // Value didn't change, just ensure local value is synced
+      setLocalValue(value ?? '');
+    }
+    setInternalError(null);
   };
 
   const hasConstraints = (min !== undefined && min !== null) || (max !== undefined && max !== null);
