@@ -217,7 +217,7 @@ export default function ResultsPage() {
             </div>
             
             {/* Sidebar Content */}
-            <div className="flex-1 p-4 overflow-auto">
+            <div className={`flex-1 overflow-auto ${activeSection === 'warnings' ? '' : 'p-4'}`}>
               <SidebarContent section={activeSection} />
             </div>
           </div>
@@ -339,6 +339,8 @@ export default function ResultsPage() {
  * Renders different content based on active section
  */
 import EquipmentBrowser from '../components/EquipmentBrowser';
+import WarningsPanel from '../components/WarningsPanel';
+import { mockWarningsData } from '../data/mockSimulationData';
 
 function SidebarContent({ section }) {
   switch (section) {
@@ -373,14 +375,7 @@ function SidebarContent({ section }) {
       );
     
     case 'warnings':
-      return (
-        <>
-          <p className="text-sm text-content-secondary">Simulation warnings</p>
-          <div className="mt-4 p-4 border border-border rounded-md bg-surface-secondary">
-            <p className="text-xs text-content-tertiary text-center">No warnings</p>
-          </div>
-        </>
-      );
+      return <WarningsPanel warningsData={mockWarningsData} />;
     
     case 'history':
       return (

@@ -1070,5 +1070,45 @@ export function transformEquipmentData(apiResponse) {
     .filter(Boolean); // Remove null entries
 }
 
+/**
+ * Transform warnings data for Warnings Panel
+ */
+export function getWarningsData(equipmentData, apiResponse) {
+  // Equipment-specific warnings
+  const equipmentWarnings = equipmentData
+    .filter((eq) => eq.warnings && eq.warnings.length > 0)
+    .map((eq) => ({
+      equipmentId: eq.id,
+      equipmentName: eq.name,
+      icon: eq.icon,
+      warnings: eq.warnings,
+    }));
+
+  // Global/process-level warnings
+  const globalWarnings = apiResponse.result.warnings || [];
+
+  // Calculate total count (excluding duplicates in global warnings)
+  const equipmentWarningTexts = new Set(
+    equipmentWarnings.flatMap((eq) => eq.warnings)
+  );
+  const uniqueGlobalWarnings = globalWarnings.filter(
+    (w) => !equipmentWarningTexts.has(w)
+  );
+
+  const totalCount =
+    equipmentWarnings.reduce((sum, eq) => sum + eq.warnings.length, 0) +
+    uniqueGlobalWarnings.length;
+
+  return {
+    equipmentWarnings,
+    globalWarnings: uniqueGlobalWarnings,
+    totalCount,
+  };
+}
+
 // Export transformed data for direct use
 export const mockEquipmentData = transformEquipmentData(mockApiResponse);
+export const mockWarningsData = getWarningsData(
+  mockEquipmentData,
+  mockApiResponse
+);
