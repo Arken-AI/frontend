@@ -11,6 +11,7 @@ import { useParams, Link } from 'react-router-dom';
 import FlowCanvas from '../components/FlowCanvas';
 import { mockEquipmentData } from '../data/mockSimulationData';
 import useSelectionStore from '../store/useSelectionStore';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
 // Sidebar sections configuration
 const SIDEBAR_SECTIONS = [
@@ -295,7 +296,9 @@ export default function ResultsPage() {
             
             {/* Sidebar Content */}
             <div className={`flex-1 overflow-auto ${activePanel === 'warnings' ? '' : 'p-4'}`}>
-              <SidebarContent section={activePanel} />
+              <ErrorBoundary fallbackMessage="Unable to load this panel. Please try refreshing the page.">
+                <SidebarContent section={activePanel} />
+              </ErrorBoundary>
             </div>
           </div>
 
@@ -317,7 +320,9 @@ export default function ResultsPage() {
 
         {/* Middle Canvas */}
         <div className="flex-1 canvas-grid relative">
-          <FlowCanvas equipmentData={mockEquipmentData} />
+          <ErrorBoundary fallbackMessage="Unable to load flowsheet. Please refresh the page.">
+            <FlowCanvas equipmentData={mockEquipmentData} />
+          </ErrorBoundary>
           
           {/* Chat Toggle Button - shown when chat is closed */}
           {!isRightChatOpen && (
@@ -373,9 +378,11 @@ export default function ResultsPage() {
             
             {/* Chat Messages */}
             <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-              <p className="text-sm text-content-secondary text-center">
-                Continue conversation about this run
-              </p>
+              <ErrorBoundary fallbackMessage="Chat is temporarily unavailable.">
+                <p className="text-sm text-content-secondary text-center">
+                  Continue conversation about this run
+                </p>
+              </ErrorBoundary>
             </div>
             
             {/* Chat Input */}

@@ -21,6 +21,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { toPng } from 'html-to-image';
+import toast from 'react-hot-toast';
 
 import EquipmentNode from './EquipmentNode';
 import FeedNode from './FeedNode';
@@ -29,6 +30,8 @@ import StreamTooltip from './StreamTooltip';
 import useFlowLayout from './useFlowLayout';
 import useSelectionStore from '../../store/useSelectionStore';
 import { useParams } from 'react-router-dom';
+import { CanvasLoadingOverlay } from '../common/SkeletonLoader';
+import { NoFlowsheet } from '../common/EmptyState';
 
 // Register custom node types
 const nodeTypes = {
@@ -59,6 +62,9 @@ function FlowCanvasInner({ equipmentData }) {
   // Keyboard shortcuts visibility
   const [showShortcuts, setShowShortcuts] = useState(true);
   
+  // Loading state for initial render
+  const [isLoading, setIsLoading] = useState(true);
+  
   // React Flow instance for camera controls
   const { fitView, setCenter } = useReactFlow();
   
@@ -73,6 +79,11 @@ function FlowCanvasInner({ equipmentData }) {
   useEffect(() => {
     setNodes(layoutNodes);
     setEdges(layoutEdges);
+    
+    // Once we have nodes, mark as loaded
+    if (layoutNodes.length > 0) {
+      setIsLoading(false);
+    }
   }, [layoutNodes, layoutEdges, setNodes, setEdges]);
   
   // Update node selection state based on store
@@ -186,33 +197,39 @@ function FlowCanvasInner({ equipmentData }) {
   const exportPNG = useCallback(async () => {
     // Find the viewport element inside React Flow
     const viewportElement = document.querySelector('.react-flow__viewport');
-    if (!viewportElement) return;
+    if (!viewportElement) {
+      toast.error('Unable to find canvas element');
+      return;
+    }
     
-    // Calculate bounds of ALL nodes to capture full flowsheet
-    const nodesBounds = getNodesBounds(nodes);
-    
-    // Add minimal padding around the flowsheet
-    const padding = 30;
-    const imageWidth = nodesBounds.width + padding * 2;
-    const imageHeight = nodesBounds.height + padding * 2;
-    
-    // Calculate the viewport transform needed to show all nodes
-    const viewport = getViewportForBounds(
-      nodesBounds,
-      imageWidth,
-      imageHeight,
-      0.5,  // minZoom
-      1,    // maxZoom - use exactly 1 for crisp export
-      padding
-    );
-    
-    // Store current transform to restore later
-    const currentTransform = viewportElement.style.transform;
-    
-    // Temporarily set viewport to calculated transform
-    viewportElement.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+    // Show loading toast
+    const exportToast = toast.loading('Exporting flowsheet...');
     
     try {
+      // Calculate bounds of ALL nodes to capture full flowsheet
+      const nodesBounds = getNodesBounds(nodes);
+      
+      // Add minimal padding around the flowsheet
+      const padding = 30;
+      const imageWidth = nodesBounds.width + padding * 2;
+      const imageHeight = nodesBounds.height + padding * 2;
+      
+      // Calculate the viewport transform needed to show all nodes
+      const viewport = getViewportForBounds(
+        nodesBounds,
+        imageWidth,
+        imageHeight,
+        0.5,  // minZoom
+        1,    // maxZoom - use exactly 1 for crisp export
+        padding
+      );
+      
+      // Store current transform to restore later
+      const currentTransform = viewportElement.style.transform;
+      
+      // Temporarily set viewport to calculated transform
+      viewportElement.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+      
       const dataUrl = await toPng(viewportElement, {
         backgroundColor: '#ffffff',
         width: imageWidth,
@@ -227,13 +244,35 @@ function FlowCanvasInner({ equipmentData }) {
       link.download = `flowsheet-${runId || 'export'}.png`;
       link.href = dataUrl;
       link.click();
-    } catch (err) {
-      console.error('Failed to export PNG:', err);
-    } finally {
+      
       // Restore original transform
       viewportElement.style.transform = currentTransform;
+      
+      toast.success('Flowsheet exported successfully', { id: exportToast });
+      
+    } catch (err) {
+      console.error('Failed to export PNG:', err);
+      toast.error('Failed to export flowsheet', { id: exportToast });
     }
   }, [runId, nodes]);
+  
+  // Show loading overlay if data is still loading
+  if (isLoading) {
+    return (
+      <div className="w-full h-full relative">
+        <CanvasLoadingOverlay />
+      </div>
+    );
+  }
+  
+  // Show empty state if no equipment data
+  if (!equipmentData || equipmentData.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <NoFlowsheet />
+      </div>
+    );
+  }
   
   return (
     <div className="w-full h-full">

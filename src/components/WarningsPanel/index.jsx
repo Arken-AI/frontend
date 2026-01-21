@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import WarningCard from './WarningCard';
+import { NoWarnings } from '../common/EmptyState';
 
 export default function WarningsPanel({ warningsData }) {
   const [filter, setFilter] = useState('all'); // 'all', 'warnings', 'info'
@@ -15,17 +16,7 @@ export default function WarningsPanel({ warningsData }) {
   
   // Empty state
   if (totalCount === 0) {
-    return (
-      <div className="h-full flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="text-6xl mb-4">✅</div>
-          <h3 className="text-lg font-semibold text-content mb-2">No Warnings</h3>
-          <p className="text-sm text-content-secondary">
-            All equipment converged successfully with no issues.
-          </p>
-        </div>
-      </div>
-    );
+    return <NoWarnings />;
   }
   
   return (

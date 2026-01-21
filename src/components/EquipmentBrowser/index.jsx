@@ -10,10 +10,15 @@ import { useState, useEffect, useRef } from 'react';
 import { mockEquipmentData } from '../../data/mockSimulationData';
 import EquipmentCard from './EquipmentCard';
 import useSelectionStore from '../../store/useSelectionStore';
+import { SkeletonEquipmentCard } from '../common/SkeletonLoader';
+import { NoEquipmentFound } from '../common/EmptyState';
 
 export default function EquipmentBrowser() {
   // Track which equipment card is expanded (null = all collapsed)
   const [expandedId, setExpandedId] = useState(null);
+  
+  // Loading state (will be controlled by API call in Phase 3)
+  const [isLoading, setIsLoading] = useState(false);
   
   // Get selection state from store
   const { selectedEquipmentId, selectEquipment } = useSelectionStore();
@@ -23,6 +28,13 @@ export default function EquipmentBrowser() {
   
   // Equipment data (will come from API/store in Phase 3)
   const equipmentList = mockEquipmentData;
+  
+  // Simulate initial load (remove this when integrating real API)
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Auto-scroll to selected equipment when selection changes externally (e.g., from canvas)
   useEffect(() => {
@@ -49,11 +61,18 @@ export default function EquipmentBrowser() {
 
   return (
     <div className="equipment-browser flex flex-col gap-2">
-      {equipmentList.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-sm text-content-secondary">No equipment found</p>
-        </div>
+      {isLoading ? (
+        // Show skeleton loaders while loading
+        <>
+          {[...Array(6)].map((_, i) => (
+            <SkeletonEquipmentCard key={i} />
+          ))}
+        </>
+      ) : equipmentList.length === 0 ? (
+        // Show empty state if no equipment
+        <NoEquipmentFound />
       ) : (
+        // Show actual equipment cards
         equipmentList.map((equipment, index) => (
           <EquipmentCard
             key={equipment.id}
