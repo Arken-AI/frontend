@@ -7,6 +7,8 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import FlowCanvas from '../components/FlowCanvas';
+import { mockEquipmentData } from '../data/mockSimulationData';
 
 // Sidebar sections configuration
 const SIDEBAR_SECTIONS = [
@@ -239,23 +241,14 @@ export default function ResultsPage() {
         {isLeftSidebarOpen && <div className="w-px bg-border flex-shrink-0" />}
 
         {/* Middle Canvas */}
-        <div className="flex-1 canvas-grid flex items-center justify-center relative">
-          <div className="text-center">
-            <div className="text-6xl mb-4">🔬</div>
-            <h3 className="text-lg font-medium text-content mb-2">Flowsheet Diagram</h3>
-            <p className="text-sm text-content-secondary">
-              Run ID: <code className="bg-surface-secondary px-2 py-1 rounded">{runId}</code>
-            </p>
-            <p className="text-sm text-content-tertiary mt-2">
-              Equipment and streams will render here
-            </p>
-          </div>
+        <div className="flex-1 canvas-grid relative">
+          <FlowCanvas equipmentData={mockEquipmentData} />
           
           {/* Chat Toggle Button - shown when chat is closed */}
           {!isRightChatOpen && (
             <button
               onClick={() => setIsRightChatOpen(true)}
-              className="absolute top-3 right-3 w-10 h-10 bg-primary text-white rounded-lg shadow-lg hover:bg-primary-hover transition-colors flex items-center justify-center"
+              className="absolute top-3 right-3 w-10 h-10 bg-primary text-white rounded-lg shadow-lg hover:bg-primary-hover transition-colors flex items-center justify-center z-10"
               title="Open Chat"
             >
               <span className="text-lg">💬</span>
