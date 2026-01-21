@@ -25,7 +25,7 @@ const SIDEBAR_SECTIONS = [
 // Sidebar size constraints
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 500;
-const SIDEBAR_DEFAULT_WIDTH = 288;
+const SIDEBAR_DEFAULT_WIDTH = 370;
 const SIDEBAR_COLLAPSE_THRESHOLD = 150;
 
 // Right chat panel size constraints
