@@ -92,7 +92,7 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
       
       {/* Tooltip */}
       <div 
-        className="fixed z-50 bg-white border-2 border-primary rounded-lg shadow-xl max-w-sm"
+        className="fixed z-50 bg-white rounded-xl shadow-2xl max-w-sm border-2 border-gray-900"
         style={{
           top: '50%',
           left: '50%',
@@ -100,41 +100,41 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
         }}
       >
         {/* Header */}
-        <div className="px-4 py-3 bg-primary/5 border-b border-primary/20 flex items-center justify-between">
+        <div className="px-4 py-3 bg-white border-b-2 border-gray-900 flex items-center justify-between">
           <div>
-            <div className="text-sm font-semibold text-primary">{streamData.streamNumber}</div>
-            <div className="text-xs text-content-secondary">{streamData.type}</div>
+            <div className="text-base font-bold text-gray-900">{streamData.streamNumber}</div>
+            <div className="text-xs text-gray-600">{streamData.type}</div>
           </div>
           <button 
             onClick={onClose}
-            className="text-content-tertiary hover:text-content transition-colors"
+            className="text-gray-400 hover:text-gray-900 transition-colors text-lg"
           >
             ✕
           </button>
         </div>
 
         {/* Content */}
-        <div className="px-4 py-3 space-y-3">
+        <div className="px-4 py-4 space-y-4">
           {/* Stream Name */}
           <div>
-            <div className="text-xs text-content-tertiary mb-0.5">Stream Name</div>
-            <div className="text-sm font-medium text-content">{streamData.name}</div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Stream Name</div>
+            <div className="text-sm font-semibold text-gray-900">{streamData.name}</div>
           </div>
 
           {/* Flow Path */}
-          <div className="flex items-center gap-2 text-xs text-content-secondary">
+          <div className="flex items-center gap-2 text-sm text-gray-700">
             <span className="font-medium">{streamData.source}</span>
-            <span>→</span>
+            <span className="text-gray-400">→</span>
             <span className="font-medium">{streamData.target}</span>
           </div>
 
           {/* Properties Grid */}
           {streamData.properties && (
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200">
               {streamData.properties.map((prop) => (
                 <div key={prop.name}>
-                  <div className="text-xs text-content-tertiary">{prop.name}</div>
-                  <div className="text-sm font-medium text-content">
+                  <div className="text-xs text-gray-500">{prop.name}</div>
+                  <div className="text-sm font-semibold text-gray-900">
                     {formatProperty(prop.value, prop.unit)}
                   </div>
                 </div>
@@ -144,9 +144,9 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
 
           {/* Phase (if available) */}
           {streamData.phase && (
-            <div className="pt-2 border-t border-border">
-              <div className="text-xs text-content-tertiary mb-0.5">Phase</div>
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-surface-secondary rounded text-xs font-medium text-content">
+            <div className="pt-3 border-t border-gray-200">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Phase</div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-700">
                 {streamData.phase === 'liquid' && '💧'}
                 {streamData.phase === 'vapor' && '☁️'}
                 {streamData.phase === 'mixed' && '🌫️'}
@@ -157,13 +157,13 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
 
           {/* Composition (if available) */}
           {streamData.composition && Object.keys(streamData.composition).length > 0 && (
-            <div className="pt-2 border-t border-border">
-              <div className="text-xs text-content-tertiary mb-1.5">Composition</div>
-              <div className="space-y-1">
+            <div className="pt-3 border-t border-gray-200">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Composition</div>
+              <div className="space-y-1.5">
                 {Object.entries(streamData.composition).map(([component, fraction]) => (
                   <div key={component} className="flex items-center justify-between text-xs">
-                    <span className="text-content-secondary">{component}</span>
-                    <span className="font-medium text-content">
+                    <span className="text-gray-600">{component}</span>
+                    <span className="font-semibold text-gray-900">
                       {(fraction * 100).toFixed(2)}%
                     </span>
                   </div>
@@ -174,9 +174,9 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 bg-surface-secondary border-t border-border">
-          <div className="text-xs text-content-tertiary text-center">
-            Press <kbd className="px-1.5 py-0.5 bg-surface border border-border rounded text-[10px] font-mono">Esc</kbd> or click outside to close
+        <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+          <div className="text-xs text-gray-500 text-center">
+            Press <kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded text-[10px] font-mono shadow-sm">Esc</kbd> or click outside to close
           </div>
         </div>
       </div>

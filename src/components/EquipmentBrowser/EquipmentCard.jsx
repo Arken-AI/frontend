@@ -149,7 +149,7 @@ const EquipmentCard = forwardRef(({
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
               isCollapsible={true}
-              defaultExpanded={true}
+              defaultExpanded={false}
             />
           )}
 
@@ -163,7 +163,7 @@ const EquipmentCard = forwardRef(({
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
               isCollapsible={true}
-              defaultExpanded={true}
+              defaultExpanded={false}
             />
           )}
 

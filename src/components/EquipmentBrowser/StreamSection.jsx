@@ -189,21 +189,18 @@ function ConstraintsCard({ constraints, editedValues, validationErrors, onParame
 
 /**
  * Individual Stream Card
- * Clean layout with left border accent (green for inputs, orange for outputs)
+ * Clean layout without left border accent
  */
 function StreamCard({ stream, isOutput, editedValues, validationErrors, onParameterChange }) {
   const streamId = stream.streamId || stream.stream_id;
   const editable = stream.editable && !isOutput;
   const streamNumber = stream.streamNumber;
   
-  // Border color based on stream type
-  const borderColor = isOutput ? 'border-l-orange-400' : 'border-l-green-500';
-  
   // Helper to get field key for this stream
   const getFieldKey = (fieldName) => `${streamId}_${fieldName}`;
   
   return (
-    <div className={`border-l-4 ${borderColor} pl-4 py-1`}>
+    <div className="pl-2 py-1">
       {/* Stream Name */}
       <div className="mb-3">
         <span className="text-sm font-medium text-gray-900">

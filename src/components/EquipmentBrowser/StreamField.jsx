@@ -165,6 +165,19 @@ export default function StreamField({
           </div>
         </div>
         
+        {/* Min/Max hint when focused */}
+        {isFocused && !error && (min !== undefined || max !== undefined) && (
+          <div className="flex justify-end mt-1 mr-14">
+            <span className="text-xs text-gray-500">
+              {min !== undefined && max !== undefined
+                ? `Range: ${formatLimit(min)} - ${formatLimit(max)}`
+                : min !== undefined
+                  ? `Min: ${formatLimit(min)}`
+                  : `Max: ${formatLimit(max)}`}
+            </span>
+          </div>
+        )}
+        
         {/* Error message */}
         {error && (
           <div className="flex justify-end mt-1 mr-14">

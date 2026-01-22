@@ -329,60 +329,60 @@ function FlowCanvasInner({ equipmentData }) {
       </ReactFlow>
       
       {/* Canvas Controls - Top Right */}
-      <div className="canvas-controls absolute top-3 right-3 flex flex-col gap-2 z-20">
+      <div className="canvas-controls absolute top-3 right-3 flex flex-col gap-1.5 z-20">
         <button
           onClick={zoomToSelected}
           disabled={!selectedEquipmentId}
-          className="px-3 py-2 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+          className="px-3 py-1.5 bg-white border-2 border-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-medium text-gray-900"
           title="Zoom to selected equipment"
         >
-          <span>🎯</span>
-          <span className="text-content">Focus</span>
+          <span className="text-sm">🎯</span>
+          <span>Focus</span>
         </button>
         
         <button
           onClick={resetView}
-          className="px-3 py-2 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-2 text-sm"
+          className="px-3 py-1.5 bg-white border-2 border-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-xs font-medium text-gray-900"
           title="Reset view to fit all equipment"
         >
-          <span>⟲</span>
-          <span className="text-content">Reset</span>
+          <span className="text-sm">⟲</span>
+          <span>Reset</span>
         </button>
         
         <button
           onClick={exportPNG}
-          className="px-3 py-2 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-2 text-sm"
+          className="px-3 py-1.5 bg-white border-2 border-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-xs font-medium text-gray-900"
           title="Export flowsheet as PNG"
         >
-          <span>📷</span>
-          <span className="text-content">Export</span>
+          <span className="text-sm">📷</span>
+          <span>Export</span>
         </button>
       </div>
       
       {/* Keyboard Shortcuts Hint - Collapsible */}
       <div className="keyboard-shortcuts absolute top-3 left-3 z-20">
         {showShortcuts ? (
-          <div className="bg-white/90 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-sm">
+          <div className="bg-white border-2 border-gray-900 rounded-lg px-3 py-2 shadow-md">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-content">Shortcuts</span>
+              <span className="text-xs font-bold text-gray-900">Shortcuts</span>
               <button
                 onClick={() => setShowShortcuts(false)}
-                className="text-content-tertiary hover:text-content transition-colors text-xs"
+                className="text-gray-400 hover:text-gray-900 transition-colors text-sm"
               >
                 ✕
               </button>
             </div>
-            <div className="text-xs text-content-secondary space-y-1">
+            <div className="text-[11px] text-gray-700 space-y-1.5">
               <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Tab</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-[10px] font-mono font-semibold shadow-sm min-w-[32px] text-center">Tab</kbd>
                 <span>Next equipment</span>
               </div>
               <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">↑↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-[10px] font-mono font-semibold shadow-sm min-w-[32px] text-center">↑↓</kbd>
                 <span>Navigate list</span>
               </div>
               <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-surface-secondary border border-border rounded text-[10px] font-mono">Esc</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-[10px] font-mono font-semibold shadow-sm min-w-[32px] text-center">Esc</kbd>
                 <span>Deselect</span>
               </div>
             </div>
@@ -390,7 +390,7 @@ function FlowCanvasInner({ equipmentData }) {
         ) : (
           <button
             onClick={() => setShowShortcuts(true)}
-            className="w-8 h-8 bg-white/90 backdrop-blur-sm border border-border rounded-lg shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center justify-center text-sm font-semibold text-primary"
+            className="w-7 h-7 bg-white border-2 border-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center justify-center text-sm font-bold text-gray-900"
             title="Show keyboard shortcuts"
           >
             ?
