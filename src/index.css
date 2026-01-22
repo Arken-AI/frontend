@@ -5,33 +5,34 @@
    ============================================ */
 :root {
   /* Primary brand colors */
-  --color-primary: #0066CC;
-  --color-primary-hover: #0052A3;
-  --color-primary-light: #E6F0FA;
+  --color-primary: #3B82F6;
+  --color-primary-hover: #2563EB;
+  --color-primary-light: #EFF6FF;
   
   /* Surface colors (backgrounds) */
   --color-surface: #FFFFFF;
-  --color-surface-secondary: #F5F5F5;
-  --color-surface-tertiary: #EBEBEB;
+  --color-surface-secondary: #F8FAFC;
+  --color-surface-tertiary: #F1F5F9;
   
   /* Border colors */
-  --color-border: #E0E0E0;
-  --color-border-secondary: #D0D0D0;
+  --color-border: #E2E8F0;
+  --color-border-secondary: #CBD5E1;
   
   /* Text colors */
-  --color-text-primary: #212529;
-  --color-text-secondary: #6C757D;
-  --color-text-tertiary: #9CA3AF;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #94A3B8;
   
   /* Status colors */
-  --color-success: #28A745;
-  --color-warning: #FFC107;
-  --color-error: #DC3545;
-  --color-info: #0066CC;
+  --color-success: #22C55E;
+  --color-warning: #F97316;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
   
   /* Activity bar */
-  --color-activity-bar: #F0F0F0;
-  --color-activity-bar-active: #E0E0E0;
+  --color-activity-bar: #F8FAFC;
+  --color-activity-bar-active: #FFFFFF;
+  --color-activity-bar-hover: #F1F5F9;
   
   /* Canvas */
   --color-canvas-bg: #FAFAFA;
@@ -124,18 +125,21 @@ body {
    ============================================ */
 .activity-bar-item {
   color: var(--color-text-secondary);
-  transition: color 150ms ease, background-color 150ms ease;
+  transition: all 200ms ease;
+  border-radius: 0.5rem;
 }
 
 .activity-bar-item:hover {
   color: var(--color-text-primary);
   background-color: var(--color-activity-bar-active);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 .activity-bar-item.active {
   color: var(--color-primary);
   background-color: var(--color-activity-bar-active);
   border-left: 2px solid var(--color-primary);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 /* ============================================

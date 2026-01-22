@@ -5,7 +5,7 @@
  * Features:
  * - New Chat button
  * - Scrollable conversation list
- * - Active conversation highlighting
+ * - Active conversation highlighting with left border
  * - Delete conversation with confirmation
  */
 
@@ -31,7 +31,7 @@ export default function Sidebar({ onClose }) {
    */
   const handleNewChat = () => {
     createNewConversation();
-    onClose?.(); // Close sidebar on mobile
+    onClose?.();
   };
 
   /**
@@ -39,14 +39,14 @@ export default function Sidebar({ onClose }) {
    */
   const handleConversationClick = (convId) => {
     setConversationId(convId);
-    onClose?.(); // Close sidebar on mobile
+    onClose?.();
   };
 
   /**
    * Handle delete conversation
    */
   const handleDelete = async (e, convId) => {
-    e.stopPropagation(); // Don't trigger conversation click
+    e.stopPropagation();
     
     if (!window.confirm('Delete this conversation? This cannot be undone.')) {
       return;
@@ -58,18 +58,18 @@ export default function Sidebar({ onClose }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Chats</h2>
+          <h2 className="text-base font-semibold text-gray-900">Conversations</h2>
           
           {/* Close button (mobile only) */}
           <button
             onClick={onClose}
-            className="md:hidden p-1 text-gray-500 hover:text-gray-700 rounded"
+            className="md:hidden p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
@@ -77,8 +77,8 @@ export default function Sidebar({ onClose }) {
         <button
           onClick={handleNewChat}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 
-                     bg-blue-600 hover:bg-blue-700 text-white rounded-lg
-                     font-medium transition-colors"
+                     bg-blue-600 hover:bg-blue-700 text-white rounded-xl
+                     font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
           New Chat
@@ -114,9 +114,9 @@ export default function Sidebar({ onClose }) {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-100">
         <p className="text-xs text-gray-400 text-center">
-          MCP Chat Interface
+          ARKEN AI Chat Interface
         </p>
       </div>
     </div>
@@ -135,17 +135,17 @@ function ConversationItem({ conversation, isActive, isDeleting, onClick, onDelet
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
       className={`
-        group px-4 py-3 cursor-pointer transition-colors
+        group px-3 py-2.5 mx-2 cursor-pointer transition-all duration-200 rounded-lg
         ${isActive 
-          ? 'bg-blue-50 border-l-4 border-blue-500' 
-          : 'hover:bg-gray-50 border-l-4 border-transparent'
+          ? 'bg-blue-50 border-l-4 border-l-blue-500 shadow-sm' 
+          : 'hover:bg-gray-50 border-l-4 border-l-transparent'
         }
       `}
     >
       <div className="flex items-start gap-3">
         {/* Icon */}
         <div className={`
-          mt-0.5 p-1.5 rounded-lg
+          mt-0.5 p-1.5 rounded-lg transition-colors
           ${isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}
         `}>
           <MessageSquare size={14} />
@@ -165,9 +165,9 @@ function ConversationItem({ conversation, isActive, isDeleting, onClick, onDelet
           <div className="flex items-center gap-2 mt-1">
             {/* Simulation badge */}
             {conversation.has_simulations && (
-              <span className="inline-flex items-center px-1.5 py-0.5 
-                             text-xs font-medium bg-green-100 text-green-700 rounded">
-                ⚙️ Simulated
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 
+                             text-xs font-medium border border-green-300 text-green-600 bg-green-50 rounded-full">
+                ✓ Simulated
               </span>
             )}
           </div>
@@ -179,7 +179,7 @@ function ConversationItem({ conversation, isActive, isDeleting, onClick, onDelet
             onClick={onDelete}
             disabled={isDeleting}
             className="p-1.5 text-gray-400 hover:text-red-500 
-                     hover:bg-red-50 rounded transition-colors"
+                     hover:bg-red-50 rounded-lg transition-colors"
           >
             {isDeleting ? (
               <Loader2 className="animate-spin" size={14} />

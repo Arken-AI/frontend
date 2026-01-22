@@ -2,17 +2,55 @@
  * Header Component
  * 
  * Top navigation bar with:
- * - Mobile menu toggle
- * - App title
- * - Health indicator
+ * - App branding
+ * - Page title/breadcrumb
+ * - Health indicator (styled as badge)
+ * - Action buttons
  */
 
 import { useState, useEffect } from 'react';
 import { useChatContext } from '../../context/ChatContext';
 import { checkHealth } from '../../api/client';
-import { Menu, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Menu, Settings, Wifi, WifiOff, ChevronRight } from 'lucide-react';
 
-export default function Header({ onMenuClick }) {
+/**
+ * Health Badge - Consistent with Equipment Browser badges
+ */
+function HealthBadge({ status, loading }) {
+  if (loading) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border border-gray-300 text-gray-500 bg-gray-50">
+        <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+        <span className="hidden sm:inline">Checking...</span>
+      </span>
+    );
+  }
+  
+  const isHealthy = status?.status === 'healthy';
+  
+  return (
+    <span className={`
+      inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border
+      ${isHealthy 
+        ? 'border-green-300 text-green-600 bg-green-50' 
+        : 'border-red-300 text-red-500 bg-red-50'
+      }
+    `}>
+      {isHealthy ? <Wifi size={12} /> : <WifiOff size={12} />}
+      <span className="hidden sm:inline">
+        {isHealthy ? 'Connected' : 'Disconnected'}
+      </span>
+    </span>
+  );
+}
+
+export default function Header({ 
+  onMenuClick, 
+  title = 'ARKEN AI',
+  subtitle,
+  showBackButton = false,
+  onBackClick
+}) {
   const { conversationId, conversations } = useChatContext();
   const [health, setHealth] = useState(null);
   const [healthLoading, setHealthLoading] = useState(true);
@@ -35,19 +73,13 @@ export default function Header({ onMenuClick }) {
       }
     };
 
-    // Check immediately
     checkBackendHealth();
-
-    // Check every 30 seconds
     const interval = setInterval(checkBackendHealth, 30000);
-
     return () => clearInterval(interval);
   }, []);
 
-  const isHealthy = health?.status === 'healthy';
-
   return (
-    <header className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0">
+    <header className="h-12 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0 shadow-sm">
       {/* Left side */}
       <div className="flex items-center gap-3">
         {/* Mobile menu button */}
@@ -60,49 +92,40 @@ export default function Header({ onMenuClick }) {
           <Menu size={20} />
         </button>
 
-        {/* App title */}
+        {/* App branding + breadcrumb */}
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-gray-900">
-            MCP Chat
+          <h1 className="text-base font-bold text-gray-900">
+            {title}
           </h1>
           
-          {/* Current conversation title (desktop only) */}
-          {currentConversation && (
-            <span className="hidden lg:block text-sm text-gray-500 max-w-xs truncate">
-              / {currentConversation.title || 'Untitled'}
-            </span>
+          {/* Breadcrumb separator + subtitle */}
+          {subtitle && (
+            <>
+              <ChevronRight size={16} className="text-gray-400" />
+              <span className="text-sm font-medium text-gray-600">
+                {subtitle}
+              </span>
+            </>
+          )}
+          
+          {/* Current conversation title (if no subtitle) */}
+          {!subtitle && currentConversation && (
+            <>
+              <ChevronRight size={16} className="text-gray-400" />
+              <span className="hidden lg:block text-sm text-gray-500 max-w-xs truncate">
+                {currentConversation.title || 'Untitled'}
+              </span>
+            </>
           )}
         </div>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Health indicator */}
-        <div
-          className={`
-            flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
-            ${healthLoading 
-              ? 'bg-gray-100 text-gray-500' 
-              : isHealthy 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-red-100 text-red-700'
-            }
-          `}
-          title={health?.error || (isHealthy ? 'Backend connected' : 'Backend disconnected')}
-        >
-          {healthLoading ? (
-            <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-          ) : isHealthy ? (
-            <Wifi size={12} />
-          ) : (
-            <WifiOff size={12} />
-          )}
-          <span className="hidden sm:inline">
-            {healthLoading ? 'Checking...' : isHealthy ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
+        <HealthBadge status={health} loading={healthLoading} />
 
-        {/* Settings button (placeholder for future) */}
+        {/* Settings button */}
         <button
           className="p-2 text-gray-500 hover:text-gray-700 
                    hover:bg-gray-100 rounded-lg transition-colors"

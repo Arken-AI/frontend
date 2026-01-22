@@ -14,6 +14,7 @@ import { mockEquipmentData } from '../data/mockSimulationData';
 import useSelectionStore from '../store/useSelectionStore';
 import useEquipmentStore from '../stores/useEquipmentStore';
 import ErrorBoundary from '../components/common/ErrorBoundary';
+import { ActivityBar } from '../components/layout';
 import toast from 'react-hot-toast';
 
 // Sidebar sections configuration
@@ -298,24 +299,24 @@ export default function ResultsPage() {
   const currentSection = SIDEBAR_SECTIONS.find(s => s.id === activePanel);
 
   return (
-    <div className={`h-screen flex flex-col bg-surface ${isDragging || isDraggingChat ? 'select-none' : ''}`}>
+    <div className={`h-screen flex flex-col bg-gray-50 ${isDragging || isDraggingChat ? 'select-none' : ''}`}>
       {/* Header */}
-      <header className="h-14 border-b border-border flex items-center px-4 bg-surface">
+      <header className="h-12 border-b border-gray-100 flex items-center px-4 bg-white shadow-sm">
         {/* Left Side */}
         <div className="flex items-center gap-3 flex-1">
-          <h1 className="text-lg font-semibold text-content">ARKEN AI Results</h1>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-secondary rounded-md border border-border">
-            <span className="text-sm text-content-secondary">Run:</span>
-            <span className="text-sm font-medium text-content">{runId}</span>
+          <h1 className="text-base font-bold text-gray-900">ARKEN AI</h1>
+          <span className="text-gray-300">›</span>
+          <span className="text-sm font-medium text-gray-600">Simulation Results</span>
+          <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-100 rounded-lg text-xs">
+            <span className="text-gray-500">Run:</span>
+            <span className="font-medium text-gray-700">{runId}</span>
           </div>
           
           {/* Pending Changes Indicator */}
           {hasUnsavedChanges && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-300 rounded-md">
-              <span className="text-amber-600">⚠️</span>
-              <span className="text-sm text-amber-700 font-medium">
-                {getEditedCount()} equipment modified
-              </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 border border-orange-300 text-orange-600 bg-orange-50 rounded-full text-xs font-medium">
+              <span>⚠</span>
+              <span>{getEditedCount()} modified</span>
             </div>
           )}
         </div>
@@ -326,7 +327,7 @@ export default function ResultsPage() {
           <button 
             onClick={handleSimulate}
             disabled={!hasUnsavedChanges || hasValidationErrors()}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             title={
               hasValidationErrors() 
                 ? 'Fix validation errors first' 
@@ -335,17 +336,17 @@ export default function ResultsPage() {
                   : 'Run simulation with edited parameters'
             }
           >
-            {hasUnsavedChanges ? 'Run New Simulation' : 'Simulate'}
+            {hasUnsavedChanges ? 'Run Simulation' : 'Simulate'}
           </button>
           
           {/* Discard Changes Button */}
           {hasUnsavedChanges && (
             <button
               onClick={handleDiscardChanges}
-              className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-300"
+              className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-red-300"
               title="Discard all changes"
             >
-              Discard Changes
+              Discard
             </button>
           )}
           
@@ -353,7 +354,7 @@ export default function ResultsPage() {
           <Link 
             to="/" 
             onClick={handleBackToChat}
-            className="px-3 py-2 text-sm font-medium text-primary hover:text-primary-hover hover:bg-primary/5 rounded-md transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             ← Back to Chat
           </Link>
@@ -362,10 +363,10 @@ export default function ResultsPage() {
           {!isRightChatOpen && (
             <button
               onClick={() => setIsRightChatOpen(true)}
-              className="w-9 h-9 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors flex items-center justify-center"
+              className="w-8 h-8 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm"
               title="Open Chat"
             >
-              <span className="text-base">💬</span>
+              <span className="text-sm">💬</span>
             </button>
           )}
         </div>
@@ -374,20 +375,15 @@ export default function ResultsPage() {
       {/* Main Content - 3 Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Activity Bar */}
-        <div className="w-12 bg-surface-secondary border-r border-border flex flex-col items-center py-2 gap-1 flex-shrink-0">
-          {SIDEBAR_SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => handleActivityBarClick(section.id)}
-              className={`activity-bar-item w-10 h-10 flex items-center justify-center rounded ${
-                activePanel === section.id && isLeftSidebarOpen ? 'active' : ''
-              }`}
-              title={section.title}
-            >
-              <span className="text-lg">{section.icon}</span>
-            </button>
-          ))}
-        </div>
+        <ActivityBar
+          sections={SIDEBAR_SECTIONS.map(s => ({
+            ...s,
+            badge: s.id === 'warnings' ? mockEquipmentData.reduce((sum, eq) => sum + (eq.warnings?.length || 0), 0) : undefined
+          }))}
+          activeSection={activePanel}
+          onSectionClick={handleActivityBarClick}
+          collapsed={!isLeftSidebarOpen}
+        />
 
         {/* Left Sidebar - Resizable */}
         <div 
@@ -399,12 +395,12 @@ export default function ResultsPage() {
         >
           {/* Sidebar Content Container */}
           <div 
-            className="flex flex-col overflow-hidden h-full"
+            className="flex flex-col overflow-hidden h-full bg-white"
             style={{ width: sidebarWidth }}
           >
             {/* Sidebar Header */}
-            <div className="p-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-content whitespace-nowrap">{currentSection?.label}</h2>
+            <div className="px-4 py-3 border-b-2 border-gray-900 bg-white">
+              <h2 className="text-base font-semibold text-gray-900 whitespace-nowrap">{currentSection?.label}</h2>
             </div>
             
             {/* Sidebar Content */}
@@ -504,19 +500,16 @@ function SidebarContent({ section }) {
     
     case 'thermodynamics':
       return (
-        <>
-          <p className="text-sm text-content-secondary">Thermodynamic properties</p>
-          <div className="mt-4 space-y-2">
-            <div className="p-2 border border-border rounded bg-surface-secondary">
-              <span className="text-xs text-content-tertiary">Property Package</span>
-              <p className="text-sm text-content">Ideal</p>
-            </div>
-            <div className="p-2 border border-border rounded bg-surface-secondary">
-              <span className="text-xs text-content-tertiary">Compounds</span>
-              <p className="text-sm text-content">—</p>
-            </div>
+        <div className="space-y-3">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Property Package</span>
+            <p className="text-sm text-gray-900 mt-1">Ideal</p>
           </div>
-        </>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Compounds</span>
+            <p className="text-sm text-gray-900 mt-1">—</p>
+          </div>
+        </div>
       );
     
     case 'warnings':
