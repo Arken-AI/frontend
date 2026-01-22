@@ -1,142 +1,105 @@
 {
     "status": "success",
-    "flowsheet_id": "MEOH-RECOVERY-001",
-    "property_package": "NRTL",
+    "flowsheet_id": "IPA-SIMPLE-001",
     "input": {
-        "name": "Methanol-Water Recovery Unit",
+        "name": "IPA Recovery - Simplified (No Recycle)",
         "compounds": [
-            "methanol",
-            "water"
+            "isopropanol",
+            "water",
+            "dmso"
         ],
         "property_package": "NRTL",
         "feed_streams": [
             {
-                "stream_id": "crude_methanol_feed",
-                "target_equipment": "feed_heater",
+                "stream_id": "ipa_water_feed",
+                "target_equipment": "feed_preheater",
                 "target_port": "inlet",
-                "flow_rate": 5000.0,
+                "flow_rate": 100.0,
                 "flow_basis": "mass",
                 "temperature_K": 298.15,
-                "pressure_Pa": 200000.0,
+                "pressure_Pa": 101325.0,
                 "composition": {
-                    "methanol": 0.6,
-                    "water": 0.4
+                    "isopropanol": 0.87,
+                    "water": 0.13,
+                    "dmso": 0.0
+                },
+                "composition_basis": "mass"
+            },
+            {
+                "stream_id": "entrainer_feed",
+                "target_equipment": "extractive_column",
+                "target_port": "feed_2",
+                "flow_rate": 150.0,
+                "flow_basis": "mass",
+                "temperature_K": 350.0,
+                "pressure_Pa": 101325.0,
+                "composition": {
+                    "isopropanol": 0.0,
+                    "water": 0.0,
+                    "dmso": 1.0
                 },
                 "composition_basis": "mass"
             }
         ],
         "equipment": [
             {
-                "id": "feed_heater",
+                "id": "feed_preheater",
                 "type": "heater",
                 "name": "Feed Pre-Heater",
                 "parameters": {
                     "outlet_temperature_K": 355.0,
-                    "pressure_drop_Pa": 10000,
-                    "efficiency": 0.92
+                    "pressure_drop_Pa": 5000
                 }
             },
             {
-                "id": "flash_drum",
-                "type": "flash_drum",
-                "name": "Pre-Flash Drum",
-                "parameters": {
-                    "pressure_Pa": 150000,
-                    "duty_W": 0,
-                    "orientation": "vertical"
-                }
-            },
-            {
-                "id": "meoh_column",
+                "id": "extractive_column",
                 "type": "distillation_column",
-                "name": "Methanol Recovery Column",
+                "name": "Extractive Column",
                 "parameters": {
-                    "num_stages": 20,
-                    "feed_stage": 10,
+                    "num_stages": 25,
+                    "feed_stage": 12,
+                    "feed_2_stage": 5,
                     "pressure_top_Pa": 101325,
-                    "pressure_drop_per_stage_Pa": 300,
+                    "pressure_drop_per_stage_Pa": 500,
                     "condenser_type": "total",
                     "reboiler_type": "kettle",
-                    "specification_mode": "reflux_ratio",
-                    "reflux_ratio": 1.8,
-                    "light_key": "methanol",
+                    "reflux_ratio": 3.0,
+                    "light_key": "isopropanol",
                     "heavy_key": "water",
-                    "method": "shortcut",
-                    "design_factor": 1.3
+                    "method": "rigorous",
+                    "damping_factor": 0.5
                 }
             },
             {
-                "id": "meoh_condenser",
+                "id": "ipa_cooler",
                 "type": "cooler",
-                "name": "Methanol Product Cooler",
+                "name": "IPA Product Cooler",
                 "parameters": {
                     "outlet_temperature_K": 303.15,
-                    "pressure_drop_Pa": 5000
-                }
-            },
-            {
-                "id": "meoh_tank",
-                "type": "tank",
-                "name": "Methanol Storage Tank",
-                "parameters": {
-                    "residence_time_min": 30,
-                    "tank_type": "product"
-                }
-            },
-            {
-                "id": "water_cooler",
-                "type": "cooler",
-                "name": "Wastewater Cooler",
-                "parameters": {
-                    "outlet_temperature_K": 313.15,
-                    "pressure_drop_Pa": 5000
+                    "pressure_drop_Pa": 2000
                 }
             }
         ],
         "edges": [
             {
-                "id": "heated_feed",
-                "source": "feed_heater",
+                "id": "preheated_feed",
+                "source": "feed_preheater",
                 "source_port": "outlet",
-                "target": "flash_drum",
-                "target_port": "inlet",
-                "is_recycle": false
-            },
-            {
-                "id": "flash_liquid",
-                "source": "flash_drum",
-                "source_port": "liquid",
-                "target": "meoh_column",
+                "target": "extractive_column",
                 "target_port": "feed",
                 "is_recycle": false
             },
             {
-                "id": "meoh_distillate",
-                "source": "meoh_column",
+                "id": "pure_ipa",
+                "source": "extractive_column",
                 "source_port": "distillate",
-                "target": "meoh_condenser",
-                "target_port": "inlet",
-                "is_recycle": false
-            },
-            {
-                "id": "cooled_meoh",
-                "source": "meoh_condenser",
-                "source_port": "outlet",
-                "target": "meoh_tank",
-                "target_port": "inlet",
-                "is_recycle": false
-            },
-            {
-                "id": "water_bottoms",
-                "source": "meoh_column",
-                "source_port": "bottoms",
-                "target": "water_cooler",
+                "target": "ipa_cooler",
                 "target_port": "inlet",
                 "is_recycle": false
             }
         ],
         "solver_options": {
-            "max_iterations": 100,
+            "max_iterations": 50,
             "tolerance": 1e-05,
             "acceleration": "wegstein",
             "wegstein_threshold": 3,
@@ -155,44 +118,43 @@
         "tear_stream_residuals": {},
         "execution_order": [
             "FEED",
-            "feed_heater",
-            "flash_drum",
-            "meoh_column",
-            "meoh_condenser",
-            "water_cooler",
-            "meoh_tank",
-            "PRODUCT"
+            "feed_preheater",
+            "extractive_column",
+            "ipa_cooler"
         ],
         "tear_streams": [],
         "node_results": {
-            "feed_heater": {
+            "feed_preheater": {
                 "outlets": {
                     "outlet": {
-                        "stream_id": "feed_heater_outlet",
+                        "stream_id": "feed_preheater_outlet",
                         "name": "Feed Pre-Heater Outlet",
-                        "flow_rate": 5000.0,
+                        "flow_rate": 100.0,
                         "flow_basis": "mass",
                         "temperature_K": 355.0,
-                        "pressure_Pa": 190000.0,
-                        "phase": "liquid",
-                        "vapor_fraction": 0.0,
+                        "pressure_Pa": 96325.0,
+                        "phase": "vapor",
+                        "vapor_fraction": 1.0,
                         "composition": {
-                            "methanol": 0.6,
-                            "water": 0.4
+                            "isopropanol": 0.87,
+                            "water": 0.13,
+                            "dmso": 0.0
                         },
                         "composition_basis": "mass",
                         "enthalpy_J_mol": null,
                         "entropy_J_mol_K": null,
-                        "density_kg_m3": 783.4528971681507,
-                        "molecular_weight": 24.43262633081847,
+                        "density_kg_m3": 1.782646279438362,
+                        "molecular_weight": 46.097458962214965,
                         "liquid_composition": null,
                         "vapor_composition": null,
-                        "source_equipment": "feed_heater",
+                        "source_equipment": "feed_preheater",
                         "source_port": "outlet"
                     }
                 },
                 "energy_streams": {},
-                "warnings": [],
+                "warnings": [
+                    "Mixture phase change uses simplified model (not full VLE flash). For rigorous equilibrium, use Flash Drum or Heat Exchanger with VLE."
+                ],
                 "converged": true,
                 "iterations": 0,
                 "metadata": {
@@ -200,27 +162,27 @@
                     "inlet_temperature_K": 298.15,
                     "outlet_temperature_K": 355.0,
                     "temperature_change_K": 56.85,
-                    "inlet_pressure_Pa": 200000.0,
-                    "outlet_pressure_Pa": 190000.0,
-                    "pressure_drop_Pa": 10000,
+                    "inlet_pressure_Pa": 101325.0,
+                    "outlet_pressure_Pa": 96325.0,
+                    "pressure_drop_Pa": 5000,
                     "inlet_phase": "liquid",
-                    "outlet_phase": "liquid",
-                    "outlet_vapor_fraction": 0.0,
-                    "phase_description": "Subcooled liquid - 100% liquid phase",
-                    "phase_change_detected": false,
+                    "outlet_phase": "vapor",
+                    "outlet_vapor_fraction": 1.0,
+                    "phase_description": "Superheated vapor - 100% vapor phase",
+                    "phase_change_detected": true,
                     "duty": {
-                        "total_duty_kW": 267.301,
-                        "sensible_heat_kW": 267.301,
-                        "latent_heat_kW": 0.0,
-                        "duty_supplied_kW": 290.544
+                        "total_duty_kW": 29.904,
+                        "sensible_heat_kW": 5.576,
+                        "latent_heat_kW": 24.327,
+                        "duty_supplied_kW": 29.904
                     },
-                    "efficiency": 0.92,
+                    "efficiency": 1.0,
                     "flow": {
-                        "mass_flow_kg_hr": 5000.0,
-                        "molar_flow_kmol_hr": 204.6444,
-                        "inlet_volumetric_flow_m3_hr": 5.9922,
-                        "outlet_volumetric_flow_m3_hr": 6.382,
-                        "molecular_weight_kg_kmol": 24.4326,
+                        "mass_flow_kg_hr": 100.0,
+                        "molar_flow_kmol_hr": 2.1693,
+                        "inlet_volumetric_flow_m3_hr": 0.1267,
+                        "outlet_volumetric_flow_m3_hr": 56.0964,
+                        "molecular_weight_kg_kmol": 46.0975,
                         "flow_basis_input": "mass"
                     },
                     "composition_basis": {
@@ -228,30 +190,34 @@
                         "composition_basis": "mass",
                         "note": "Compositions are in molar basis. Flow can be mass or molar."
                     },
-                    "inlet_density_kg_m3": 834.42,
-                    "outlet_density_kg_m3": 783.45,
+                    "inlet_density_kg_m3": 789.17,
+                    "outlet_density_kg_m3": 1.78,
                     "model_notes": {
                         "vle_model": "Simplified - uses bubble/dew point boundaries, not full VLE flash",
                         "phase_change_assumption": "Linear temperature interpolation in two-phase region",
                         "latent_heat_model": "Composition-weighted mixture ΔHvap"
                     },
-                    "bubble_point_K": 363.95,
-                    "dew_point_K": 373.63
+                    "bubble_point_K": 353.23,
+                    "dew_point_K": 353.07
                 },
                 "status": "active"
             },
-            "flash_drum": {
+            "extractive_column": {
                 "outlets": {
-                    "vapor_outlet": {
-                        "stream_id": "flash_drum_vapor",
-                        "name": "Pre-Flash Drum Vapor Outlet (No Flow)",
-                        "flow_rate": 0.0,
+                    "distillate": {
+                        "stream_id": "extractive_column_distillate",
+                        "name": "Distillate",
+                        "flow_rate": 99.71944817981044,
                         "flow_basis": "mass",
-                        "temperature_K": 355.0,
-                        "pressure_Pa": 150000,
-                        "phase": "none",
-                        "vapor_fraction": null,
-                        "composition": {},
+                        "temperature_K": 355.1364295848,
+                        "pressure_Pa": 101325,
+                        "phase": "liquid",
+                        "vapor_fraction": 0.0,
+                        "composition": {
+                            "isopropanol": 0.8698717323254238,
+                            "water": 0.1301273678193931,
+                            "dmso": 8.998551830969658e-07
+                        },
                         "composition_basis": "molar",
                         "enthalpy_J_mol": null,
                         "entropy_J_mol_K": null,
@@ -262,150 +228,837 @@
                         "source_equipment": null,
                         "source_port": null
                     },
-                    "liquid_outlet": {
-                        "stream_id": "flash_drum_liquid",
-                        "name": "Pre-Flash Drum Liquid Outlet",
-                        "flow_rate": 5000.0,
+                    "bottoms": {
+                        "stream_id": "extractive_column_bottoms",
+                        "name": "Bottoms",
+                        "flow_rate": 150.28055182018954,
                         "flow_basis": "mass",
-                        "temperature_K": 355.0,
-                        "pressure_Pa": 150000,
+                        "temperature_K": 468.3478662632,
+                        "pressure_Pa": 113325,
                         "phase": "liquid",
                         "vapor_fraction": 0.0,
                         "composition": {
-                            "methanol": 0.6,
-                            "water": 0.4
+                            "isopropanol": 0.0016890120636359393,
+                            "water": 0.00019170010968837681,
+                            "dmso": 0.9981192878266757
                         },
                         "composition_basis": "molar",
-                        "enthalpy_J_mol": 4980.683881230179,
+                        "enthalpy_J_mol": null,
                         "entropy_J_mol_K": null,
-                        "density_kg_m3": 783.4528971681507,
-                        "molecular_weight": 26.431228,
+                        "density_kg_m3": null,
+                        "molecular_weight": null,
                         "liquid_composition": null,
                         "vapor_composition": null,
                         "source_equipment": null,
                         "source_port": null
                     }
                 },
+                "energy_streams": {
+                    "condenser_duty": {
+                        "stream_id": "extractive_column_condenser",
+                        "name": "Condenser Duty",
+                        "energy_type": "cooling",
+                        "duty_W": -13764988.192167759,
+                        "duty_kW": -13764.988192167759,
+                        "duty_MW": -13.76498819216776,
+                        "temperature_K": null,
+                        "source_equipment": null,
+                        "target_equipment": null
+                    },
+                    "reboiler_duty": {
+                        "stream_id": "extractive_column_reboiler",
+                        "name": "Reboiler Duty",
+                        "energy_type": "heat",
+                        "duty_W": 14453237.601776147,
+                        "duty_kW": 14453.237601776147,
+                        "duty_MW": 14.453237601776147,
+                        "temperature_K": null,
+                        "source_equipment": null,
+                        "target_equipment": null
+                    }
+                },
+                "warnings": [
+                    "Multi-feed column: Main feed 100.00 mol/s, Second feed 150.00 mol/s",
+                    "TERNARY AZEOTROPIC SYSTEM: 3-component system with isopropanol-water azeotrope (minimum). Using rigorous MESH solver with NRTL activity coefficients. For extractive distillation with entrainer, consider using simulation_mode='extractive' (column-decanter integration).",
+                    "Did not converge in 100 iterations. Final error: 0.100000",
+                    "Product split corrected for component balance: D changed from 86.13 to 99.72 mol/s"
+                ],
+                "converged": false,
+                "iterations": 100,
+                "metadata": {
+                    "num_stages": 25,
+                    "feed_stage": 12,
+                    "method": "rigorous",
+                    "condenser_type": "total",
+                    "reboiler_type": "kettle",
+                    "light_key": "isopropanol",
+                    "heavy_key": "water",
+                    "reflux_ratio": 3.0,
+                    "boilup_ratio": 2.2925122101775197,
+                    "min_reflux_ratio": null,
+                    "min_stages": null,
+                    "condenser_duty_kW": 13764.99,
+                    "reboiler_duty_kW": 14453.24,
+                    "distillate_rate": 99.71944817981044,
+                    "bottoms_rate": 150.28055182018954,
+                    "top_temperature_K": 355.1364295848,
+                    "bottom_temperature_K": 468.3478662632,
+                    "actual_stages": null,
+                    "optimal_feed_stage": null,
+                    "feed_stage_used": null,
+                    "auto_designed": false,
+                    "design_factor": null,
+                    "alpha_avg": null,
+                    "separation_achieved": {
+                        "light_key_in_distillate": 0.8698717323254238,
+                        "heavy_key_in_bottoms": 0.00019170010968837681,
+                        "light_key_recovery": 0.9970474613184717
+                    },
+                    "azeotrope_limited": false,
+                    "max_achievable_purity": null,
+                    "profile": {
+                        "converged": false,
+                        "iterations": 100,
+                        "num_stages": 25,
+                        "stages": [
+                            {
+                                "stage_number": 1,
+                                "temperature_K": 355.14,
+                                "pressure_Pa": 101325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.869872,
+                                    "water": 0.130127,
+                                    "dmso": 1e-06
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.853867,
+                                    "water": 0.146133,
+                                    "dmso": 0.0
+                                },
+                                "liquid_flow": 258.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.0043,
+                                    "water": 1.1476,
+                                    "dmso": 0.0283
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 2,
+                                "temperature_K": 355.56,
+                                "pressure_Pa": 101825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.886675,
+                                    "water": 0.113293,
+                                    "dmso": 3.2e-05
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.86928,
+                                    "water": 0.130719,
+                                    "dmso": 1e-06
+                                },
+                                "liquid_flow": 258.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.0125,
+                                    "water": 1.1878,
+                                    "dmso": 0.0289
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 3,
+                                "temperature_K": 354.99,
+                                "pressure_Pa": 102325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.898665,
+                                    "water": 0.100476,
+                                    "dmso": 0.000859
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.881618,
+                                    "water": 0.118357,
+                                    "dmso": 2.4e-05
+                                },
+                                "liquid_flow": 258.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 0.9837,
+                                    "water": 1.1754,
+                                    "dmso": 0.0282
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 4,
+                                "temperature_K": 356.41,
+                                "pressure_Pa": 102825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.888141,
+                                    "water": 0.089843,
+                                    "dmso": 0.022017
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.890426,
+                                    "water": 0.108928,
+                                    "dmso": 0.000646
+                                },
+                                "liquid_flow": 258.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.0329,
+                                    "water": 1.241,
+                                    "dmso": 0.03
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 5,
+                                "temperature_K": 367.34,
+                                "pressure_Pa": 103325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.584247,
+                                    "water": 0.063371,
+                                    "dmso": 0.352382
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.882084,
+                                    "water": 0.101503,
+                                    "dmso": 0.016413
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5478,
+                                    "water": 1.6271,
+                                    "dmso": 0.0473
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 6,
+                                "temperature_K": 367.26,
+                                "pressure_Pa": 103825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.586469,
+                                    "water": 0.066938,
+                                    "dmso": 0.346593
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.877593,
+                                    "water": 0.106315,
+                                    "dmso": 0.016091
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5377,
+                                    "water": 1.6105,
+                                    "dmso": 0.0469
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 7,
+                                "temperature_K": 366.69,
+                                "pressure_Pa": 104325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.590875,
+                                    "water": 0.070138,
+                                    "dmso": 0.338986
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.87393,
+                                    "water": 0.110331,
+                                    "dmso": 0.015738
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5005,
+                                    "water": 1.5664,
+                                    "dmso": 0.0456
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 8,
+                                "temperature_K": 366.61,
+                                "pressure_Pa": 104825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.591694,
+                                    "water": 0.072522,
+                                    "dmso": 0.335784
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.870534,
+                                    "water": 0.11354,
+                                    "dmso": 0.015925
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.4905,
+                                    "water": 1.5481,
+                                    "dmso": 0.0453
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 9,
+                                "temperature_K": 366.54,
+                                "pressure_Pa": 105325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.586585,
+                                    "water": 0.074011,
+                                    "dmso": 0.339404
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.867048,
+                                    "water": 0.116405,
+                                    "dmso": 0.016548
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5344,
+                                    "water": 1.5841,
+                                    "dmso": 0.0467
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 10,
+                                "temperature_K": 366.97,
+                                "pressure_Pa": 105825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.580943,
+                                    "water": 0.075334,
+                                    "dmso": 0.343723
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.86383,
+                                    "water": 0.119062,
+                                    "dmso": 0.017108
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5515,
+                                    "water": 1.5925,
+                                    "dmso": 0.0473
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 11,
+                                "temperature_K": 366.39,
+                                "pressure_Pa": 106325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.583599,
+                                    "water": 0.077409,
+                                    "dmso": 0.338992
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.86156,
+                                    "water": 0.121577,
+                                    "dmso": 0.016863
+                                },
+                                "liquid_flow": 408.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5139,
+                                    "water": 1.5502,
+                                    "dmso": 0.046
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 12,
+                                "temperature_K": 364.32,
+                                "pressure_Pa": 106825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.647222,
+                                    "water": 0.085102,
+                                    "dmso": 0.267677
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.863994,
+                                    "water": 0.124075,
+                                    "dmso": 0.011931
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.3484,
+                                    "water": 1.4151,
+                                    "dmso": 0.0403
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 13,
+                                "temperature_K": 363.74,
+                                "pressure_Pa": 107325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.656891,
+                                    "water": 0.082921,
+                                    "dmso": 0.260188
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.86661,
+                                    "water": 0.121526,
+                                    "dmso": 0.011864
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.362,
+                                    "water": 1.4358,
+                                    "dmso": 0.0408
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 14,
+                                "temperature_K": 364.67,
+                                "pressure_Pa": 107825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.661665,
+                                    "water": 0.080175,
+                                    "dmso": 0.258159
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.868845,
+                                    "water": 0.119008,
+                                    "dmso": 0.012148
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.4009,
+                                    "water": 1.4804,
+                                    "dmso": 0.0422
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 15,
+                                "temperature_K": 364.09,
+                                "pressure_Pa": 108325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.661116,
+                                    "water": 0.077157,
+                                    "dmso": 0.261727
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.870476,
+                                    "water": 0.116548,
+                                    "dmso": 0.012975
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.4155,
+                                    "water": 1.4924,
+                                    "dmso": 0.0428
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 16,
+                                "temperature_K": 365.02,
+                                "pressure_Pa": 108825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.655158,
+                                    "water": 0.074106,
+                                    "dmso": 0.270737
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.87114,
+                                    "water": 0.114615,
+                                    "dmso": 0.014245
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.4563,
+                                    "water": 1.5276,
+                                    "dmso": 0.0442
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 17,
+                                "temperature_K": 365.44,
+                                "pressure_Pa": 109325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.640298,
+                                    "water": 0.07086,
+                                    "dmso": 0.288842
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.870459,
+                                    "water": 0.113198,
+                                    "dmso": 0.016343
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.5252,
+                                    "water": 1.5844,
+                                    "dmso": 0.0466
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 18,
+                                "temperature_K": 367.37,
+                                "pressure_Pa": 109825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.610055,
+                                    "water": 0.067023,
+                                    "dmso": 0.322923
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.867526,
+                                    "water": 0.112159,
+                                    "dmso": 0.020315
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.6254,
+                                    "water": 1.658,
+                                    "dmso": 0.0501
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 19,
+                                "temperature_K": 370.3,
+                                "pressure_Pa": 110325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.551749,
+                                    "water": 0.061512,
+                                    "dmso": 0.38674
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.860136,
+                                    "water": 0.111458,
+                                    "dmso": 0.028407
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 1.8544,
+                                    "water": 1.8373,
+                                    "dmso": 0.0582
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 20,
+                                "temperature_K": 377.22,
+                                "pressure_Pa": 110825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.433677,
+                                    "water": 0.050728,
+                                    "dmso": 0.515595
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.841051,
+                                    "water": 0.110179,
+                                    "dmso": 0.048769
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 2.4866,
+                                    "water": 2.3574,
+                                    "dmso": 0.0808
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 21,
+                                "temperature_K": 394.65,
+                                "pressure_Pa": 111325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.239247,
+                                    "water": 0.03075,
+                                    "dmso": 0.730002
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.788499,
+                                    "water": 0.105303,
+                                    "dmso": 0.106198
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 4.1259,
+                                    "water": 3.7145,
+                                    "dmso": 0.1423
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 22,
+                                "temperature_K": 421.57,
+                                "pressure_Pa": 111825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.0875,
+                                    "water": 0.012598,
+                                    "dmso": 0.899902
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.686489,
+                                    "water": 0.091558,
+                                    "dmso": 0.221954
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 6.8452,
+                                    "water": 5.957,
+                                    "dmso": 0.2499
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 23,
+                                "temperature_K": 429.0,
+                                "pressure_Pa": 112325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.03352,
+                                    "water": 0.004814,
+                                    "dmso": 0.961666
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.570005,
+                                    "water": 0.068994,
+                                    "dmso": 0.361001
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 7.0617,
+                                    "water": 6.0493,
+                                    "dmso": 0.2598
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 24,
+                                "temperature_K": 441.92,
+                                "pressure_Pa": 112825,
+                                "liquid_composition": {
+                                    "isopropanol": 0.012066,
+                                    "water": 0.001443,
+                                    "dmso": 0.986491
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.368644,
+                                    "water": 0.036391,
+                                    "dmso": 0.594965
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 9.8845,
+                                    "water": 8.3703,
+                                    "dmso": 0.3768
+                                },
+                                "efficiency": 1.0
+                            },
+                            {
+                                "stage_number": 25,
+                                "temperature_K": 468.35,
+                                "pressure_Pa": 113325,
+                                "liquid_composition": {
+                                    "isopropanol": 0.001689,
+                                    "water": 0.000192,
+                                    "dmso": 0.998119
+                                },
+                                "vapor_composition": {
+                                    "isopropanol": 0.073806,
+                                    "water": 0.006864,
+                                    "dmso": 0.919331
+                                },
+                                "liquid_flow": 508.39,
+                                "vapor_flow": 344.52,
+                                "K_values": {
+                                    "isopropanol": 22.8442,
+                                    "water": 19.0735,
+                                    "dmso": 0.9453
+                                },
+                                "efficiency": 1.0
+                            }
+                        ],
+                        "final_error": 0.1
+                    }
+                },
+                "status": "active"
+            },
+            "ipa_cooler": {
+                "outlets": {
+                    "outlet": {
+                        "stream_id": "ipa_cooler_outlet",
+                        "name": "IPA Product Cooler Outlet",
+                        "flow_rate": 99.71944817981044,
+                        "flow_basis": "mass",
+                        "temperature_K": 303.15,
+                        "pressure_Pa": 99325,
+                        "phase": "liquid",
+                        "vapor_fraction": 0.0,
+                        "composition": {
+                            "isopropanol": 0.8698717323254238,
+                            "water": 0.1301273678193931,
+                            "dmso": 8.998551830969658e-07
+                        },
+                        "composition_basis": "molar",
+                        "enthalpy_J_mol": null,
+                        "entropy_J_mol_K": null,
+                        "density_kg_m3": 784.3314551782893,
+                        "molecular_weight": 54.619310427241295,
+                        "liquid_composition": null,
+                        "vapor_composition": null,
+                        "source_equipment": "ipa_cooler",
+                        "source_port": "outlet"
+                    }
+                },
                 "energy_streams": {},
                 "warnings": [
-                    "No significant vapor produced - consider lower pressure or higher temperature"
+                    "Mixture phase change uses simplified model (not full VLE flash). For rigorous equilibrium, use Flash Drum or Heat Exchanger with VLE."
                 ],
                 "converged": true,
                 "iterations": 0,
                 "metadata": {
-                    "specification_mode": "pressure_drop_only",
-                    "inlet_temperature_K": 355.0,
-                    "outlet_temperature_K": 355.0,
-                    "inlet_pressure_Pa": 190000.0,
-                    "outlet_pressure_Pa": 150000,
-                    "pressure_drop_Pa": 40000.0,
-                    "inlet_vapor_fraction": 0.0,
+                    "calculation_mode": "temperature_specified",
+                    "inlet_temperature_K": 355.14,
+                    "outlet_temperature_K": 303.15,
+                    "temperature_change_K": -51.986,
+                    "inlet_pressure_Pa": 101325,
+                    "outlet_pressure_Pa": 99325,
+                    "pressure_drop_Pa": 2000,
+                    "inlet_phase": "vapor",
+                    "outlet_phase": "liquid",
                     "outlet_vapor_fraction": 0.0,
-                    "phase_count": 2,
-                    "duty_kW": 0.0,
-                    "inlet_enthalpy_J_mol": 4980.683881230179,
-                    "equilibrium": {
-                        "vapor_fraction": 0.0,
-                        "liquid_composition": {
-                            "methanol": 0.6,
-                            "water": 0.4
-                        },
-                        "vapor_composition": {
-                            "methanol": 0.0,
-                            "water": 0.0
-                        },
-                        "k_values": {
-                            "methanol": 1.3016219129358828,
-                            "water": 0.3883653909107405
-                        }
+                    "phase_description": "Subcooled liquid - 100% liquid phase",
+                    "phase_change_detected": true,
+                    "duty": {
+                        "total_duty_kW": 24.81,
+                        "sensible_heat_kW": 4.366,
+                        "latent_heat_kW": 20.444,
+                        "duty_removed_kW": 24.81
                     },
-                    "flow_split": {
-                        "vapor_flow_rate": 0.0,
-                        "liquid_flow_rate": 5000.0,
-                        "flow_basis": "mass"
+                    "efficiency": 1.0,
+                    "flow": {
+                        "mass_flow_kg_hr": 99.719,
+                        "molar_flow_kmol_hr": 1.8257,
+                        "inlet_volumetric_flow_m3_hr": 53.2043,
+                        "outlet_volumetric_flow_m3_hr": 0.1271,
+                        "molecular_weight_kg_kmol": 54.6193,
+                        "flow_basis_input": "mass"
                     },
-                    "physical_properties": {
-                        "vapor_density_kg_m3": 0.0,
-                        "liquid_density_kg_m3": 783.4528971681507
+                    "composition_basis": {
+                        "input_flow_basis": "mass",
+                        "composition_basis": "molar",
+                        "note": "Compositions are in molar basis. Flow can be mass or molar."
                     },
-                    "vessel_sizing": {
-                        "orientation": "vertical",
-                        "diameter_m": 0.8,
-                        "length_m": 2.4000000000000004,
-                        "L_D_ratio": 3.0,
-                        "vessel_volume_m3": 1.2063715789784808,
-                        "liquid_holdup_m3": 0.5318337173463008,
-                        "residence_time_min": 5.0,
-                        "K_factor": 0.35,
-                        "demister_type": "wire_mesh",
-                        "vapor_velocity_max_m_s": 9.79032583232542,
-                        "vapor_velocity_design_m_s": 7.342744374244065,
-                        "vapor_velocity_actual_m_s": 0.0,
-                        "vapor_velocity_status": "OK",
-                        "sizing_controlled_by": "liquid_holdup",
-                        "nozzles": {
-                            "liquid": {
-                                "diameter_m": 0.03879151454030502,
-                                "diameter_in": 1.5272219274518086,
-                                "velocity_m_s": 1.5
-                            },
-                            "feed": {
-                                "diameter_m": 0.012266953983490344,
-                                "diameter_in": 0.4829499783300148,
-                                "velocity_m_s": 15.0
-                            }
-                        }
-                    }
+                    "inlet_density_kg_m3": 1.87,
+                    "outlet_density_kg_m3": 784.33,
+                    "model_notes": {
+                        "vle_model": "Simplified - uses bubble/dew point boundaries, not full VLE flash",
+                        "phase_change_assumption": "Linear temperature interpolation in two-phase region",
+                        "latent_heat_model": "Composition-weighted mixture ΔHvap"
+                    },
+                    "bubble_point_K": 354.03,
+                    "dew_point_K": 353.87
                 },
                 "status": "active"
             }
         },
         "stream_results": {
-            "heated_feed": {
+            "preheated_feed": {
                 "name": "Feed Pre-Heater Outlet",
-                "flow_rate": 5000.0,
+                "flow_rate": 100.0,
                 "flow_basis": "mass",
                 "temperature_K": 355.0,
-                "pressure_Pa": 190000.0,
+                "pressure_Pa": 96325.0,
                 "composition": {
-                    "methanol": 0.6,
-                    "water": 0.4
+                    "isopropanol": 0.87,
+                    "water": 0.13,
+                    "dmso": 0.0
                 },
                 "composition_basis": "mass",
-                "molecular_weight": 24.43262633081847,
+                "molecular_weight": 46.097458962214965,
+                "phase": "vapor",
+                "vapor_fraction": 1.0,
+                "density_kg_m3": 1.782646279438362
+            },
+            "pure_ipa": {
+                "name": "Distillate",
+                "flow_rate": 99.71944817981044,
+                "flow_basis": "mass",
+                "temperature_K": 355.1364295848,
+                "pressure_Pa": 101325,
+                "composition": {
+                    "isopropanol": 0.8698717323254238,
+                    "water": 0.1301273678193931,
+                    "dmso": 8.998551830969658e-07
+                },
+                "composition_basis": "molar",
+                "molecular_weight": null,
                 "phase": "liquid",
                 "vapor_fraction": 0.0,
-                "density_kg_m3": 783.4528971681507
+                "density_kg_m3": null
             },
-            "crude_methanol_feed": {
-                "flow_rate": 5000.0,
+            "ipa_water_feed": {
+                "flow_rate": 100.0,
                 "flow_basis": "mass",
                 "temperature_K": 298.15,
-                "pressure_Pa": 200000.0,
+                "pressure_Pa": 101325.0,
                 "composition": {
-                    "methanol": 0.6,
-                    "water": 0.4
+                    "isopropanol": 0.87,
+                    "water": 0.13,
+                    "dmso": 0.0
+                },
+                "composition_basis": "mass"
+            },
+            "entrainer_feed": {
+                "flow_rate": 150.0,
+                "flow_basis": "mass",
+                "temperature_K": 350.0,
+                "pressure_Pa": 101325.0,
+                "composition": {
+                    "isopropanol": 0.0,
+                    "water": 0.0,
+                    "dmso": 1.0
                 },
                 "composition_basis": "mass"
             }
         },
         "warnings": [
-            "No significant vapor produced - consider lower pressure or higher temperature",
-            "Node 'meoh_column' has no inlet data",
-            "Node 'meoh_condenser' has no inlet data",
-            "Node 'water_cooler' has no inlet data",
-            "Node 'meoh_tank' has no inlet data"
+            "Mixture phase change uses simplified model (not full VLE flash). For rigorous equilibrium, use Flash Drum or Heat Exchanger with VLE.",
+            "Multi-feed column: Main feed 100.00 mol/s, Second feed 150.00 mol/s",
+            "TERNARY AZEOTROPIC SYSTEM: 3-component system with isopropanol-water azeotrope (minimum). Using rigorous MESH solver with NRTL activity coefficients. For extractive distillation with entrainer, consider using simulation_mode='extractive' (column-decanter integration).",
+            "Did not converge in 100 iterations. Final error: 0.100000",
+            "Product split corrected for component balance: D changed from 86.13 to 99.72 mol/s",
+            "Mixture phase change uses simplified model (not full VLE flash). For rigorous equilibrium, use Flash Drum or Heat Exchanger with VLE."
         ],
         "errors": [],
-        "execution_time_s": 1.7758941650390625,
+        "execution_time_s": 237.19349193572998,
         "equipment_inputs": {
-            "feed_heater": {
+            "feed_preheater": {
                 "equipment_type": "heater",
                 "applied_parameters": {
                     "outlet_temperature_K": 355.0,
                     "duty_kW": null,
-                    "pressure_drop_Pa": 10000,
-                    "efficiency": 0.92
+                    "pressure_drop_Pa": 5000,
+                    "efficiency": 1.0
                 },
                 "parameter_constraints": {
                     "outlet_temperature_K": {
@@ -442,130 +1095,38 @@
                     }
                 },
                 "inlet_ports": [
-                    "crude_methanol_feed"
+                    "ipa_water_feed"
                 ],
                 "outlet_ports": [
-                    "heated_feed"
+                    "preheated_feed"
                 ]
             },
-            "flash_drum": {
-                "equipment_type": "flash_drum",
-                "applied_parameters": {
-                    "temperature_K": null,
-                    "pressure_Pa": 150000,
-                    "pressure_drop_Pa": 0.0,
-                    "vapor_fraction": null,
-                    "duty_kW": null,
-                    "adiabatic": false,
-                    "orientation": "vertical",
-                    "calculate_sizing": true,
-                    "L_D_ratio": 3.0,
-                    "residence_time_min": 5.0,
-                    "K_factor": 0.35,
-                    "demister_type": "wire_mesh",
-                    "diameter_m": null,
-                    "length_m": null,
-                    "liquid_level_pct": 50.0,
-                    "has_boot": false,
-                    "boot_diameter_ratio": 0.3,
-                    "boot_residence_time_min": 3.0,
-                    "calculate_nozzles": true,
-                    "feed_nozzle_velocity_m_s": 15.0,
-                    "vapor_nozzle_velocity_m_s": 20.0,
-                    "liquid_nozzle_velocity_m_s": 1.5,
-                    "max_iterations": 50,
-                    "temperature_tolerance_K": 0.1,
-                    "try_vlle": true,
-                    "duty_W": 0
-                },
-                "parameter_constraints": {
-                    "temperature_K": {
-                        "type": "number",
-                        "min": 100.0,
-                        "max": 1000.0,
-                        "default": null,
-                        "unit": "K",
-                        "description": "Flash temperature (TP flash mode)",
-                        "required": false
-                    },
-                    "pressure_Pa": {
-                        "type": "number",
-                        "min": 100.0,
-                        "max": 10000000.0,
-                        "default": 101325.0,
-                        "unit": "Pa",
-                        "description": "Flash pressure",
-                        "required": true
-                    },
-                    "vapor_fraction": {
-                        "type": "number",
-                        "min": 0.0,
-                        "max": 1.0,
-                        "default": null,
-                        "unit": "fraction",
-                        "description": "Target vapor fraction (0=all liquid, 1=all vapor)",
-                        "required": false
-                    },
-                    "duty_kW": {
-                        "type": "number",
-                        "min": -100000.0,
-                        "max": 100000.0,
-                        "default": 0.0,
-                        "unit": "kW",
-                        "description": "Heat duty (0 for adiabatic flash)",
-                        "required": false
-                    },
-                    "orientation": {
-                        "type": "string",
-                        "default": "vertical",
-                        "options": [
-                            "vertical",
-                            "horizontal"
-                        ],
-                        "description": "Drum orientation (vertical standard, horizontal for high liquid rates)",
-                        "required": false
-                    },
-                    "size_vessel": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Whether to calculate vessel dimensions",
-                        "required": false
-                    }
-                },
-                "inlet_ports": [
-                    "heated_feed"
-                ],
-                "outlet_ports": [
-                    "flash_liquid",
-                    "flash_vapor"
-                ]
-            },
-            "meoh_column": {
+            "extractive_column": {
                 "equipment_type": "distillation_column",
                 "applied_parameters": {
-                    "num_stages": 20,
-                    "feed_stage": 10,
-                    "feed_2_stage": null,
-                    "design_factor": 1.3,
+                    "num_stages": 25,
+                    "feed_stage": 12,
+                    "feed_2_stage": 5,
+                    "design_factor": 1.5,
                     "pressure_top_Pa": 101325,
-                    "pressure_drop_per_stage_Pa": 300,
+                    "pressure_drop_per_stage_Pa": 500,
                     "condenser_type": "total",
                     "reboiler_type": "kettle",
                     "specification_mode": "reflux_ratio",
-                    "reflux_ratio": 1.8,
+                    "reflux_ratio": 3.0,
                     "boilup_ratio": null,
                     "distillate_rate": null,
                     "bottoms_rate": null,
                     "distillate_purity": null,
                     "bottoms_purity": null,
-                    "light_key": "methanol",
+                    "light_key": "isopropanol",
                     "heavy_key": "water",
                     "recovery": null,
                     "condenser_subcooling_K": 0.0,
                     "reboiler_approach_K": 0.0,
                     "stage_efficiency": 1.0,
                     "efficiency_profile": null,
-                    "method": "shortcut",
+                    "method": "rigorous",
                     "max_iterations": 100,
                     "tolerance": 1e-06,
                     "damping_factor": 0.5,
@@ -580,19 +1141,19 @@
                 },
                 "parameter_constraints": {},
                 "inlet_ports": [
-                    "flash_liquid"
+                    "preheated_feed",
+                    "entrainer_feed"
                 ],
                 "outlet_ports": [
-                    "meoh_distillate",
-                    "water_bottoms"
+                    "pure_ipa"
                 ]
             },
-            "meoh_condenser": {
+            "ipa_cooler": {
                 "equipment_type": "cooler",
                 "applied_parameters": {
                     "outlet_temperature_K": 303.15,
                     "duty_kW": null,
-                    "pressure_drop_Pa": 5000,
+                    "pressure_drop_Pa": 2000,
                     "efficiency": 1.0
                 },
                 "parameter_constraints": {
@@ -634,175 +1195,64 @@
                     }
                 },
                 "inlet_ports": [
-                    "meoh_distillate"
+                    "pure_ipa"
                 ],
-                "outlet_ports": [
-                    "cooled_meoh"
-                ]
-            },
-            "meoh_tank": {
-                "equipment_type": "tank",
-                "applied_parameters": {
-                    "sizing_mode": "auto",
-                    "residence_time_min": 30,
-                    "tank_type": "product",
-                    "volume_m3": null,
-                    "density_kg_m3": null,
-                    "initial_level_pct": 50.0
-                },
-                "parameter_constraints": {
-                    "sizing_mode": {
-                        "type": "string",
-                        "default": "auto",
-                        "options": [
-                            "auto",
-                            "manual"
-                        ],
-                        "description": "Sizing mode: auto (calculate from residence time) or manual (user-provided volume)",
-                        "required": false
-                    },
-                    "residence_time_min": {
-                        "type": "number",
-                        "min": 0.5,
-                        "max": 1440.0,
-                        "default": 10.0,
-                        "unit": "minutes",
-                        "description": "Desired residence time (auto mode)",
-                        "required": false
-                    },
-                    "tank_type": {
-                        "type": "string",
-                        "default": "general",
-                        "options": [
-                            "surge",
-                            "feed",
-                            "product",
-                            "buffer",
-                            "general"
-                        ],
-                        "description": "Tank type for default residence time lookup",
-                        "required": false
-                    },
-                    "volume_m3": {
-                        "type": "number",
-                        "min": 0.001,
-                        "max": 100000.0,
-                        "default": null,
-                        "unit": "m³",
-                        "description": "Tank volume (manual mode or override)",
-                        "required": false
-                    },
-                    "density_kg_m3": {
-                        "type": "number",
-                        "min": 1.0,
-                        "max": 20000.0,
-                        "default": null,
-                        "unit": "kg/m³",
-                        "description": "User-provided density for volume calculation",
-                        "required": false
-                    },
-                    "initial_level_pct": {
-                        "type": "number",
-                        "min": 0.0,
-                        "max": 100.0,
-                        "default": 50.0,
-                        "unit": "%",
-                        "description": "Initial fill level percentage",
-                        "required": false
-                    }
-                },
-                "inlet_ports": [
-                    "cooled_meoh"
-                ],
-                "outlet_ports": [
-                    "pure_methanol"
-                ]
-            },
-            "water_cooler": {
-                "equipment_type": "cooler",
-                "applied_parameters": {
-                    "outlet_temperature_K": 313.15,
-                    "duty_kW": null,
-                    "pressure_drop_Pa": 5000,
-                    "efficiency": 1.0
-                },
-                "parameter_constraints": {
-                    "outlet_temperature_K": {
-                        "type": "number",
-                        "min": 200.0,
-                        "max": 700.0,
-                        "default": null,
-                        "unit": "K",
-                        "description": "Target outlet temperature (specify this OR duty_kW)",
-                        "required": false
-                    },
-                    "duty_kW": {
-                        "type": "number",
-                        "min": 0.0,
-                        "max": 1000000.0,
-                        "default": null,
-                        "unit": "kW",
-                        "description": "Heat removed (positive value, specify this OR outlet_temperature_K)",
-                        "required": false
-                    },
-                    "pressure_drop_Pa": {
-                        "type": "number",
-                        "min": 0.0,
-                        "max": 500000.0,
-                        "default": 0.0,
-                        "unit": "Pa",
-                        "description": "Pressure drop through cooler",
-                        "required": false
-                    },
-                    "efficiency": {
-                        "type": "number",
-                        "min": 0.5,
-                        "max": 1.0,
-                        "default": 1.0,
-                        "unit": "fraction",
-                        "description": "Thermal efficiency (0.5-1.0)",
-                        "required": false
-                    }
-                },
-                "inlet_ports": [
-                    "water_bottoms"
-                ],
-                "outlet_ports": [
-                    "wastewater"
-                ]
+                "outlet_ports": []
             }
         },
         "stream_properties": {
-            "heated_feed": {
+            "preheated_feed": {
                 "temperature_K": 355.0,
-                "pressure_Pa": 190000.0,
+                "pressure_Pa": 96325.0,
+                "phase": "vapor",
+                "vapor_fraction": 1.0,
+                "density_kg_m3": 1.782646279438362,
+                "viscosity_Pa_s": 9.459249785726195e-06,
+                "thermal_conductivity_W_mK": 0.01775382045711089,
+                "heat_capacity_J_molK": 93.62181401717172,
+                "molecular_weight": 46.097458962214965
+            },
+            "pure_ipa": {
+                "temperature_K": 355.1364295848,
+                "pressure_Pa": 101325,
                 "phase": "liquid",
                 "vapor_fraction": 0.0,
-                "density_kg_m3": 783.4528971681507,
-                "viscosity_Pa_s": 0.00029743925689174543,
-                "thermal_conductivity_W_mK": 0.37325616825914804,
-                "surface_tension_N_m": 0.03530032506927876,
-                "heat_capacity_J_molK": 87.61097416411923,
-                "molecular_weight": 24.43262633081847
+                "viscosity_Pa_s": 0.00046897174833399616,
+                "thermal_conductivity_W_mK": 0.19370815486356585,
+                "surface_tension_N_m": 0.022074955535414196,
+                "heat_capacity_J_molK": 185.8872168488431,
+                "molecular_weight": 54.619310427241295
             },
-            "crude_methanol_feed": {
+            "ipa_water_feed": {
                 "temperature_K": 298.15,
-                "pressure_Pa": 200000.0,
+                "pressure_Pa": 101325.0,
                 "phase": "unknown",
                 "vapor_fraction": 0.0,
-                "viscosity_Pa_s": 0.0006623739670155321,
-                "thermal_conductivity_W_mK": 0.3555103958712992,
-                "surface_tension_N_m": 0.04207754539368555,
-                "heat_capacity_J_molK": 78.85819529257193,
-                "molecular_weight": 24.43262633081847
+                "viscosity_Pa_s": 0.0018393328008591253,
+                "thermal_conductivity_W_mK": 0.1943804468875871,
+                "surface_tension_N_m": 0.027496377891819468,
+                "heat_capacity_J_molK": 144.79053539975007,
+                "molecular_weight": 46.097458962214965
+            },
+            "entrainer_feed": {
+                "temperature_K": 350.0,
+                "pressure_Pa": 101325.0,
+                "phase": "unknown",
+                "vapor_fraction": 0.0,
+                "viscosity_Pa_s": 0.0008913922874104451,
+                "thermal_conductivity_W_mK": 0.21902034905234039,
+                "surface_tension_N_m": 0.03686870297699194,
+                "heat_capacity_J_molK": 158.14938098819883,
+                "molecular_weight": 78.13344000000001
             }
         }
     },
     "warnings": [
-        "No significant vapor produced - consider lower pressure or higher temperature",
-        "Node 'meoh_column' has no inlet data",
-        "Node 'meoh_condenser' has no inlet data",
-        "Node 'water_cooler' has no inlet data",
-        "Node 'meoh_tank' has no inlet data"
+        "Mixture phase change uses simplified model (not full VLE flash). For rigorous equilibrium, use Flash Drum or Heat Exchanger with VLE.",
+        "Multi-feed column: Main feed 100.00 mol/s, Second feed 150.00 mol/s",
+        "TERNARY AZEOTROPIC SYSTEM: 3-component system with isopropanol-water azeotrope (minimum). Using rigorous MESH solver with NRTL activity coefficients. For extractive distillation with entrainer, consider using simulation_mode='extractive' (column-decanter integration).",
+        "Did not converge in 100 iterations. Final error: 0.100000",
+        "Product split corrected for component balance: D changed from 86.13 to 99.72 mol/s",
+        "Mixture phase change uses simplified model (not full VLE flash). For rigorous equilibrium, use Flash Drum or Heat Exchanger with VLE."
     ]
 }

@@ -102,7 +102,7 @@ const EquipmentCard = forwardRef(({
           : 'border border-gray-200 bg-white shadow-sm hover:shadow-md'
       }`}
     >
-      {/* Header - Always Visible */}
+      {/* Header - Always Visible - Single Row Layout */}
       <button
         onClick={(e) => {
           onToggle();
@@ -110,7 +110,6 @@ const EquipmentCard = forwardRef(({
         }}
         className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors rounded-t-xl"
       >
-        {/* Row 1: Number + Icon + Name + (Status badge when expanded) */}
         <div className="flex items-center gap-2">
           {/* Sequence Number */}
           <span className="text-sm font-medium text-gray-400">
@@ -123,19 +122,12 @@ const EquipmentCard = forwardRef(({
           {/* Name */}
           <span className="flex-1 font-semibold text-gray-900 truncate">{name}</span>
           
-          {/* Status Badge - shown on right when expanded */}
-          {isExpanded && (
-            <StatusBadge status={status} converged={converged} />
-          )}
-        </div>
-        
-        {/* Row 2: Status Badge + Warning Badge (only when collapsed) */}
-        {!isExpanded && (
-          <div className="flex items-center gap-2 mt-2 ml-7">
+          {/* Status Badge + Warning Badge - always on same line */}
+          <div className="flex items-center gap-2">
             <StatusBadge status={status} converged={converged} />
             <WarningBadge count={warningCount} />
           </div>
-        )}
+        </div>
       </button>
 
       {/* Expanded Content - Animated */}
