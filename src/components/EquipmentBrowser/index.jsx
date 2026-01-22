@@ -84,7 +84,7 @@ export default function EquipmentBrowser() {
   };
 
   return (
-    <div className="equipment-browser flex flex-col gap-2">
+    <div className="equipment-browser flex flex-col gap-3 p-2">
       {equipmentList.length === 0 ? (
         // Show empty state if no equipment
         <NoEquipmentFound />

@@ -2,13 +2,64 @@
  * Equipment Card
  * 
  * Accordion card showing equipment details.
- * Collapsed: Shows header only (icon, name, status)
- * Expanded: Shows inputs (with constraints inline), outputs
+ * Collapsed: Shows header with two lines (name row + status row)
+ * Expanded: Shows inputs/outputs with collapsible sections
  * Highlights when selected via Zustand store.
  */
 
 import { forwardRef } from 'react';
 import StreamSection from './StreamSection';
+
+/**
+ * Status Badge Component
+ * Displays convergence status with appropriate icon and color
+ */
+function StatusBadge({ status, converged }) {
+  // Determine status from converged boolean or explicit status prop
+  const statusType = status || (converged ? 'converged' : 'error');
+  
+  const statusConfig = {
+    converged: {
+      icon: '✓',
+      label: 'Converged',
+      className: 'border-green-300 text-green-600 bg-green-50'
+    },
+    pending: {
+      icon: '⏱',
+      label: 'Pending',
+      className: 'border-orange-300 text-orange-500 bg-orange-50'
+    },
+    error: {
+      icon: '✗',
+      label: 'Error',
+      className: 'border-red-300 text-red-500 bg-red-50'
+    }
+  };
+  
+  const config = statusConfig[statusType] || statusConfig.error;
+  
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full border ${config.className}`}>
+      <span>{config.icon}</span>
+      <span>{config.label}</span>
+    </span>
+  );
+}
+
+/**
+ * Warning Badge Component
+ * Displays warning count with triangle icon
+ */
+function WarningBadge({ count }) {
+  if (!count || count === 0) return null;
+  
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border border-orange-300 text-orange-500 bg-orange-50">
+      <span>⚠</span>
+      <span>{count}</span>
+    </span>
+  );
+}
 
 const EquipmentCard = forwardRef(({ 
   equipment, 
@@ -27,6 +78,7 @@ const EquipmentCard = forwardRef(({
     type,
     icon,
     converged,
+    status, // Optional explicit status: 'converged' | 'pending' | 'error'
     warnings,
     constraints,
     inputs,
@@ -38,32 +90,15 @@ const EquipmentCard = forwardRef(({
   // Check if this equipment has any edits
   const hasEdits = Object.keys(editedValues).length > 0;
   const hasErrors = Object.keys(validationErrors).length > 0;
-
-  // Status badge
-  const getStatusBadge = () => {
-    if (converged) {
-      return (
-        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-status-success/10 text-status-success">
-          ✓ Converged
-        </span>
-      );
-    }
-    return (
-      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-status-error/10 text-status-error">
-        ✗ Not Converged
-      </span>
-    );
-  };
+  const warningCount = warnings?.length || 0;
 
   return (
     <div 
       ref={ref}
-      className={`equipment-card border-2 rounded-lg overflow-hidden transition-all duration-200 ${
+      className={`equipment-card rounded-xl transition-all duration-200 ${
         isSelected 
-          ? 'border-primary shadow-lg ring-2 ring-primary/20' 
-          : isExpanded 
-            ? 'border-primary shadow-sm' 
-            : 'border-border hover:border-border-hover'
+          ? 'border-2 border-blue-500 bg-slate-50 shadow-md' 
+          : 'border border-gray-200 bg-white shadow-sm hover:shadow-md'
       }`}
     >
       {/* Header - Always Visible */}
@@ -72,28 +107,34 @@ const EquipmentCard = forwardRef(({
           onToggle();
           if (onClick) onClick();
         }}
-        className="w-full px-3 py-2.5 flex items-center gap-3 bg-surface hover:bg-surface-secondary transition-colors text-left"
+        className="w-full px-4 py-3 text-left"
       >
-        {/* Sequence Number */}
-        <span className="w-5 h-5 flex items-center justify-center text-xs font-medium text-content-tertiary bg-surface-secondary rounded">
-          {index}
-        </span>
+        {/* Row 1: Number + Icon + Name + (Status badge when expanded) */}
+        <div className="flex items-center gap-2">
+          {/* Sequence Number */}
+          <span className="text-sm font-medium text-gray-400">
+            {index}
+          </span>
+          
+          {/* Icon - Flame */}
+          <span className="text-lg text-orange-500" title={type}>🔥</span>
+          
+          {/* Name */}
+          <span className="flex-1 font-semibold text-gray-900 truncate">{name}</span>
+          
+          {/* Status Badge - shown on right when expanded */}
+          {isExpanded && (
+            <StatusBadge status={status} converged={converged} />
+          )}
+        </div>
         
-        {/* Icon */}
-        <span className="text-lg" title={type}>{icon}</span>
-        
-        {/* Name */}
-        <span className="flex-1 font-medium text-sm text-content truncate">{name}</span>
-        
-        {/* Status Badge */}
-        {getStatusBadge()}
-        
-        {/* Chevron */}
-        <span className={`text-content-tertiary transition-transform duration-200 ${
-          isExpanded ? 'rotate-90' : ''
-        }`}>
-          ▶
-        </span>
+        {/* Row 2: Status Badge + Warning Badge (only when collapsed) */}
+        {!isExpanded && (
+          <div className="flex items-center gap-2 mt-2 ml-7">
+            <StatusBadge status={status} converged={converged} />
+            <WarningBadge count={warningCount} />
+          </div>
+        )}
       </button>
 
       {/* Expanded Content */}
