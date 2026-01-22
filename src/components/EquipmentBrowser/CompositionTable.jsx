@@ -1,8 +1,8 @@
 /**
  * Composition Table
  * 
- * Expandable table showing component fractions.
- * Shows validation (sum should equal 1.0).
+ * Expandable accordion showing component fractions.
+ * Matches target UI: "› Composition (X components)"
  */
 
 import { useState } from 'react';
@@ -37,45 +37,43 @@ export default function CompositionTable({
   };
 
   return (
-    <div className="mt-1">
-      {/* Collapsed Header */}
+    <div className="py-1">
+      {/* Accordion Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between text-xs py-0.5 hover:bg-surface-secondary/50 rounded px-1 -mx-1"
+        className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors"
       >
-        <span className="text-content-secondary flex items-center gap-1">
-          <span className={`transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}>
-            ▶
-          </span>
-          Composition
-          <span className="text-content-tertiary">({nonZeroCount} components)</span>
+        <span className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+          ›
         </span>
-        {locked && <span className="text-content-tertiary opacity-50">🔒</span>}
+        <span>Composition</span>
+        <span className="text-gray-500">({nonZeroCount} components)</span>
       </button>
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="mt-1 ml-3 p-2 bg-surface-secondary/30 rounded border border-border">
-          <div className="text-xs text-content-tertiary mb-1.5">
+        <div className="mt-2 ml-4 pl-3 border-l-2 border-gray-200">
+          <div className="text-xs text-gray-500 mb-2">
             {basis === 'mass' ? 'Mass' : 'Molar'} fractions
           </div>
           
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {components.map((component) => (
-              <div key={component.name} className="flex items-center justify-between text-xs">
-                <span className="text-content-secondary capitalize">
+              <div key={component.name} className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 capitalize">
                   {component.name}
                 </span>
                 {editable && !locked ? (
                   <input
                     type="text"
                     defaultValue={formatFraction(component.fraction)}
-                    className="w-16 px-1 py-0.5 text-right font-mono text-xs border border-border rounded bg-white focus:outline-none focus:border-primary"
+                    className="w-20 px-2 py-1 text-right font-mono text-sm bg-gray-100 border border-gray-200 rounded-md focus:outline-none focus:border-blue-400 focus:bg-white"
                     onChange={(e) => onChange?.(component.name, parseFloat(e.target.value))}
                   />
                 ) : (
-                  <span className={`font-mono ${locked ? 'text-content-tertiary' : 'text-content'}`}>
+                  <span className={`font-mono ${locked ? 'text-gray-500' : 'text-gray-900'}`}>
                     {formatFraction(component.fraction)}
+                    {locked && <span className="ml-2 text-orange-400">🔒</span>}
                   </span>
                 )}
               </div>
@@ -83,10 +81,10 @@ export default function CompositionTable({
           </div>
           
           {/* Total & Validation */}
-          <div className="mt-2 pt-1.5 border-t border-border flex items-center justify-between text-xs">
-            <span className="text-content-secondary font-medium">Total</span>
+          <div className="mt-3 pt-2 border-t border-gray-200 flex items-center justify-between text-sm">
+            <span className="text-gray-600 font-medium">Total</span>
             <span className={`font-mono flex items-center gap-1 ${
-              isValid ? 'text-status-success' : 'text-status-error'
+              isValid ? 'text-green-600' : 'text-red-500'
             }`}>
               {total.toFixed(4)}
               {isValid ? ' ✓' : ' ✗'}
@@ -94,7 +92,7 @@ export default function CompositionTable({
           </div>
           
           {!isValid && (
-            <div className="mt-1 text-xs text-status-error">
+            <div className="mt-1 text-xs text-red-500">
               Fractions must sum to 1.0
             </div>
           )}

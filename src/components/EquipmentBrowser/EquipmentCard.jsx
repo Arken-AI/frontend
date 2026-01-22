@@ -137,130 +137,46 @@ const EquipmentCard = forwardRef(({
         )}
       </button>
 
-      {/* Expanded Content */}
+      {/* Expanded Content - Simplified Layout */}
       {isExpanded && (
-        <div className="border-t border-border">
-          {/* Separate editable vs read-only streams */}
-          {(() => {
-            const editableInputs = inputs.filter(s => s.editable);
-            const readonlyInputs = inputs.filter(s => !s.editable);
-            
-            // Check which sections have edits
-            const equipmentParamKeys = constraints.map(c => c.key);
-            const hasEquipmentParamEdits = equipmentParamKeys.some(key => editedValues[key] !== undefined);
-            const hasEquipmentParamErrors = equipmentParamKeys.some(key => validationErrors[key] !== undefined);
-            
-            // Check feed stream edits (keys start with stream ID)
-            const feedStreamKeys = editableInputs.flatMap(stream => {
-              const streamId = stream.streamId || stream.stream_id;
-              return [
-                `${streamId}_temperature_K`,
-                `${streamId}_pressure_Pa`,
-                `${streamId}_flow_rate`
-              ];
-            });
-            const hasFeedStreamEdits = feedStreamKeys.some(key => editedValues[key] !== undefined);
-            const hasFeedStreamErrors = feedStreamKeys.some(key => validationErrors[key] !== undefined);
-            
-            return (
-              <>
-                {/* SECTION 1: Editable Configuration */}
-                {(constraints.length > 0 || editableInputs.length > 0) && (
-                  <div className="bg-blue-50 border-b border-blue-200 p-3">
-                    <h3 className="text-xs font-semibold text-primary mb-2 flex items-center gap-1.5">
-                      <span>⚙️</span>
-                      <span>EQUIPMENT CONFIGURATION</span>
-                      <span className="text-content-tertiary font-normal text-[10px]">(editable)</span>
-                      {/* Modified Indicator for Equipment Parameters */}
-                      {hasEquipmentParamEdits && (
-                        <div className="ml-auto flex items-center gap-1 px-2 py-0.5 bg-amber-100 border border-amber-300 rounded-full">
-                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                          <span className="text-[10px] font-medium text-amber-700">Modified</span>
-                        </div>
-                      )}
-                      {/* Error Indicator for Equipment Parameters */}
-                      {hasEquipmentParamErrors && (
-                        <div className={hasEquipmentParamEdits ? 'ml-2' : 'ml-auto'}>
-                          <div className="flex items-center gap-1 px-2 py-0.5 bg-red-100 border border-red-300 rounded-full">
-                            <span className="text-[10px]">⚠️</span>
-                            <span className="text-[10px] font-medium text-red-700">Errors</span>
-                          </div>
-                        </div>
-                      )}
-                    </h3>
-                    
-                    {/* Equipment Parameters */}
-                    {constraints.length > 0 && (
-                      <StreamSection 
-                        streams={[]} 
-                        type="config"
-                        constraints={constraints}
-                        editedValues={editedValues}
-                        validationErrors={validationErrors}
-                        onParameterChange={onParameterChange}
-                        showHeader={false}
-                      />
-                    )}
-                    
-                    {/* Editable Feed Streams */}
-                    {editableInputs.length > 0 && (
-                      <StreamSection 
-                        title="FEED STREAMS" 
-                        streams={editableInputs} 
-                        type="input"
-                        editedValues={editedValues}
-                        validationErrors={validationErrors}
-                        onParameterChange={onParameterChange}
-                        showHeader={true}
-                        hasEdits={hasFeedStreamEdits}
-                        hasErrors={hasFeedStreamErrors}
-                      />
-                    )}
-                  </div>
-                )}
+        <div className="px-4 pb-4">
+          {/* INPUTS Section - All input streams */}
+          {inputs.length > 0 && (
+            <StreamSection 
+              title="INPUTS" 
+              streams={inputs} 
+              type="input"
+              constraints={constraints}
+              editedValues={editedValues}
+              validationErrors={validationErrors}
+              onParameterChange={onParameterChange}
+              isCollapsible={true}
+              defaultExpanded={true}
+            />
+          )}
 
-                {/* SECTION 2: Calculated Results */}
-                {(readonlyInputs.length > 0 || outputs.length > 0) && (
-                  <div className="bg-gray-50 border-b border-gray-200 p-3">
-                    <h3 className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <span>📊</span>
-                      <span>SIMULATION RESULTS</span>
-                      <span className="text-content-tertiary font-normal text-[10px]">(read-only)</span>
-                    </h3>
-                    
-                    {/* Read-only Inputs (intermediate streams) */}
-                    {readonlyInputs.length > 0 && (
-                      <StreamSection 
-                        title="INPUTS" 
-                        streams={readonlyInputs} 
-                        type="input"
-                        showHeader={true}
-                      />
-                    )}
-
-                    {/* Outputs */}
-                    {outputs.length > 0 && (
-                      <StreamSection 
-                        title="OUTPUTS" 
-                        streams={outputs} 
-                        type="output"
-                        showHeader={true}
-                      />
-                    )}
-                  </div>
-                )}
-              </>
-            );
-          })()}
+          {/* OUTPUTS Section - All output streams */}
+          {outputs.length > 0 && (
+            <StreamSection 
+              title="OUTPUTS" 
+              streams={outputs} 
+              type="output"
+              editedValues={editedValues}
+              validationErrors={validationErrors}
+              onParameterChange={onParameterChange}
+              isCollapsible={true}
+              defaultExpanded={true}
+            />
+          )}
 
           {/* Energy Streams (for columns, reactors) */}
           {Object.keys(energyStreams).length > 0 && (
-            <div className="px-3 py-2 border-t border-border bg-surface-secondary/50">
-              <h4 className="text-xs font-semibold text-content-secondary mb-2">⚡ ENERGY</h4>
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">⚡ Energy</h4>
               <div className="space-y-1">
                 {Object.entries(energyStreams).map(([key, stream]) => (
                   <div key={key} className="flex justify-between text-xs">
-                    <span className="text-content-secondary capitalize">
+                    <span className="text-gray-600 capitalize">
                       {key.replace(/_/g, ' ')}
                     </span>
                     <span className={`font-mono ${
@@ -274,18 +190,20 @@ const EquipmentCard = forwardRef(({
             </div>
           )}
 
-          {/* Warnings */}
+          {/* Warnings - Collapsible */}
           {warnings.length > 0 && (
-            <div className="px-3 py-2 border-t border-border bg-status-warning/5">
-              <h4 className="text-xs font-semibold text-status-warning mb-1">⚠️ Warnings ({warnings.length})</h4>
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <h4 className="text-xs font-semibold text-orange-500 mb-2 uppercase tracking-wide">
+                ⚠ Warnings ({warnings.length})
+              </h4>
               <ul className="space-y-1">
                 {warnings.slice(0, 3).map((warning, idx) => (
-                  <li key={idx} className="text-xs text-content-secondary leading-tight">
+                  <li key={idx} className="text-xs text-gray-600 leading-tight">
                     • {warning.length > 80 ? warning.slice(0, 80) + '...' : warning}
                   </li>
                 ))}
                 {warnings.length > 3 && (
-                  <li className="text-xs text-content-tertiary">
+                  <li className="text-xs text-gray-400">
                     +{warnings.length - 3} more warnings
                   </li>
                 )}

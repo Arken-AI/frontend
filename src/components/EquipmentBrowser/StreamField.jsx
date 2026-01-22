@@ -2,12 +2,10 @@
  * Stream Field
  * 
  * Single property row with label, value, and unit.
- * Can be editable (input) or locked (output).
+ * Layout: Label (left) | Input/Value (right) | Unit + Lock icon
  * 
- * Design D: Focus-Reveal with Border Emphasis
- * - Normal state: Clean, minimal
- * - Focused state: Blue border glow + range hint below
- * - Error state: Red border + error message
+ * Editable: Shows input field with gray background
+ * Locked/Output: Shows value as text with lock icon
  */
 
 import { useState, useEffect } from 'react';
@@ -84,16 +82,13 @@ export default function StreamField({
     const numValue = parseFloat(newValue);
     const validationError = validate(numValue);
     setInternalError(validationError);
-    
-    // Do NOT call onChange here - only on blur to avoid marking as modified on every keystroke
   };
 
   // Handle key press (Enter to confirm, Escape to cancel)
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      e.target.blur(); // This will trigger handleBlur
+      e.target.blur();
     } else if (e.key === 'Escape') {
-      // Cancel edit - reset to original value
       setLocalValue(value ?? '');
       setInternalError(null);
       e.target.blur();
@@ -106,7 +101,6 @@ export default function StreamField({
     const numValue = parseFloat(localValue);
     
     if (isNaN(numValue)) {
-      // Reset to original value
       setLocalValue(value ?? '');
       setInternalError(null);
       return;
@@ -121,105 +115,73 @@ export default function StreamField({
       clampedValue = max;
     }
     
-    // Only call onChange if the value actually changed
     if (clampedValue !== value) {
       setLocalValue(clampedValue);
       onChange?.(clampedValue);
     } else {
-      // Value didn't change, just ensure local value is synced
       setLocalValue(value ?? '');
     }
     setInternalError(null);
   };
 
-  const hasConstraints = (min !== undefined && min !== null) || (max !== undefined && max !== null);
-
-  // Locked field (output)
+  // Locked field (output) - value with lock icon
   if (locked) {
     return (
-      <div className="flex items-center text-xs py-1">
-        <span className="flex-1 text-content-secondary">{label}</span>
-        <div className="flex items-center gap-1.5 justify-end" style={{ minWidth: '140px' }}>
-          <span className="font-mono text-content-tertiary text-right w-24">{formatValue(value)}</span>
-          <span className="text-content-tertiary text-[10px] w-14 text-left">{unit || ''}</span>
-          <span className="text-amber-400 text-[10px]">🔒</span>
+      <div className="flex items-center justify-between py-1">
+        <span className="text-sm text-gray-700">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-mono text-gray-900">{formatValue(value)}</span>
+          <span className="text-sm text-gray-500 w-12">{unit || ''}</span>
+          <span className="text-orange-400 text-sm">🔒</span>
         </div>
       </div>
     );
   }
 
-  // Editable field with Design D: Focus-Reveal
+  // Editable field - input box with gray background
   if (editable) {
     return (
-      <div className="py-0.5">
-        <div className="flex items-start text-xs gap-2">
-          <span 
-            className={`flex-1 transition-colors pt-1 ${
-              isFocused ? 'text-primary font-medium' : 'text-content-secondary'
-            }`}
-          >
-            {label}
-          </span>
-          <div className="flex flex-col gap-0.5" style={{ minWidth: '140px' }}>
-            <div className="flex items-center gap-1.5 justify-end">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={localValue}
-                  onChange={handleChange}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={handleBlur}
-                  className={`w-24 px-2 py-1 text-right font-mono text-xs rounded transition-all
-                    ${isFocused 
-                      ? error
-                        ? 'border-2 border-status-error bg-red-50 shadow-sm shadow-status-error/20' 
-                        : 'border-2 border-primary bg-blue-50 shadow-sm shadow-primary/20'
-                      : 'border border-border bg-white hover:border-border-hover'
-                    }
-                    focus:outline-none`}
-                />
-              </div>
-              <span className={`text-[10px] w-14 text-left ${
-                isFocused ? 'text-content' : 'text-content-tertiary'
-              }`}>
-                {unit || ''}
-              </span>
-            </div>
-            
-            {/* Error message - shown when there's an error */}
-            {error && (
-              <div className="flex justify-end pr-14">
-                <span className="text-status-error text-[10px] bg-red-50 px-2 py-0.5 rounded whitespace-nowrap">
-                  ⚠️ {error}
-                </span>
-              </div>
-            )}
-            
-            {/* Constraint range - shown on focus when no error */}
-            {isFocused && !error && hasConstraints && (
-              <div className="flex justify-end pr-14">
-                <span className="text-primary text-[10px] bg-blue-50 px-2 py-0.5 rounded whitespace-nowrap">
-                  {min !== null && min !== undefined && `${formatLimit(min)}`}
-                  {min !== null && min !== undefined && max !== null && max !== undefined && ' – '}
-                  {max !== null && max !== undefined && `${formatLimit(max)}`}
-                  {unit && ` ${unit}`}
-                </span>
-              </div>
-            )}
+      <div className="py-1">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-700">{label}</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={localValue}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={handleBlur}
+              className={`w-24 px-3 py-1.5 text-right font-mono text-sm rounded-md transition-all
+                ${error
+                  ? 'bg-red-50 border-2 border-red-400 focus:ring-2 focus:ring-red-200' 
+                  : isFocused
+                    ? 'bg-white border-2 border-blue-400 focus:ring-2 focus:ring-blue-200'
+                    : 'bg-gray-100 border border-gray-200 hover:border-gray-300'
+                }
+                focus:outline-none`}
+            />
+            <span className="text-sm text-gray-500 w-12">{unit || ''}</span>
           </div>
         </div>
+        
+        {/* Error message */}
+        {error && (
+          <div className="flex justify-end mt-1 mr-14">
+            <span className="text-xs text-red-500">⚠ {error}</span>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Read-only field (non-editable, non-locked)
+  // Read-only field (non-editable, non-locked) - like Phase
   return (
-    <div className="flex items-center text-xs py-1">
-      <span className="flex-1 text-content-secondary">{label}</span>
-      <div className="flex items-center gap-1.5 justify-end" style={{ minWidth: '140px' }}>
-        <span className="font-mono text-content text-right w-24">{formatValue(value)}</span>
-        <span className="text-content-tertiary text-[10px] w-14 text-left">{unit || ''}</span>
+    <div className="flex items-center justify-between py-1">
+      <span className="text-sm text-gray-700">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-900">{formatValue(value)}</span>
+        {locked && <span className="text-orange-400 text-sm">🔒</span>}
       </div>
     </div>
   );
