@@ -116,9 +116,6 @@ const EquipmentCard = forwardRef(({
             {index}
           </span>
           
-          {/* Icon - Flame */}
-          <span className="text-lg text-orange-500" title={type}>🔥</span>
-          
           {/* Name */}
           <span className="flex-1 font-semibold text-gray-900 truncate">{name}</span>
           
