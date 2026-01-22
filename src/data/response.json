@@ -1,0 +1,808 @@
+{
+    "status": "success",
+    "flowsheet_id": "MEOH-RECOVERY-001",
+    "property_package": "NRTL",
+    "input": {
+        "name": "Methanol-Water Recovery Unit",
+        "compounds": [
+            "methanol",
+            "water"
+        ],
+        "property_package": "NRTL",
+        "feed_streams": [
+            {
+                "stream_id": "crude_methanol_feed",
+                "target_equipment": "feed_heater",
+                "target_port": "inlet",
+                "flow_rate": 5000.0,
+                "flow_basis": "mass",
+                "temperature_K": 298.15,
+                "pressure_Pa": 200000.0,
+                "composition": {
+                    "methanol": 0.6,
+                    "water": 0.4
+                },
+                "composition_basis": "mass"
+            }
+        ],
+        "equipment": [
+            {
+                "id": "feed_heater",
+                "type": "heater",
+                "name": "Feed Pre-Heater",
+                "parameters": {
+                    "outlet_temperature_K": 355.0,
+                    "pressure_drop_Pa": 10000,
+                    "efficiency": 0.92
+                }
+            },
+            {
+                "id": "flash_drum",
+                "type": "flash_drum",
+                "name": "Pre-Flash Drum",
+                "parameters": {
+                    "pressure_Pa": 150000,
+                    "duty_W": 0,
+                    "orientation": "vertical"
+                }
+            },
+            {
+                "id": "meoh_column",
+                "type": "distillation_column",
+                "name": "Methanol Recovery Column",
+                "parameters": {
+                    "num_stages": 20,
+                    "feed_stage": 10,
+                    "pressure_top_Pa": 101325,
+                    "pressure_drop_per_stage_Pa": 300,
+                    "condenser_type": "total",
+                    "reboiler_type": "kettle",
+                    "specification_mode": "reflux_ratio",
+                    "reflux_ratio": 1.8,
+                    "light_key": "methanol",
+                    "heavy_key": "water",
+                    "method": "shortcut",
+                    "design_factor": 1.3
+                }
+            },
+            {
+                "id": "meoh_condenser",
+                "type": "cooler",
+                "name": "Methanol Product Cooler",
+                "parameters": {
+                    "outlet_temperature_K": 303.15,
+                    "pressure_drop_Pa": 5000
+                }
+            },
+            {
+                "id": "meoh_tank",
+                "type": "tank",
+                "name": "Methanol Storage Tank",
+                "parameters": {
+                    "residence_time_min": 30,
+                    "tank_type": "product"
+                }
+            },
+            {
+                "id": "water_cooler",
+                "type": "cooler",
+                "name": "Wastewater Cooler",
+                "parameters": {
+                    "outlet_temperature_K": 313.15,
+                    "pressure_drop_Pa": 5000
+                }
+            }
+        ],
+        "edges": [
+            {
+                "id": "heated_feed",
+                "source": "feed_heater",
+                "source_port": "outlet",
+                "target": "flash_drum",
+                "target_port": "inlet",
+                "is_recycle": false
+            },
+            {
+                "id": "flash_liquid",
+                "source": "flash_drum",
+                "source_port": "liquid",
+                "target": "meoh_column",
+                "target_port": "feed",
+                "is_recycle": false
+            },
+            {
+                "id": "meoh_distillate",
+                "source": "meoh_column",
+                "source_port": "distillate",
+                "target": "meoh_condenser",
+                "target_port": "inlet",
+                "is_recycle": false
+            },
+            {
+                "id": "cooled_meoh",
+                "source": "meoh_condenser",
+                "source_port": "outlet",
+                "target": "meoh_tank",
+                "target_port": "inlet",
+                "is_recycle": false
+            },
+            {
+                "id": "water_bottoms",
+                "source": "meoh_column",
+                "source_port": "bottoms",
+                "target": "water_cooler",
+                "target_port": "inlet",
+                "is_recycle": false
+            }
+        ],
+        "solver_options": {
+            "max_iterations": 100,
+            "tolerance": 1e-05,
+            "acceleration": "wegstein",
+            "wegstein_threshold": 3,
+            "relaxation_factor": 0.7,
+            "min_iterations": 2,
+            "oscillation_threshold": 3,
+            "include_thermo_properties": true,
+            "auto_detect_recycles": true
+        }
+    },
+    "result": {
+        "converged": true,
+        "iterations": 1,
+        "max_residual": 0.0,
+        "residual_history": [],
+        "tear_stream_residuals": {},
+        "execution_order": [
+            "FEED",
+            "feed_heater",
+            "flash_drum",
+            "meoh_column",
+            "meoh_condenser",
+            "water_cooler",
+            "meoh_tank",
+            "PRODUCT"
+        ],
+        "tear_streams": [],
+        "node_results": {
+            "feed_heater": {
+                "outlets": {
+                    "outlet": {
+                        "stream_id": "feed_heater_outlet",
+                        "name": "Feed Pre-Heater Outlet",
+                        "flow_rate": 5000.0,
+                        "flow_basis": "mass",
+                        "temperature_K": 355.0,
+                        "pressure_Pa": 190000.0,
+                        "phase": "liquid",
+                        "vapor_fraction": 0.0,
+                        "composition": {
+                            "methanol": 0.6,
+                            "water": 0.4
+                        },
+                        "composition_basis": "mass",
+                        "enthalpy_J_mol": null,
+                        "entropy_J_mol_K": null,
+                        "density_kg_m3": 783.4528971681507,
+                        "molecular_weight": 24.43262633081847,
+                        "liquid_composition": null,
+                        "vapor_composition": null,
+                        "source_equipment": "feed_heater",
+                        "source_port": "outlet"
+                    }
+                },
+                "energy_streams": {},
+                "warnings": [],
+                "converged": true,
+                "iterations": 0,
+                "metadata": {
+                    "calculation_mode": "temperature_specified",
+                    "inlet_temperature_K": 298.15,
+                    "outlet_temperature_K": 355.0,
+                    "temperature_change_K": 56.85,
+                    "inlet_pressure_Pa": 200000.0,
+                    "outlet_pressure_Pa": 190000.0,
+                    "pressure_drop_Pa": 10000,
+                    "inlet_phase": "liquid",
+                    "outlet_phase": "liquid",
+                    "outlet_vapor_fraction": 0.0,
+                    "phase_description": "Subcooled liquid - 100% liquid phase",
+                    "phase_change_detected": false,
+                    "duty": {
+                        "total_duty_kW": 267.301,
+                        "sensible_heat_kW": 267.301,
+                        "latent_heat_kW": 0.0,
+                        "duty_supplied_kW": 290.544
+                    },
+                    "efficiency": 0.92,
+                    "flow": {
+                        "mass_flow_kg_hr": 5000.0,
+                        "molar_flow_kmol_hr": 204.6444,
+                        "inlet_volumetric_flow_m3_hr": 5.9922,
+                        "outlet_volumetric_flow_m3_hr": 6.382,
+                        "molecular_weight_kg_kmol": 24.4326,
+                        "flow_basis_input": "mass"
+                    },
+                    "composition_basis": {
+                        "input_flow_basis": "mass",
+                        "composition_basis": "mass",
+                        "note": "Compositions are in molar basis. Flow can be mass or molar."
+                    },
+                    "inlet_density_kg_m3": 834.42,
+                    "outlet_density_kg_m3": 783.45,
+                    "model_notes": {
+                        "vle_model": "Simplified - uses bubble/dew point boundaries, not full VLE flash",
+                        "phase_change_assumption": "Linear temperature interpolation in two-phase region",
+                        "latent_heat_model": "Composition-weighted mixture ΔHvap"
+                    },
+                    "bubble_point_K": 363.95,
+                    "dew_point_K": 373.63
+                },
+                "status": "active"
+            },
+            "flash_drum": {
+                "outlets": {
+                    "vapor_outlet": {
+                        "stream_id": "flash_drum_vapor",
+                        "name": "Pre-Flash Drum Vapor Outlet (No Flow)",
+                        "flow_rate": 0.0,
+                        "flow_basis": "mass",
+                        "temperature_K": 355.0,
+                        "pressure_Pa": 150000,
+                        "phase": "none",
+                        "vapor_fraction": null,
+                        "composition": {},
+                        "composition_basis": "molar",
+                        "enthalpy_J_mol": null,
+                        "entropy_J_mol_K": null,
+                        "density_kg_m3": null,
+                        "molecular_weight": null,
+                        "liquid_composition": null,
+                        "vapor_composition": null,
+                        "source_equipment": null,
+                        "source_port": null
+                    },
+                    "liquid_outlet": {
+                        "stream_id": "flash_drum_liquid",
+                        "name": "Pre-Flash Drum Liquid Outlet",
+                        "flow_rate": 5000.0,
+                        "flow_basis": "mass",
+                        "temperature_K": 355.0,
+                        "pressure_Pa": 150000,
+                        "phase": "liquid",
+                        "vapor_fraction": 0.0,
+                        "composition": {
+                            "methanol": 0.6,
+                            "water": 0.4
+                        },
+                        "composition_basis": "molar",
+                        "enthalpy_J_mol": 4980.683881230179,
+                        "entropy_J_mol_K": null,
+                        "density_kg_m3": 783.4528971681507,
+                        "molecular_weight": 26.431228,
+                        "liquid_composition": null,
+                        "vapor_composition": null,
+                        "source_equipment": null,
+                        "source_port": null
+                    }
+                },
+                "energy_streams": {},
+                "warnings": [
+                    "No significant vapor produced - consider lower pressure or higher temperature"
+                ],
+                "converged": true,
+                "iterations": 0,
+                "metadata": {
+                    "specification_mode": "pressure_drop_only",
+                    "inlet_temperature_K": 355.0,
+                    "outlet_temperature_K": 355.0,
+                    "inlet_pressure_Pa": 190000.0,
+                    "outlet_pressure_Pa": 150000,
+                    "pressure_drop_Pa": 40000.0,
+                    "inlet_vapor_fraction": 0.0,
+                    "outlet_vapor_fraction": 0.0,
+                    "phase_count": 2,
+                    "duty_kW": 0.0,
+                    "inlet_enthalpy_J_mol": 4980.683881230179,
+                    "equilibrium": {
+                        "vapor_fraction": 0.0,
+                        "liquid_composition": {
+                            "methanol": 0.6,
+                            "water": 0.4
+                        },
+                        "vapor_composition": {
+                            "methanol": 0.0,
+                            "water": 0.0
+                        },
+                        "k_values": {
+                            "methanol": 1.3016219129358828,
+                            "water": 0.3883653909107405
+                        }
+                    },
+                    "flow_split": {
+                        "vapor_flow_rate": 0.0,
+                        "liquid_flow_rate": 5000.0,
+                        "flow_basis": "mass"
+                    },
+                    "physical_properties": {
+                        "vapor_density_kg_m3": 0.0,
+                        "liquid_density_kg_m3": 783.4528971681507
+                    },
+                    "vessel_sizing": {
+                        "orientation": "vertical",
+                        "diameter_m": 0.8,
+                        "length_m": 2.4000000000000004,
+                        "L_D_ratio": 3.0,
+                        "vessel_volume_m3": 1.2063715789784808,
+                        "liquid_holdup_m3": 0.5318337173463008,
+                        "residence_time_min": 5.0,
+                        "K_factor": 0.35,
+                        "demister_type": "wire_mesh",
+                        "vapor_velocity_max_m_s": 9.79032583232542,
+                        "vapor_velocity_design_m_s": 7.342744374244065,
+                        "vapor_velocity_actual_m_s": 0.0,
+                        "vapor_velocity_status": "OK",
+                        "sizing_controlled_by": "liquid_holdup",
+                        "nozzles": {
+                            "liquid": {
+                                "diameter_m": 0.03879151454030502,
+                                "diameter_in": 1.5272219274518086,
+                                "velocity_m_s": 1.5
+                            },
+                            "feed": {
+                                "diameter_m": 0.012266953983490344,
+                                "diameter_in": 0.4829499783300148,
+                                "velocity_m_s": 15.0
+                            }
+                        }
+                    }
+                },
+                "status": "active"
+            }
+        },
+        "stream_results": {
+            "heated_feed": {
+                "name": "Feed Pre-Heater Outlet",
+                "flow_rate": 5000.0,
+                "flow_basis": "mass",
+                "temperature_K": 355.0,
+                "pressure_Pa": 190000.0,
+                "composition": {
+                    "methanol": 0.6,
+                    "water": 0.4
+                },
+                "composition_basis": "mass",
+                "molecular_weight": 24.43262633081847,
+                "phase": "liquid",
+                "vapor_fraction": 0.0,
+                "density_kg_m3": 783.4528971681507
+            },
+            "crude_methanol_feed": {
+                "flow_rate": 5000.0,
+                "flow_basis": "mass",
+                "temperature_K": 298.15,
+                "pressure_Pa": 200000.0,
+                "composition": {
+                    "methanol": 0.6,
+                    "water": 0.4
+                },
+                "composition_basis": "mass"
+            }
+        },
+        "warnings": [
+            "No significant vapor produced - consider lower pressure or higher temperature",
+            "Node 'meoh_column' has no inlet data",
+            "Node 'meoh_condenser' has no inlet data",
+            "Node 'water_cooler' has no inlet data",
+            "Node 'meoh_tank' has no inlet data"
+        ],
+        "errors": [],
+        "execution_time_s": 1.7758941650390625,
+        "equipment_inputs": {
+            "feed_heater": {
+                "equipment_type": "heater",
+                "applied_parameters": {
+                    "outlet_temperature_K": 355.0,
+                    "duty_kW": null,
+                    "pressure_drop_Pa": 10000,
+                    "efficiency": 0.92
+                },
+                "parameter_constraints": {
+                    "outlet_temperature_K": {
+                        "min": 0.0,
+                        "max": 1500.0,
+                        "default": null,
+                        "unit": "K",
+                        "description": "Target outlet temperature (mutually exclusive with duty_kW)",
+                        "constrained": true
+                    },
+                    "duty_kW": {
+                        "min": 0.0,
+                        "max": null,
+                        "default": null,
+                        "unit": "kW",
+                        "description": "Heat duty (positive for heating, mutually exclusive with outlet_temperature_K)",
+                        "constrained": true
+                    },
+                    "pressure_drop_Pa": {
+                        "min": 0.0,
+                        "max": 500000.0,
+                        "default": 0.0,
+                        "unit": "Pa",
+                        "description": "Pressure drop through heater",
+                        "constrained": true
+                    },
+                    "efficiency": {
+                        "min": 0.5,
+                        "max": 1.0,
+                        "default": 1.0,
+                        "unit": "fraction",
+                        "description": "Thermal efficiency (1.0 = 100% efficient)",
+                        "constrained": true
+                    }
+                },
+                "inlet_ports": [
+                    "crude_methanol_feed"
+                ],
+                "outlet_ports": [
+                    "heated_feed"
+                ]
+            },
+            "flash_drum": {
+                "equipment_type": "flash_drum",
+                "applied_parameters": {
+                    "temperature_K": null,
+                    "pressure_Pa": 150000,
+                    "pressure_drop_Pa": 0.0,
+                    "vapor_fraction": null,
+                    "duty_kW": null,
+                    "adiabatic": false,
+                    "orientation": "vertical",
+                    "calculate_sizing": true,
+                    "L_D_ratio": 3.0,
+                    "residence_time_min": 5.0,
+                    "K_factor": 0.35,
+                    "demister_type": "wire_mesh",
+                    "diameter_m": null,
+                    "length_m": null,
+                    "liquid_level_pct": 50.0,
+                    "has_boot": false,
+                    "boot_diameter_ratio": 0.3,
+                    "boot_residence_time_min": 3.0,
+                    "calculate_nozzles": true,
+                    "feed_nozzle_velocity_m_s": 15.0,
+                    "vapor_nozzle_velocity_m_s": 20.0,
+                    "liquid_nozzle_velocity_m_s": 1.5,
+                    "max_iterations": 50,
+                    "temperature_tolerance_K": 0.1,
+                    "try_vlle": true,
+                    "duty_W": 0
+                },
+                "parameter_constraints": {
+                    "temperature_K": {
+                        "type": "number",
+                        "min": 100.0,
+                        "max": 1000.0,
+                        "default": null,
+                        "unit": "K",
+                        "description": "Flash temperature (TP flash mode)",
+                        "required": false
+                    },
+                    "pressure_Pa": {
+                        "type": "number",
+                        "min": 100.0,
+                        "max": 10000000.0,
+                        "default": 101325.0,
+                        "unit": "Pa",
+                        "description": "Flash pressure",
+                        "required": true
+                    },
+                    "vapor_fraction": {
+                        "type": "number",
+                        "min": 0.0,
+                        "max": 1.0,
+                        "default": null,
+                        "unit": "fraction",
+                        "description": "Target vapor fraction (0=all liquid, 1=all vapor)",
+                        "required": false
+                    },
+                    "duty_kW": {
+                        "type": "number",
+                        "min": -100000.0,
+                        "max": 100000.0,
+                        "default": 0.0,
+                        "unit": "kW",
+                        "description": "Heat duty (0 for adiabatic flash)",
+                        "required": false
+                    },
+                    "orientation": {
+                        "type": "string",
+                        "default": "vertical",
+                        "options": [
+                            "vertical",
+                            "horizontal"
+                        ],
+                        "description": "Drum orientation (vertical standard, horizontal for high liquid rates)",
+                        "required": false
+                    },
+                    "size_vessel": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Whether to calculate vessel dimensions",
+                        "required": false
+                    }
+                },
+                "inlet_ports": [
+                    "heated_feed"
+                ],
+                "outlet_ports": [
+                    "flash_liquid",
+                    "flash_vapor"
+                ]
+            },
+            "meoh_column": {
+                "equipment_type": "distillation_column",
+                "applied_parameters": {
+                    "num_stages": 20,
+                    "feed_stage": 10,
+                    "feed_2_stage": null,
+                    "design_factor": 1.3,
+                    "pressure_top_Pa": 101325,
+                    "pressure_drop_per_stage_Pa": 300,
+                    "condenser_type": "total",
+                    "reboiler_type": "kettle",
+                    "specification_mode": "reflux_ratio",
+                    "reflux_ratio": 1.8,
+                    "boilup_ratio": null,
+                    "distillate_rate": null,
+                    "bottoms_rate": null,
+                    "distillate_purity": null,
+                    "bottoms_purity": null,
+                    "light_key": "methanol",
+                    "heavy_key": "water",
+                    "recovery": null,
+                    "condenser_subcooling_K": 0.0,
+                    "reboiler_approach_K": 0.0,
+                    "stage_efficiency": 1.0,
+                    "efficiency_profile": null,
+                    "method": "shortcut",
+                    "max_iterations": 100,
+                    "tolerance": 1e-06,
+                    "damping_factor": 0.5,
+                    "initial_temp_top_K": null,
+                    "initial_temp_bottom_K": null,
+                    "calculate_hydraulics": false,
+                    "column_type": "tray",
+                    "tray_type": "sieve",
+                    "tray_spacing_m": 0.6,
+                    "packing_type": null,
+                    "side_draws": null
+                },
+                "parameter_constraints": {},
+                "inlet_ports": [
+                    "flash_liquid"
+                ],
+                "outlet_ports": [
+                    "meoh_distillate",
+                    "water_bottoms"
+                ]
+            },
+            "meoh_condenser": {
+                "equipment_type": "cooler",
+                "applied_parameters": {
+                    "outlet_temperature_K": 303.15,
+                    "duty_kW": null,
+                    "pressure_drop_Pa": 5000,
+                    "efficiency": 1.0
+                },
+                "parameter_constraints": {
+                    "outlet_temperature_K": {
+                        "type": "number",
+                        "min": 200.0,
+                        "max": 700.0,
+                        "default": null,
+                        "unit": "K",
+                        "description": "Target outlet temperature (specify this OR duty_kW)",
+                        "required": false
+                    },
+                    "duty_kW": {
+                        "type": "number",
+                        "min": 0.0,
+                        "max": 1000000.0,
+                        "default": null,
+                        "unit": "kW",
+                        "description": "Heat removed (positive value, specify this OR outlet_temperature_K)",
+                        "required": false
+                    },
+                    "pressure_drop_Pa": {
+                        "type": "number",
+                        "min": 0.0,
+                        "max": 500000.0,
+                        "default": 0.0,
+                        "unit": "Pa",
+                        "description": "Pressure drop through cooler",
+                        "required": false
+                    },
+                    "efficiency": {
+                        "type": "number",
+                        "min": 0.5,
+                        "max": 1.0,
+                        "default": 1.0,
+                        "unit": "fraction",
+                        "description": "Thermal efficiency (0.5-1.0)",
+                        "required": false
+                    }
+                },
+                "inlet_ports": [
+                    "meoh_distillate"
+                ],
+                "outlet_ports": [
+                    "cooled_meoh"
+                ]
+            },
+            "meoh_tank": {
+                "equipment_type": "tank",
+                "applied_parameters": {
+                    "sizing_mode": "auto",
+                    "residence_time_min": 30,
+                    "tank_type": "product",
+                    "volume_m3": null,
+                    "density_kg_m3": null,
+                    "initial_level_pct": 50.0
+                },
+                "parameter_constraints": {
+                    "sizing_mode": {
+                        "type": "string",
+                        "default": "auto",
+                        "options": [
+                            "auto",
+                            "manual"
+                        ],
+                        "description": "Sizing mode: auto (calculate from residence time) or manual (user-provided volume)",
+                        "required": false
+                    },
+                    "residence_time_min": {
+                        "type": "number",
+                        "min": 0.5,
+                        "max": 1440.0,
+                        "default": 10.0,
+                        "unit": "minutes",
+                        "description": "Desired residence time (auto mode)",
+                        "required": false
+                    },
+                    "tank_type": {
+                        "type": "string",
+                        "default": "general",
+                        "options": [
+                            "surge",
+                            "feed",
+                            "product",
+                            "buffer",
+                            "general"
+                        ],
+                        "description": "Tank type for default residence time lookup",
+                        "required": false
+                    },
+                    "volume_m3": {
+                        "type": "number",
+                        "min": 0.001,
+                        "max": 100000.0,
+                        "default": null,
+                        "unit": "m³",
+                        "description": "Tank volume (manual mode or override)",
+                        "required": false
+                    },
+                    "density_kg_m3": {
+                        "type": "number",
+                        "min": 1.0,
+                        "max": 20000.0,
+                        "default": null,
+                        "unit": "kg/m³",
+                        "description": "User-provided density for volume calculation",
+                        "required": false
+                    },
+                    "initial_level_pct": {
+                        "type": "number",
+                        "min": 0.0,
+                        "max": 100.0,
+                        "default": 50.0,
+                        "unit": "%",
+                        "description": "Initial fill level percentage",
+                        "required": false
+                    }
+                },
+                "inlet_ports": [
+                    "cooled_meoh"
+                ],
+                "outlet_ports": [
+                    "pure_methanol"
+                ]
+            },
+            "water_cooler": {
+                "equipment_type": "cooler",
+                "applied_parameters": {
+                    "outlet_temperature_K": 313.15,
+                    "duty_kW": null,
+                    "pressure_drop_Pa": 5000,
+                    "efficiency": 1.0
+                },
+                "parameter_constraints": {
+                    "outlet_temperature_K": {
+                        "type": "number",
+                        "min": 200.0,
+                        "max": 700.0,
+                        "default": null,
+                        "unit": "K",
+                        "description": "Target outlet temperature (specify this OR duty_kW)",
+                        "required": false
+                    },
+                    "duty_kW": {
+                        "type": "number",
+                        "min": 0.0,
+                        "max": 1000000.0,
+                        "default": null,
+                        "unit": "kW",
+                        "description": "Heat removed (positive value, specify this OR outlet_temperature_K)",
+                        "required": false
+                    },
+                    "pressure_drop_Pa": {
+                        "type": "number",
+                        "min": 0.0,
+                        "max": 500000.0,
+                        "default": 0.0,
+                        "unit": "Pa",
+                        "description": "Pressure drop through cooler",
+                        "required": false
+                    },
+                    "efficiency": {
+                        "type": "number",
+                        "min": 0.5,
+                        "max": 1.0,
+                        "default": 1.0,
+                        "unit": "fraction",
+                        "description": "Thermal efficiency (0.5-1.0)",
+                        "required": false
+                    }
+                },
+                "inlet_ports": [
+                    "water_bottoms"
+                ],
+                "outlet_ports": [
+                    "wastewater"
+                ]
+            }
+        },
+        "stream_properties": {
+            "heated_feed": {
+                "temperature_K": 355.0,
+                "pressure_Pa": 190000.0,
+                "phase": "liquid",
+                "vapor_fraction": 0.0,
+                "density_kg_m3": 783.4528971681507,
+                "viscosity_Pa_s": 0.00029743925689174543,
+                "thermal_conductivity_W_mK": 0.37325616825914804,
+                "surface_tension_N_m": 0.03530032506927876,
+                "heat_capacity_J_molK": 87.61097416411923,
+                "molecular_weight": 24.43262633081847
+            },
+            "crude_methanol_feed": {
+                "temperature_K": 298.15,
+                "pressure_Pa": 200000.0,
+                "phase": "unknown",
+                "vapor_fraction": 0.0,
+                "viscosity_Pa_s": 0.0006623739670155321,
+                "thermal_conductivity_W_mK": 0.3555103958712992,
+                "surface_tension_N_m": 0.04207754539368555,
+                "heat_capacity_J_molK": 78.85819529257193,
+                "molecular_weight": 24.43262633081847
+            }
+        }
+    },
+    "warnings": [
+        "No significant vapor produced - consider lower pressure or higher temperature",
+        "Node 'meoh_column' has no inlet data",
+        "Node 'meoh_condenser' has no inlet data",
+        "Node 'water_cooler' has no inlet data",
+        "Node 'meoh_tank' has no inlet data"
+    ]
+}
