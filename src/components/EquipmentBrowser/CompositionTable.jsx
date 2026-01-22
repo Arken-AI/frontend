@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CompositionTable({ 
   composition, 
@@ -50,54 +51,64 @@ export default function CompositionTable({
         <span className="text-gray-500">({nonZeroCount} components)</span>
       </button>
 
-      {/* Expanded Content */}
-      {isExpanded && (
-        <div className="mt-2 ml-4 pl-3 border-l-2 border-gray-200">
-          <div className="text-xs text-gray-500 mb-2">
-            {basis === 'mass' ? 'Mass' : 'Molar'} fractions
-          </div>
-          
-          <div className="space-y-1.5">
-            {components.map((component) => (
-              <div key={component.name} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 capitalize">
-                  {component.name}
-                </span>
-                {editable && !locked ? (
-                  <input
-                    type="text"
-                    defaultValue={formatFraction(component.fraction)}
-                    className="w-20 px-2 py-1 text-right font-mono text-sm bg-gray-100 border border-gray-200 rounded-md focus:outline-none focus:border-blue-400 focus:bg-white"
-                    onChange={(e) => onChange?.(component.name, parseFloat(e.target.value))}
-                  />
-                ) : (
-                  <span className={`font-mono ${locked ? 'text-gray-500' : 'text-gray-900'}`}>
-                    {formatFraction(component.fraction)}
-                    {locked && <span className="ml-2 text-orange-400">🔒</span>}
-                  </span>
-                )}
+      {/* Expanded Content - Animated */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 ml-4 pl-3 border-l-2 border-gray-200">
+              <div className="text-xs text-gray-500 mb-2">
+                {basis === 'mass' ? 'Mass' : 'Molar'} fractions
               </div>
-            ))}
-          </div>
-          
-          {/* Total & Validation */}
-          <div className="mt-3 pt-2 border-t border-gray-200 flex items-center justify-between text-sm">
-            <span className="text-gray-600 font-medium">Total</span>
-            <span className={`font-mono flex items-center gap-1 ${
-              isValid ? 'text-green-600' : 'text-red-500'
-            }`}>
-              {total.toFixed(4)}
-              {isValid ? ' ✓' : ' ✗'}
-            </span>
-          </div>
-          
-          {!isValid && (
-            <div className="mt-1 text-xs text-red-500">
-              Fractions must sum to 1.0
+              
+              <div className="space-y-1.5">
+                {components.map((component) => (
+                  <div key={component.name} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 capitalize">
+                      {component.name}
+                    </span>
+                    {editable && !locked ? (
+                      <input
+                        type="text"
+                        defaultValue={formatFraction(component.fraction)}
+                        className="w-20 px-2 py-1 text-right font-mono text-sm bg-gray-100 border border-gray-200 rounded-md focus:outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                        onChange={(e) => onChange?.(component.name, parseFloat(e.target.value))}
+                      />
+                    ) : (
+                      <span className={`font-mono ${locked ? 'text-gray-500' : 'text-gray-900'}`}>
+                        {formatFraction(component.fraction)}
+                        {locked && <span className="ml-2 text-orange-400">🔒</span>}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Total & Validation */}
+              <div className="mt-3 pt-2 border-t border-gray-200 flex items-center justify-between text-sm">
+                <span className="text-gray-600 font-medium">Total</span>
+                <span className={`font-mono flex items-center gap-1 ${
+                  isValid ? 'text-green-600' : 'text-red-500'
+                }`}>
+                  {total.toFixed(4)}
+                  {isValid ? ' ✓' : ' ✗'}
+                </span>
+              </div>
+              
+              {!isValid && (
+                <div className="mt-1 text-xs text-red-500">
+                  Fractions must sum to 1.0
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

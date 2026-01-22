@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import StreamField from './StreamField';
 import CompositionTable from './CompositionTable';
 
@@ -104,34 +105,44 @@ export default function StreamSection({
         </button>
       )}
       
-      {/* Content - Collapsible */}
-      {(!isCollapsible || isExpanded) && (
-        <div className="mt-1">
-          {/* Equipment Constraints (only for config type) */}
-          {isConfig && constraints.length > 0 && (
-            <ConstraintsCard 
-              constraints={constraints}
-              editedValues={editedValues}
-              validationErrors={validationErrors}
-              onParameterChange={onParameterChange}
-            />
-          )}
-          
-          {/* Streams */}
-          <div className="space-y-4">
-            {streams.map((stream) => (
-              <StreamCard 
-                key={stream.streamId || stream.stream_id} 
-                stream={stream} 
-                isOutput={isOutput}
-                editedValues={editedValues}
-                validationErrors={validationErrors}
-                onParameterChange={onParameterChange}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Content - Collapsible with animation */}
+      <AnimatePresence>
+        {(!isCollapsible || isExpanded) && (
+          <motion.div
+            initial={isCollapsible ? { height: 0, opacity: 0 } : false}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1">
+              {/* Equipment Constraints (only for config type) */}
+              {isConfig && constraints.length > 0 && (
+                <ConstraintsCard 
+                  constraints={constraints}
+                  editedValues={editedValues}
+                  validationErrors={validationErrors}
+                  onParameterChange={onParameterChange}
+                />
+              )}
+              
+              {/* Streams */}
+              <div className="space-y-4">
+                {streams.map((stream) => (
+                  <StreamCard 
+                    key={stream.streamId || stream.stream_id} 
+                    stream={stream} 
+                    isOutput={isOutput}
+                    editedValues={editedValues}
+                    validationErrors={validationErrors}
+                    onParameterChange={onParameterChange}
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -8,6 +8,7 @@
  */
 
 import { forwardRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import StreamSection from './StreamSection';
 
 /**
@@ -107,7 +108,7 @@ const EquipmentCard = forwardRef(({
           onToggle();
           if (onClick) onClick();
         }}
-        className="w-full px-4 py-3 text-left"
+        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors rounded-t-xl"
       >
         {/* Row 1: Number + Icon + Name + (Status badge when expanded) */}
         <div className="flex items-center gap-2">
@@ -137,9 +138,17 @@ const EquipmentCard = forwardRef(({
         )}
       </button>
 
-      {/* Expanded Content - Simplified Layout */}
-      {isExpanded && (
-        <div className="px-4 pb-4">
+      {/* Expanded Content - Animated */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4">
           {/* INPUTS Section - All input streams */}
           {inputs.length > 0 && (
             <StreamSection 
@@ -210,8 +219,10 @@ const EquipmentCard = forwardRef(({
               </ul>
             </div>
           )}
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
