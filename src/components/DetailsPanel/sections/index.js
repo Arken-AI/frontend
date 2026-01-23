@@ -6,3 +6,4 @@
 
 export { default as MetadataSection } from "./MetadataSection";
 export { default as EquipmentHeader } from "./EquipmentHeader";
+export { default as MetadataCategorizer } from "./MetadataCategorizer";
