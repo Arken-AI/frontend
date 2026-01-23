@@ -76,7 +76,6 @@ export default function DetailsPanel({
         {/* Categorized Metadata */}
         <MetadataCategorizer
           metadata={metadata}
-          defaultExpandedCategories={['summary', 'status', 'energy', 'thermal']}
         />
       </div>
     </div>

@@ -481,22 +481,54 @@ export default function ResultsPage() {
  */
 import EquipmentBrowser from '../components/EquipmentBrowser';
 import WarningsPanel from '../components/WarningsPanel';
+import { DetailsPanel } from '../components/DetailsPanel';
 import { mockWarningsData } from '../data/mockSimulationData';
 
 function SidebarContent({ section }) {
+  // Get selected equipment from store
+  const { selectedEquipmentId } = useSelectionStore();
+  
+  // Find selected equipment data
+  const selectedEquipment = selectedEquipmentId 
+    ? mockEquipmentData.find(eq => eq.id === selectedEquipmentId)
+    : null;
+
   switch (section) {
     case 'equipment':
       return <EquipmentBrowser />;
     
-    case 'details':
+    case 'details': {
+      // Use the new DetailsPanel component
+      if (selectedEquipment) {
+        // Combine equipment info with metadata for full display
+        const fullMetadata = {
+          ...selectedEquipment.metadata,
+          converged: selectedEquipment.converged,
+          iterations: selectedEquipment.iterations,
+          warnings: selectedEquipment.warnings,
+        };
+        
+        return (
+          <DetailsPanel
+            equipment={{
+              id: selectedEquipment.id,
+              name: selectedEquipment.name,
+              type: selectedEquipment.type,
+            }}
+            metadata={fullMetadata}
+            className="h-full -m-4" // Negative margin to fill the sidebar padding
+          />
+        );
+      }
+      
+      // No equipment selected - show empty state
       return (
-        <>
-          <p className="text-sm text-content-secondary">Select equipment to view details</p>
-          <div className="mt-4 p-4 border border-border rounded-md bg-surface-secondary">
-            <p className="text-xs text-content-tertiary text-center">No equipment selected</p>
-          </div>
-        </>
+        <DetailsPanel
+          equipment={null}
+          metadata={null}
+        />
       );
+    }
     
     case 'thermodynamics':
       return (

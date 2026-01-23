@@ -17,15 +17,12 @@ import { MetadataValue } from '../renderers';
 
 /**
  * Single field row within the section
+ * Uses whitespace separation instead of border lines
  */
-function FieldRow({ fieldKey, value, isLast }) {
+function FieldRow({ fieldKey, value }) {
   return (
-    <div
-      className={`flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-2.5 ${
-        !isLast ? 'border-b border-border-subtle' : ''
-      }`}
-    >
-      <span className="text-content-tertiary text-sm min-w-[140px] shrink-0">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-2">
+      <span className="text-content-tertiary text-sm min-w-[120px] shrink-0">
         {inferLabel(fieldKey)}
       </span>
       <div className="flex-1 min-w-0">
@@ -38,7 +35,6 @@ function FieldRow({ fieldKey, value, isLast }) {
 FieldRow.propTypes = {
   fieldKey: PropTypes.string.isRequired,
   value: PropTypes.any,
-  isLast: PropTypes.bool,
 };
 
 /**
@@ -48,7 +44,7 @@ export default function MetadataSection({
   title,
   icon,
   data,
-  defaultExpanded = true,
+  defaultExpanded = false,
   className = '',
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -106,13 +102,12 @@ export default function MetadataSection({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-3">
-              {entries.map(([key, value], index) => (
+            <div className="px-4 pb-3 space-y-1">
+              {entries.map(([key, value]) => (
                 <FieldRow
                   key={key}
                   fieldKey={key}
                   value={value}
-                  isLast={index === entries.length - 1}
                 />
               ))}
             </div>

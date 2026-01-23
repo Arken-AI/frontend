@@ -5,6 +5,7 @@
  * - Simple objects (few keys, primitive values): inline table
  * - Complex objects: collapsible section with recursive rendering
  * - Special objects (composition): custom layout
+ * - Model notes: info card layout
  */
 
 import PropTypes from 'prop-types';
@@ -73,24 +74,65 @@ function CompositionTable({ data, className }) {
 }
 
 /**
- * Render complex object as collapsible section
+ * Render model notes as info cards - clean, readable format
+ */
+function ModelNotesCards({ data, className }) {
+  const entries = Object.entries(data);
+
+  return (
+    <div className={`space-y-2 ${className}`}>
+      {entries.map(([key, value]) => (
+        <div
+          key={key}
+          className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+        >
+          <div className="flex items-start gap-2">
+            <span className="text-blue-500 text-sm mt-0.5">ℹ️</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-medium text-blue-700 block mb-1">
+                {inferLabel(key)}
+              </span>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                {typeof value === 'string' 
+                  ? value 
+                  : typeof value === 'object' && value !== null
+                    ? Object.values(value).join(' • ')
+                    : String(value)}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Render complex object as a mini-card (section-in-section)
  */
 function CollapsibleObject({ data, label, defaultExpanded, depth }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const keyCount = Object.keys(data).length;
 
+  // Use lighter styling for nested cards
+  const isNested = depth > 0;
+
   return (
-    <div className="border border-border-subtle rounded-lg overflow-hidden">
+    <div className={`rounded-lg overflow-hidden ${
+      isNested 
+        ? 'bg-surface-secondary/50' 
+        : 'bg-surface-secondary/50'
+    }`}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-3 py-2
-                   bg-surface-secondary hover:bg-surface-tertiary transition-colors"
+                   hover:bg-surface-secondary transition-colors text-left"
       >
-        <span className="text-content-secondary text-sm font-medium">{label}</span>
+        <span className="text-content-primary text-sm font-medium">{label}</span>
         <div className="flex items-center gap-2">
           <span className="text-content-tertiary text-xs">{keyCount} fields</span>
           <svg
-            className={`w-4 h-4 text-content-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-3.5 h-3.5 text-content-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -103,19 +145,23 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
       <AnimatePresence initial={false}>
         {expanded && (
           <div className="overflow-hidden">
-            <div className="p-3 space-y-2 bg-surface-primary">
+            <div className="px-3 pb-3 space-y-1">
               {Object.entries(data).map(([key, val]) => {
                 const MetadataValue = getMetadataValueRenderer();
                 return (
-                  <div key={key} className="flex flex-col gap-1">
-                    <span className="text-content-tertiary text-xs">{inferLabel(key)}</span>
-                    {MetadataValue ? (
-                      <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
-                    ) : (
-                      <span className="text-content-secondary text-sm">
-                        {JSON.stringify(val)}
-                      </span>
-                    )}
+                  <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1.5">
+                    <span className="text-content-tertiary text-xs min-w-[100px] shrink-0">
+                      {inferLabel(key)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      {MetadataValue ? (
+                        <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                      ) : (
+                        <span className="text-content-secondary text-sm">
+                          {JSON.stringify(val)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -147,6 +193,21 @@ function isComposition(data, fieldKey) {
   return false;
 }
 
+/**
+ * Check if object looks like model notes/assumptions
+ */
+function isModelNotes(data, fieldKey) {
+  if (!data || typeof data !== 'object') return false;
+  
+  const key = fieldKey.toLowerCase();
+  return (
+    key.includes('model_notes') ||
+    key.includes('notes') ||
+    key.includes('assumptions') ||
+    key.includes('model_assumptions')
+  );
+}
+
 export default function ObjectValue({
   value,
   fieldKey = '',
@@ -168,7 +229,9 @@ export default function ObjectValue({
   // Determine render mode
   let mode = renderAs;
   if (mode === 'auto') {
-    if (isComposition(value, fieldKey)) {
+    if (isModelNotes(value, fieldKey)) {
+      mode = 'modelnotes';
+    } else if (isComposition(value, fieldKey)) {
       mode = 'composition';
     } else if (isSimpleObject(value)) {
       mode = 'inline';
@@ -183,6 +246,8 @@ export default function ObjectValue({
   }
 
   switch (mode) {
+    case 'modelnotes':
+      return <ModelNotesCards data={value} className={className} />;
     case 'composition':
       return <CompositionTable data={value} className={className} />;
     case 'inline':
@@ -203,7 +268,7 @@ export default function ObjectValue({
 ObjectValue.propTypes = {
   value: PropTypes.object,
   fieldKey: PropTypes.string,
-  renderAs: PropTypes.oneOf(['auto', 'inline', 'composition', 'collapsible']),
+  renderAs: PropTypes.oneOf(['auto', 'inline', 'composition', 'collapsible', 'modelnotes']),
   defaultExpanded: PropTypes.bool,
   depth: PropTypes.number,
   className: PropTypes.string,

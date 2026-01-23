@@ -37,7 +37,7 @@ const EXCLUDED_FIELDS = new Set([
 export default function MetadataCategorizer({
   metadata,
   excludeFields = [],
-  defaultExpandedCategories = ['summary', 'status', 'energy'],
+  defaultExpandedCategories = [],
   showEmptyCategories = false,
   className = '',
 }) {
