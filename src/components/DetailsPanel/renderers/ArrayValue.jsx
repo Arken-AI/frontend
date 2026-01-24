@@ -49,22 +49,7 @@ function SimpleInline({ items, className }) {
 }
 
 /**
- * Get a friendly label for array items based on field key
- */
-function getItemLabel(fieldKey, index) {
-  const key = fieldKey.toLowerCase();
-  if (key.includes('stage')) return `Stage ${index + 1}`;
-  if (key.includes('stream')) return `Stream ${index + 1}`;
-  if (key.includes('component')) return `Component ${index + 1}`;
-  if (key.includes('layer')) return `Layer ${index + 1}`;
-  if (key.includes('zone')) return `Zone ${index + 1}`;
-  if (key.includes('effect')) return `Effect ${index + 1}`;
-  if (key.includes('tray')) return `Tray ${index + 1}`;
-  return `Item ${index + 1}`;
-}
-
-/**
- * Render complex arrays as mini-cards
+ * Render complex arrays as expandable list
  */
 function ComplexList({ items, fieldKey, defaultExpanded }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -75,12 +60,19 @@ function ComplexList({ items, fieldKey, defaultExpanded }) {
     <div className="space-y-2">
       <AnimatePresence initial={false}>
         {displayItems.map((item, index) => (
-          <MiniCard
+          <div
             key={index}
-            label={getItemLabel(fieldKey, index)}
-            data={item}
-            fieldKey={`${fieldKey}[${index}]`}
-          />
+            className="pl-3 border-l-2 border-border-subtle"
+          >
+            {(() => {
+              const MetadataValue = getMetadataValueRenderer();
+              return MetadataValue ? (
+                <MetadataValue value={item} fieldKey={`${fieldKey}[${index}]`} depth={1} />
+              ) : (
+                <span className="text-content-secondary">{JSON.stringify(item)}</span>
+              );
+            })()}
+          </div>
         ))}
       </AnimatePresence>
 
@@ -88,7 +80,7 @@ function ComplexList({ items, fieldKey, defaultExpanded }) {
         <button
           onClick={() => setExpanded(!expanded)}
           className="text-xs text-accent-primary hover:text-accent-primary-hover
-                     flex items-center gap-1 transition-colors mt-1"
+                     flex items-center gap-1 transition-colors"
         >
           <svg
             className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -101,72 +93,6 @@ function ComplexList({ items, fieldKey, defaultExpanded }) {
           {expanded ? 'Show less' : `Show ${items.length - 3} more`}
         </button>
       )}
-    </div>
-  );
-}
-
-/**
- * Mini-card component for nested items
- */
-function MiniCard({ label, data, fieldKey }) {
-  const [expanded, setExpanded] = useState(false);
-  const MetadataValue = getMetadataValueRenderer();
-  
-  // For objects, show field count
-  const isObject = data && typeof data === 'object' && !Array.isArray(data);
-  const fieldCount = isObject ? Object.keys(data).length : null;
-
-  return (
-    <div className="bg-surface-secondary/50 rounded-lg overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2
-                   hover:bg-surface-secondary transition-colors text-left"
-      >
-        <span className="text-content-primary text-sm font-medium">{label}</span>
-        <div className="flex items-center gap-2">
-          {fieldCount && (
-            <span className="text-content-tertiary text-xs">{fieldCount} fields</span>
-          )}
-          <svg
-            className={`w-3.5 h-3.5 text-content-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <div className="px-3 pb-3 space-y-1">
-            {isObject ? (
-              Object.entries(data).map(([key, val]) => (
-                <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1.5">
-                  <span className="text-content-tertiary text-xs min-w-[100px] shrink-0">
-                    {key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    {MetadataValue ? (
-                      <MetadataValue value={val} fieldKey={key} depth={2} />
-                    ) : (
-                      <span className="text-content-secondary text-sm">{JSON.stringify(val)}</span>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              MetadataValue ? (
-                <MetadataValue value={data} fieldKey={fieldKey} depth={2} />
-              ) : (
-                <span className="text-content-secondary text-sm">{JSON.stringify(data)}</span>
-              )
-            )}
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

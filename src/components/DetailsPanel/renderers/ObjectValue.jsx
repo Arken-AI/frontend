@@ -108,31 +108,24 @@ function ModelNotesCards({ data, className }) {
 }
 
 /**
- * Render complex object as a mini-card (section-in-section)
+ * Render complex object as collapsible section
  */
 function CollapsibleObject({ data, label, defaultExpanded, depth }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const keyCount = Object.keys(data).length;
 
-  // Use lighter styling for nested cards
-  const isNested = depth > 0;
-
   return (
-    <div className={`rounded-lg overflow-hidden ${
-      isNested 
-        ? 'bg-surface-secondary/50' 
-        : 'bg-surface-secondary/50'
-    }`}>
+    <div className="border border-border-subtle rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-3 py-2
-                   hover:bg-surface-secondary transition-colors text-left"
+                   bg-surface-secondary hover:bg-surface-tertiary transition-colors"
       >
-        <span className="text-content-primary text-sm font-medium">{label}</span>
+        <span className="text-content-secondary text-sm font-medium">{label}</span>
         <div className="flex items-center gap-2">
           <span className="text-content-tertiary text-xs">{keyCount} fields</span>
           <svg
-            className={`w-3.5 h-3.5 text-content-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 text-content-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -145,23 +138,19 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
       <AnimatePresence initial={false}>
         {expanded && (
           <div className="overflow-hidden">
-            <div className="px-3 pb-3 space-y-1">
+            <div className="p-3 space-y-2 bg-surface-primary">
               {Object.entries(data).map(([key, val]) => {
                 const MetadataValue = getMetadataValueRenderer();
                 return (
-                  <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1.5">
-                    <span className="text-content-tertiary text-xs min-w-[100px] shrink-0">
-                      {inferLabel(key)}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      {MetadataValue ? (
-                        <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
-                      ) : (
-                        <span className="text-content-secondary text-sm">
-                          {JSON.stringify(val)}
-                        </span>
-                      )}
-                    </div>
+                  <div key={key} className="flex flex-col gap-1">
+                    <span className="text-content-tertiary text-xs">{inferLabel(key)}</span>
+                    {MetadataValue ? (
+                      <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                    ) : (
+                      <span className="text-content-secondary text-sm">
+                        {JSON.stringify(val)}
+                      </span>
+                    )}
                   </div>
                 );
               })}
