@@ -58,11 +58,11 @@ export default function MetadataSection({
   }
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
+    <div className={`border-b border-gray-100 last:border-b-0 ${className}`}>
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3.5 
+        className="w-full flex items-center justify-between px-4 py-3
                    hover:bg-gray-50 transition-colors"
         aria-expanded={expanded}
       >
@@ -100,9 +100,9 @@ export default function MetadataSection({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="overflow-hidden border-t border-gray-100"
+            className="overflow-hidden"
           >
-            <div className="px-4 py-3 space-y-2 bg-gray-50/50">
+            <div className="px-4 pb-3 space-y-2 bg-gray-50/50">
               {entries.map(([key, value]) => (
                 <FieldRow
                   key={key}

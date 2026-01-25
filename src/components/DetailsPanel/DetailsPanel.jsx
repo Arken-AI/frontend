@@ -64,19 +64,24 @@ export default function DetailsPanel({
         )}
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Equipment Header */}
-        <EquipmentHeader
-          name={equipmentName}
-          type={equipmentType}
-          metadata={metadata}
-        />
+      {/* Scrollable content - Single unified card */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Equipment Header (inside the card) */}
+          <EquipmentHeader
+            name={equipmentName}
+            type={equipmentType}
+            metadata={metadata}
+          />
 
-        {/* Categorized Metadata */}
-        <MetadataCategorizer
-          metadata={metadata}
-        />
+          {/* Divider */}
+          <div className="border-t border-gray-100" />
+
+          {/* Categorized Metadata Sections (inside the same card) */}
+          <MetadataCategorizer
+            metadata={metadata}
+          />
+        </div>
       </div>
     </div>
   );

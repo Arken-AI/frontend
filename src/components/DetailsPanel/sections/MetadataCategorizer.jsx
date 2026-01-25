@@ -67,14 +67,14 @@ export default function MetadataCategorizer({
 
   if (categoriesToRender.length === 0) {
     return (
-      <div className={`text-content-tertiary text-sm italic p-4 ${className}`}>
+      <div className={`text-gray-500 text-sm italic p-4 ${className}`}>
         No metadata available
       </div>
     );
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={className}>
       {categoriesToRender.map(([categoryName, categoryData]) => {
         const categoryInfo = getCategoryInfo(categoryName);
         const isDefaultExpanded = defaultExpandedCategories.includes(categoryName);

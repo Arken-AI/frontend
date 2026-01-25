@@ -204,7 +204,7 @@ export default function EquipmentHeader({
   const displayType = type ? inferLabel(type) : null;
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-4 ${className}`}>
+    <div className={`p-4 ${className}`}>
       {/* Top row: Icon, Name, Status badges */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
