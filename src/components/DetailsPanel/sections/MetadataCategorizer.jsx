@@ -74,7 +74,7 @@ export default function MetadataCategorizer({
   }
 
   return (
-    <div className={`space-y-3 ${className}`}>
+    <div className={`space-y-4 ${className}`}>
       {categoriesToRender.map(([categoryName, categoryData]) => {
         const categoryInfo = getCategoryInfo(categoryName);
         const isDefaultExpanded = defaultExpandedCategories.includes(categoryName);

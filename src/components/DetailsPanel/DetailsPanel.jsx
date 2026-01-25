@@ -31,24 +31,24 @@ export default function DetailsPanel({
     return (
       <div className={`flex flex-col items-center justify-center p-8 ${className}`}>
         <span className="text-4xl mb-3">📋</span>
-        <p className="text-content-secondary text-sm">Select equipment to view details</p>
+        <p className="text-gray-500 text-sm">Select equipment to view details</p>
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
+    <div className={`flex flex-col h-full bg-gray-50 ${className}`}>
       {/* Header with close button */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-        <h1 className="text-sm font-semibold text-content-primary">Equipment Details</h1>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+        <h1 className="text-sm font-semibold text-gray-900">Equipment Details</h1>
         {onClose && (
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-surface-secondary transition-colors"
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
             aria-label="Close details panel"
           >
             <svg
-              className="w-4 h-4 text-content-tertiary"
+              className="w-4 h-4 text-gray-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

@@ -64,18 +64,27 @@ function getEquipmentIcon(type) {
  */
 function StatusBadge({ status, label }) {
   const styles = {
-    success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    error: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-    info: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    neutral: 'bg-surface-secondary text-content-secondary border-border-subtle',
+    success: 'bg-green-50 text-green-600 border-green-300',
+    warning: 'bg-orange-50 text-orange-500 border-orange-300',
+    error: 'bg-red-50 text-red-600 border-red-300',
+    info: 'bg-blue-50 text-blue-600 border-blue-300',
+    neutral: 'bg-gray-50 text-gray-600 border-gray-300',
+  };
+
+  const icons = {
+    success: '✓',
+    warning: '⚠',
+    error: '✗',
+    info: 'ℹ',
+    neutral: '•',
   };
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.neutral}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.neutral}`}
     >
-      {label}
+      <span>{icons[status] || icons.neutral}</span>
+      <span>{label}</span>
     </span>
   );
 }
@@ -195,15 +204,15 @@ export default function EquipmentHeader({
   const displayType = type ? inferLabel(type) : null;
 
   return (
-    <div className={`bg-surface-primary rounded-lg border border-border-subtle p-4 ${className}`}>
+    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-4 ${className}`}>
       {/* Top row: Icon, Name, Status badges */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="text-3xl">{displayIcon}</span>
           <div>
-            <h2 className="text-lg font-semibold text-content-primary">{displayName}</h2>
+            <h2 className="text-lg font-bold text-gray-900">{displayName}</h2>
             {displayType && displayType !== displayName && (
-              <p className="text-sm text-content-tertiary">{displayType}</p>
+              <p className="text-sm text-gray-500">{displayType}</p>
             )}
           </div>
         </div>
@@ -219,12 +228,12 @@ export default function EquipmentHeader({
 
       {/* Bottom row: Key metrics */}
       {metrics.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-border-subtle">
+        <div className="mt-4 pt-3 border-t border-gray-100">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {metrics.map((m, i) => (
               <div key={i} className="flex items-baseline gap-2">
-                <span className="text-xs text-content-tertiary">{m.label}:</span>
-                <span className="text-sm font-medium text-content-primary font-mono">
+                <span className="text-sm text-gray-500">{m.label}:</span>
+                <span className="text-sm font-semibold text-gray-900 font-mono">
                   {m.value}
                 </span>
               </div>

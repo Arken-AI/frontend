@@ -21,11 +21,11 @@ import { MetadataValue } from '../renderers';
  */
 function FieldRow({ fieldKey, value }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-2">
-      <span className="text-content-tertiary text-sm min-w-[120px] shrink-0">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-2 px-1">
+      <span className="text-gray-500 text-sm min-w-[140px] shrink-0">
         {inferLabel(fieldKey)}
       </span>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-gray-900">
         <MetadataValue value={value} fieldKey={fieldKey} />
       </div>
     </div>
@@ -58,24 +58,24 @@ export default function MetadataSection({
   }
 
   return (
-    <div className={`bg-surface-primary rounded-lg border border-border-subtle ${className}`}>
+    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3 
-                   hover:bg-surface-secondary/50 transition-colors rounded-t-lg"
+        className="w-full flex items-center justify-between px-4 py-3.5 
+                   hover:bg-gray-50 transition-colors"
         aria-expanded={expanded}
       >
-        <div className="flex items-center gap-2">
-          {icon && <span className="text-lg">{icon}</span>}
-          <span className="text-content-primary font-medium">{title}</span>
+        <div className="flex items-center gap-3">
+          {icon && <span className="text-xl">{icon}</span>}
+          <span className="text-gray-900 font-semibold">{title}</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-content-tertiary text-xs">
+          <span className="text-gray-500 text-sm">
             {entries.length} {entries.length === 1 ? 'field' : 'fields'}
           </span>
           <svg
-            className={`w-4 h-4 text-content-tertiary transition-transform duration-200 ${
+            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
               expanded ? 'rotate-180' : ''
             }`}
             fill="none"
@@ -100,9 +100,9 @@ export default function MetadataSection({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="overflow-hidden"
+            className="overflow-hidden border-t border-gray-100"
           >
-            <div className="px-4 pb-3 space-y-1">
+            <div className="px-4 py-3 space-y-2 bg-gray-50/50">
               {entries.map(([key, value]) => (
                 <FieldRow
                   key={key}

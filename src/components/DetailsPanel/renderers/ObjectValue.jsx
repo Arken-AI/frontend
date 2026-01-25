@@ -115,17 +115,17 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
   const keyCount = Object.keys(data).length;
 
   return (
-    <div className="border border-border-subtle rounded-lg overflow-hidden">
+    <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2
-                   bg-surface-secondary hover:bg-surface-tertiary transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3
+                   bg-white hover:bg-gray-50 transition-colors"
       >
-        <span className="text-content-secondary text-sm font-medium">{label}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-content-tertiary text-xs">{keyCount} fields</span>
+        <span className="text-gray-900 text-sm font-semibold">{label}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-500 text-sm">{keyCount} fields</span>
           <svg
-            className={`w-4 h-4 text-content-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -137,17 +137,17 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
 
       <AnimatePresence initial={false}>
         {expanded && (
-          <div className="overflow-hidden">
-            <div className="p-3 space-y-2 bg-surface-primary">
+          <div className="overflow-hidden border-t border-gray-100">
+            <div className="p-4 space-y-3 bg-gray-50/50">
               {Object.entries(data).map(([key, val]) => {
                 const MetadataValue = getMetadataValueRenderer();
                 return (
                   <div key={key} className="flex flex-col gap-1">
-                    <span className="text-content-tertiary text-xs">{inferLabel(key)}</span>
+                    <span className="text-gray-500 text-sm">{inferLabel(key)}</span>
                     {MetadataValue ? (
                       <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
                     ) : (
-                      <span className="text-content-secondary text-sm">
+                      <span className="text-gray-900 text-sm">
                         {JSON.stringify(val)}
                       </span>
                     )}
