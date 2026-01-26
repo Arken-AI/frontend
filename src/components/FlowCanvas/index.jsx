@@ -401,8 +401,8 @@ function FlowCanvasInner({ equipmentData }) {
         )}
       </div>
       
-      {/* Stream Legend */}
-      <StreamLegend />
+      {/* Stream Legend - positioned below help button */}
+      <StreamLegend showShortcuts={showShortcuts} />
       
       {/* Stream Tooltip - shown when edge is clicked */}
       {selectedEdge && (
