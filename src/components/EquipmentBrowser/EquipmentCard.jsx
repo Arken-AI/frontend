@@ -119,10 +119,10 @@ const EquipmentCard = forwardRef(({
           {/* Name */}
           <span className="flex-1 font-semibold text-gray-900 truncate">{name}</span>
           
-          {/* Status Badge + Warning Badge - always on same line */}
+          {/* Warning Badge + Status Badge - warning first, then status */}
           <div className="flex items-center gap-2">
-            <StatusBadge status={status} converged={converged} />
             <WarningBadge count={warningCount} />
+            <StatusBadge status={status} converged={converged} />
           </div>
         </div>
       </button>

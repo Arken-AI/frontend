@@ -120,7 +120,7 @@ function extractStatus(metadata) {
   if (metadata?.warnings && Array.isArray(metadata.warnings) && metadata.warnings.length > 0) {
     statuses.push({
       status: 'warning',
-      label: `${metadata.warnings.length} Warning${metadata.warnings.length > 1 ? 's' : ''}`,
+      label: `${metadata.warnings.length}`,
     });
   }
 
