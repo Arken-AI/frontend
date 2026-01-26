@@ -140,6 +140,11 @@ function NestedKeyValueBlock({ data, label, depth }) {
           const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
           const isNestedArray = Array.isArray(val);
           
+          // Check if this is a note/info field
+          const keyLower = key.toLowerCase();
+          const isNote = keyLower === 'note' || keyLower === 'notes' || 
+                        keyLower === 'info' || keyLower === 'description';
+          
           // For nested objects/arrays at deeper levels, render recursively
           if (isNestedObject || isNestedArray) {
             return (
@@ -151,6 +156,27 @@ function NestedKeyValueBlock({ data, label, depth }) {
                     {JSON.stringify(val)}
                   </span>
                 )}
+              </div>
+            );
+          }
+          
+          // Render note/info fields as info cards
+          if (isNote && typeof val === 'string') {
+            return (
+              <div key={key} className="py-1.5">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <span className="text-blue-500 text-sm mt-0.5 shrink-0">ℹ️</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-medium text-blue-700 block mb-1">
+                        {inferLabel(key)}
+                      </span>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        {val}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           }
@@ -209,6 +235,11 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
             const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
             const isNestedArray = Array.isArray(val);
             
+            // Check if this is a note/info field
+            const keyLower = key.toLowerCase();
+            const isNote = keyLower === 'note' || keyLower === 'notes' || 
+                          keyLower === 'info' || keyLower === 'description';
+            
             // For nested objects, use the clean block layout
             if (isNestedObject && Object.keys(val).length > 0) {
               return (
@@ -233,6 +264,27 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
                       {JSON.stringify(val)}
                     </span>
                   )}
+                </div>
+              );
+            }
+            
+            // Render note/info fields as info cards
+            if (isNote && typeof val === 'string') {
+              return (
+                <div key={key} className="py-1">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-500 text-sm mt-0.5 shrink-0">ℹ️</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-blue-700 block mb-1">
+                          {inferLabel(key)}
+                        </span>
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          {val}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             }

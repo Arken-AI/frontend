@@ -26,13 +26,40 @@ function isNestedObject(value) {
  * Single field row within the section
  * Justified layout: label left, value right-aligned
  * For nested objects, render full-width without duplicate label
+ * For note fields, render as info card
  */
 function FieldRow({ fieldKey, value }) {
+  // Check if this is a note/info field
+  const keyLower = fieldKey.toLowerCase();
+  const isNote = keyLower === 'note' || keyLower === 'notes' || 
+                keyLower === 'info' || keyLower === 'description';
+  
   // For nested objects, render full-width (the object renderer handles its own header)
   if (isNestedObject(value) && Object.keys(value).length > 0) {
     return (
       <div className="py-2">
         <MetadataValue value={value} fieldKey={fieldKey} />
+      </div>
+    );
+  }
+
+  // For note/info fields, render as info card
+  if (isNote && typeof value === 'string') {
+    return (
+      <div className="py-2">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <span className="text-blue-500 text-sm mt-0.5 shrink-0">ℹ️</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-medium text-blue-700 block mb-1">
+                {inferLabel(fieldKey)}
+              </span>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                {value}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
