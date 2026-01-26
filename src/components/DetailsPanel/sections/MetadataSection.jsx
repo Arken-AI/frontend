@@ -17,15 +17,15 @@ import { MetadataValue } from '../renderers';
 
 /**
  * Single field row within the section
- * Uses whitespace separation instead of border lines
+ * Justified layout: label left, value right-aligned
  */
 function FieldRow({ fieldKey, value }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-2 px-1">
-      <span className="text-gray-500 text-sm min-w-[140px] shrink-0">
+    <div className="flex items-baseline justify-between gap-4 py-2">
+      <span className="text-gray-600 text-sm">
         {inferLabel(fieldKey)}
       </span>
-      <div className="flex-1 min-w-0 text-gray-900">
+      <div className="text-right">
         <MetadataValue value={value} fieldKey={fieldKey} />
       </div>
     </div>
@@ -62,34 +62,27 @@ export default function MetadataSection({
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3
-                   hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-3
+                   hover:bg-gray-50 transition-colors text-left"
         aria-expanded={expanded}
       >
-        <div className="flex items-center gap-3">
-          {icon && <span className="text-xl">{icon}</span>}
-          <span className="text-gray-900 font-semibold">{title}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-gray-500 text-sm">
-            {entries.length} {entries.length === 1 ? 'field' : 'fields'}
-          </span>
-          <svg
-            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
-              expanded ? 'rotate-180' : ''
-            }`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </div>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${
+            expanded ? 'rotate-90' : ''
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+        {icon && <span className="text-lg">{icon}</span>}
+        <span className="text-gray-900 font-semibold">{title}</span>
       </button>
 
       {/* Content */}
@@ -102,7 +95,7 @@ export default function MetadataSection({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-3 space-y-2 bg-gray-50/50">
+            <div className="px-4 pb-3 ml-6 space-y-0 divide-y divide-gray-100">
               {entries.map(([key, value]) => (
                 <FieldRow
                   key={key}

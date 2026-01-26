@@ -79,14 +79,14 @@ export default function StringValue({
   if (str.length > maxLength) {
     const truncated = truncateString(str, maxLength);
     return (
-      <span className={`text-content-secondary ${className}`} title={str}>
+      <span className={`text-gray-900 ${className}`} title={str}>
         {truncated}
       </span>
     );
   }
 
   // Normal string
-  return <span className={`text-content-secondary ${className}`}>{str}</span>;
+  return <span className={`text-gray-900 ${className}`}>{str}</span>;
 }
 
 StringValue.propTypes = {

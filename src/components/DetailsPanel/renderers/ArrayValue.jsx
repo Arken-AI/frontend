@@ -49,50 +49,146 @@ function SimpleInline({ items, className }) {
 }
 
 /**
- * Render complex arrays as expandable list
+ * Collapsible array item - for object items in arrays
  */
-function ComplexList({ items, fieldKey, defaultExpanded }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const hasMany = items.length > 3;
-  const displayItems = expanded ? items : items.slice(0, 3);
+function CollapsibleArrayItem({ item, label, index, fieldKey }) {
+  const [expanded, setExpanded] = useState(false);
+  const keyCount = typeof item === 'object' && item !== null 
+    ? (Array.isArray(item) ? item.length : Object.keys(item).length)
+    : 0;
 
   return (
-    <div className="space-y-2">
-      <AnimatePresence initial={false}>
-        {displayItems.map((item, index) => (
-          <div
-            key={index}
-            className="pl-3 border-l-2 border-border-subtle"
-          >
-            {(() => {
-              const MetadataValue = getMetadataValueRenderer();
-              return MetadataValue ? (
-                <MetadataValue value={item} fieldKey={`${fieldKey}[${index}]`} depth={1} />
-              ) : (
-                <span className="text-content-secondary">{JSON.stringify(item)}</span>
-              );
-            })()}
-          </div>
-        ))}
-      </AnimatePresence>
-
-      {hasMany && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-xs text-accent-primary hover:text-accent-primary-hover
-                     flex items-center gap-1 transition-colors"
+    <div>
+      {/* Expandable header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+      >
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
         >
-          <svg
-            className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          {expanded ? 'Show less' : `Show ${items.length - 3} more`}
-        </button>
-      )}
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-gray-900 text-sm font-medium">{label}</span>
+        <span className="text-gray-500 text-sm">({keyCount} {keyCount === 1 ? 'item' : 'items'})</span>
+      </button>
+
+      {/* Expanded content */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <div className="overflow-hidden mt-2 ml-2 pl-4 border-l-2 border-gray-200">
+            <div className="space-y-2">
+              {Object.entries(item).map(([key, val]) => {
+                const MetadataValue = getMetadataValueRenderer();
+                const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
+                const isNestedArray = Array.isArray(val);
+                
+                // For nested objects/arrays, render on own line
+                if (isNestedObject || isNestedArray) {
+                  return (
+                    <div key={key} className="py-1">
+                      {MetadataValue ? (
+                        <MetadataValue value={val} fieldKey={key} depth={2} />
+                      ) : (
+                        <span className="text-gray-900 text-sm font-mono">
+                          {JSON.stringify(val)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                
+                // For primitives, justified layout
+                return (
+                  <div key={key} className="flex items-baseline justify-between gap-4 py-1">
+                    <span className="text-gray-600 text-sm">{key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                    <div className="text-right">
+                      {MetadataValue ? (
+                        <MetadataValue value={val} fieldKey={key} depth={2} />
+                      ) : (
+                        <span className="text-gray-900 text-sm font-mono">
+                          {String(val)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Collapsible array header - for arrays of objects shown with expandable header
+ */
+function CollapsibleArrayHeader({ items, fieldKey, defaultExpanded, className }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const label = fieldKey.split('.').pop()?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Array';
+
+  return (
+    <div className={className}>
+      {/* Expandable header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+      >
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-gray-900 text-sm font-medium">{label}</span>
+        <span className="text-gray-500 text-sm">({items.length} {items.length === 1 ? 'item' : 'items'})</span>
+      </button>
+
+      {/* Expanded content - show individual items */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <div className="overflow-hidden mt-2 ml-2 pl-4 border-l-2 border-gray-200 space-y-2">
+            {items.map((item, index) => {
+              const itemLabel = `[${index}]`;
+              
+              // For object items, render as collapsible
+              if (item && typeof item === 'object') {
+                return (
+                  <CollapsibleArrayItem
+                    key={index}
+                    item={item}
+                    label={itemLabel}
+                    index={index}
+                    fieldKey={fieldKey}
+                  />
+                );
+              }
+              
+              // For primitive items
+              const MetadataValue = getMetadataValueRenderer();
+              return (
+                <div key={index} className="flex items-baseline justify-between gap-4 py-1">
+                  <span className="text-gray-600 text-sm">{itemLabel}</span>
+                  <div className="text-right">
+                    {MetadataValue ? (
+                      <MetadataValue value={item} fieldKey={`${fieldKey}[${index}]`} depth={1} />
+                    ) : (
+                      <span className="text-gray-900 font-mono text-sm">{JSON.stringify(item)}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -136,10 +232,11 @@ export default function ArrayValue({
     case 'list':
     default:
       return (
-        <ComplexList
+        <CollapsibleArrayHeader
           items={value}
           fieldKey={fieldKey}
           defaultExpanded={defaultExpanded}
+          className={className}
         />
       );
   }

@@ -37,10 +37,10 @@ export default function NumberValue({
   const displayUnit = overrideUnit ?? inferredUnit;
 
   return (
-    <span className={`font-mono tabular-nums ${className}`}>
-      <span className="text-content-primary">{formatted}</span>
+    <span className={`font-mono tabular-nums text-gray-900 ${className}`}>
+      <span>{formatted}</span>
       {displayUnit && (
-        <span className="text-content-tertiary ml-1 text-sm">{displayUnit}</span>
+        <span className="text-gray-500 ml-1 text-sm">{displayUnit}</span>
       )}
     </span>
   );

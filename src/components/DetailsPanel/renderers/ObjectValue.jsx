@@ -41,34 +41,41 @@ function InlineObject({ data, className }) {
 }
 
 /**
- * Render composition object as a mini table
+ * Render composition object like Equipment Browser - with Molar fractions label and Total row
  */
-function CompositionTable({ data, className }) {
+function CompositionTable({ data, fieldKey, className }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]); // Sort by value descending
+  const total = entries.reduce((sum, [, val]) => sum + (typeof val === 'number' ? val : 0), 0);
+  const isValidTotal = Math.abs(total - 1.0) < 0.001;
 
   return (
-    <div className={`space-y-1 ${className}`}>
-      {entries.map(([component, fraction]) => {
-        const percent = typeof fraction === 'number' ? (fraction * 100).toFixed(2) : fraction;
-        const barWidth = typeof fraction === 'number' ? Math.min(fraction * 100, 100) : 0;
+    <div className={`ml-2 pl-4 border-l-2 border-gray-200 ${className}`}>
+      {/* Sub-label */}
+      <div className="text-gray-500 text-sm mb-2">Molar fractions</div>
+      
+      {/* Component rows */}
+      <div className="space-y-0 divide-y divide-gray-100">
+        {entries.map(([component, fraction]) => {
+          const displayValue = typeof fraction === 'number' 
+            ? fraction.toFixed(4) 
+            : String(fraction);
 
-        return (
-          <div key={component} className="flex items-center gap-2">
-            <span className="text-content-secondary text-sm w-24 truncate" title={component}>
-              {component}
-            </span>
-            <div className="flex-1 h-2 bg-surface-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-accent-primary/60 rounded-full transition-all"
-                style={{ width: `${barWidth}%` }}
-              />
+          return (
+            <div key={component} className="flex items-baseline justify-between gap-4 py-2">
+              <span className="text-gray-600 text-sm capitalize">{component}</span>
+              <span className="text-gray-900 text-sm font-mono">{displayValue}</span>
             </div>
-            <span className="text-content-tertiary text-xs font-mono w-16 text-right">
-              {percent}%
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+        
+        {/* Total row */}
+        <div className="flex items-baseline justify-between gap-4 py-2 border-t border-gray-300">
+          <span className="text-gray-600 text-sm font-medium">Total</span>
+          <span className={`text-sm font-mono font-medium ${isValidTotal ? 'text-green-600' : 'text-red-600'}`}>
+            {total.toFixed(4)} {isValidTotal ? '✓' : '✗'}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -108,49 +115,69 @@ function ModelNotesCards({ data, className }) {
 }
 
 /**
- * Render complex object as collapsible section
+ * Render complex object as collapsible section - expandable link style like Equipment Browser
  */
 function CollapsibleObject({ data, label, defaultExpanded, depth }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const keyCount = Object.keys(data).length;
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+    <div>
+      {/* Expandable link header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3
-                   bg-white hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
       >
-        <span className="text-gray-900 text-sm font-semibold">{label}</span>
-        <div className="flex items-center gap-3">
-          <span className="text-gray-500 text-sm">{keyCount} fields</span>
-          <svg
-            className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-gray-900 text-sm font-medium">{label}</span>
+        <span className="text-gray-500 text-sm">({keyCount} {keyCount === 1 ? 'item' : 'items'})</span>
       </button>
 
+      {/* Expanded content */}
       <AnimatePresence initial={false}>
         {expanded && (
-          <div className="overflow-hidden border-t border-gray-100">
-            <div className="p-4 space-y-3 bg-gray-50/50">
+          <div className="overflow-hidden mt-2 ml-2 pl-4 border-l-2 border-gray-200">
+            <div className="space-y-2">
               {Object.entries(data).map(([key, val]) => {
                 const MetadataValue = getMetadataValueRenderer();
+                const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
+                const isNestedArray = Array.isArray(val);
+                
+                // For nested objects/arrays, render them on their own line
+                if (isNestedObject || isNestedArray) {
+                  return (
+                    <div key={key} className="py-1">
+                      {MetadataValue ? (
+                        <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                      ) : (
+                        <span className="text-gray-900 text-sm font-mono">
+                          {JSON.stringify(val)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                
+                // For primitives, show label: value justified
                 return (
-                  <div key={key} className="flex flex-col gap-1">
-                    <span className="text-gray-500 text-sm">{inferLabel(key)}</span>
-                    {MetadataValue ? (
-                      <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
-                    ) : (
-                      <span className="text-gray-900 text-sm">
-                        {JSON.stringify(val)}
-                      </span>
-                    )}
+                  <div key={key} className="flex items-baseline justify-between gap-4 py-1">
+                    <span className="text-gray-600 text-sm">{inferLabel(key)}</span>
+                    <div className="text-right">
+                      {MetadataValue ? (
+                        <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                      ) : (
+                        <span className="text-gray-900 text-sm font-mono">
+                          {JSON.stringify(val)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -222,15 +249,14 @@ export default function ObjectValue({
       mode = 'modelnotes';
     } else if (isComposition(value, fieldKey)) {
       mode = 'composition';
-    } else if (isSimpleObject(value)) {
-      mode = 'inline';
     } else {
+      // Always use collapsible for objects to match Equipment Browser style
       mode = 'collapsible';
     }
   }
 
-  // Limit nesting depth
-  if (depth > 3) {
+  // Only limit at very deep nesting
+  if (depth > 5) {
     mode = 'inline';
   }
 
@@ -238,7 +264,7 @@ export default function ObjectValue({
     case 'modelnotes':
       return <ModelNotesCards data={value} className={className} />;
     case 'composition':
-      return <CompositionTable data={value} className={className} />;
+      return <CompositionTable data={value} fieldKey={fieldKey} className={className} />;
     case 'inline':
       return <InlineObject data={value} className={className} />;
     case 'collapsible':
