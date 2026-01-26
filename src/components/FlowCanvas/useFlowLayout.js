@@ -5,6 +5,7 @@
  * Uses Dagre algorithm to calculate positions for left-to-right process flow.
  * Includes feed stream inputs and product stream outputs.
  * Supports multiple handles per equipment for clean edge routing.
+ * Color-codes streams by phase: Blue=Liquid, Red=Vapor, Purple=Two-Phase
  */
 
 import { useMemo } from "react";
@@ -17,6 +18,66 @@ const FEED_NODE_WIDTH = 120;
 const FEED_NODE_HEIGHT = 50;
 const PRODUCT_NODE_WIDTH = 140;
 const PRODUCT_NODE_HEIGHT = 50;
+
+/**
+ * Get stream color based on phase
+ */
+function getStreamColor(phase) {
+  if (!phase) return "#94a3b8"; // Default gray
+
+  const phaseStr = phase.toLowerCase();
+
+  // Liquid phase - Blue
+  if (phaseStr === "liquid") {
+    return "#3b82f6"; // blue-500
+  }
+
+  // Vapor/Gas phase - Red
+  if (phaseStr === "vapor" || phaseStr === "gas") {
+    return "#ef4444"; // red-500
+  }
+
+  // Two-phase/Mixed - Purple
+  if (
+    phaseStr.includes("liquid-vapor") ||
+    phaseStr.includes("mixed") ||
+    phaseStr.includes("two-phase")
+  ) {
+    return "#a855f7"; // purple-500
+  }
+
+  return "#94a3b8"; // Default gray
+}
+
+/**
+ * Get label color based on stream color (darker variant for readability)
+ */
+function getLabelColor(streamColor) {
+  const colorMap = {
+    "#3b82f6": "#1e40af", // blue-800
+    "#ef4444": "#991b1b", // red-800
+    "#a855f7": "#6b21a8", // purple-800
+    "#94a3b8": "#475569", // slate-600
+    "#22c55e": "#166534", // green-800 (feed)
+    "#f97316": "#c2410c", // orange-800 (product)
+  };
+  return colorMap[streamColor] || "#475569";
+}
+
+/**
+ * Get label background color based on stream color
+ */
+function getLabelBgColor(streamColor) {
+  const colorMap = {
+    "#3b82f6": "#dbeafe", // blue-100
+    "#ef4444": "#fee2e2", // red-100
+    "#a855f7": "#f3e8ff", // purple-100
+    "#94a3b8": "#f1f5f9", // slate-100
+    "#22c55e": "#dcfce7", // green-100 (feed)
+    "#f97316": "#ffedd5", // orange-100 (product)
+  };
+  return colorMap[streamColor] || "#f1f5f9";
+}
 
 export default function useFlowLayout(equipmentData) {
   const { nodes, edges } = useMemo(() => {
@@ -108,6 +169,9 @@ export default function useFlowLayout(equipmentData) {
 
       // Create edge from feed to target equipment
       const streamNumber = streamNumberMap.get(feed.stream_id) || "";
+      // Get phase from feed stream data
+      const streamColor = getStreamColor(feed.phase);
+
       flowEdges.push({
         id: `edge-feed-${feed.stream_id}`,
         source: feedNodeId,
@@ -120,23 +184,26 @@ export default function useFlowLayout(equipmentData) {
           type: "arrowclosed",
           width: 10,
           height: 10,
-          color: "#22c55e",
+          color: streamColor,
         },
         style: {
-          stroke: "#22c55e",
+          stroke: streamColor,
           strokeWidth: 2,
         },
         labelStyle: {
-          fill: "#166534",
+          fill: getLabelColor(streamColor),
           fontWeight: 600,
           fontSize: 11,
         },
         labelBgStyle: {
-          fill: "#dcfce7",
+          fill: getLabelBgColor(streamColor),
           fillOpacity: 0.9,
         },
         labelBgPadding: [4, 2],
         labelBgBorderRadius: 4,
+        data: {
+          phase: feed.phase,
+        },
       });
     });
 
@@ -161,6 +228,17 @@ export default function useFlowLayout(equipmentData) {
     apiEdges.forEach((edge) => {
       const streamNumber = streamNumberMap.get(edge.id) || "";
 
+      // Find stream data from source equipment's outputs to get phase
+      const sourceEquipment = equipmentData.find((eq) => eq.id === edge.source);
+      const streamData = sourceEquipment?.outputs?.find(
+        (out) => out.streamId === edge.id,
+      );
+      const phase = streamData?.phase;
+      const isRecycle = edge.is_recycle || false;
+
+      // Get color based on phase
+      const streamColor = getStreamColor(phase);
+
       flowEdges.push({
         id: `edge-${edge.id}`,
         source: edge.source,
@@ -174,36 +252,45 @@ export default function useFlowLayout(equipmentData) {
           type: "arrowclosed",
           width: 10,
           height: 10,
-          color: "#94a3b8",
+          color: streamColor,
         },
         style: {
-          stroke: "#94a3b8",
+          stroke: streamColor,
           strokeWidth: 2,
+          strokeDasharray: isRecycle ? "5,5" : undefined, // Dashed for recycle
         },
         labelStyle: {
-          fill: "#475569",
+          fill: getLabelColor(streamColor),
           fontWeight: 600,
           fontSize: 11,
         },
         labelBgStyle: {
-          fill: "#f1f5f9",
+          fill: getLabelBgColor(streamColor),
           fillOpacity: 0.9,
         },
         labelBgPadding: [4, 2],
         labelBgBorderRadius: 4,
+        data: {
+          phase: phase,
+          isRecycle: isRecycle,
+        },
       });
     });
 
     // Step 4: Create PRODUCT nodes for outputs that don't connect to other equipment
     equipmentData.forEach((equipment) => {
       equipment.outputs.forEach((output) => {
-        const streamId = output.stream_id;
+        const streamId = output.stream_id || output.streamId;
         const isConnected = apiEdges.some((edge) => edge.id === streamId);
 
         if (!isConnected && streamId) {
           const productNodeId = `product-${streamId}`;
           const streamNumber =
             streamNumberMap.get(streamId) || output.streamNumber || "";
+
+          // Get phase from output stream data
+          const phase = output.phase;
+          const streamColor = getStreamColor(phase);
 
           flowNodes.push({
             id: productNodeId,
@@ -228,23 +315,26 @@ export default function useFlowLayout(equipmentData) {
               type: "arrowclosed",
               width: 10,
               height: 10,
-              color: "#f97316",
+              color: streamColor,
             },
             style: {
-              stroke: "#f97316",
+              stroke: streamColor,
               strokeWidth: 2,
             },
             labelStyle: {
-              fill: "#c2410c",
+              fill: getLabelColor(streamColor),
               fontWeight: 600,
               fontSize: 11,
             },
             labelBgStyle: {
-              fill: "#ffedd5",
+              fill: getLabelBgColor(streamColor),
               fillOpacity: 0.9,
             },
             labelBgPadding: [4, 2],
             labelBgBorderRadius: 4,
+            data: {
+              phase: phase,
+            },
           });
         }
       });

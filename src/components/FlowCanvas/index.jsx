@@ -27,6 +27,7 @@ import EquipmentNode from './EquipmentNode';
 import FeedNode from './FeedNode';
 import ProductNode from './ProductNode';
 import StreamTooltip from './StreamTooltip';
+import StreamLegend from './StreamLegend';
 import useFlowLayout from './useFlowLayout';
 import useSelectionStore from '../../store/useSelectionStore';
 import { useParams } from 'react-router-dom';
@@ -122,7 +123,8 @@ function FlowCanvasInner({ equipmentData }) {
           edge.target === selectedEquipmentId;
 
         if (isConnected) {
-          // Highlight connected edges
+          // Highlight connected edges with glow effect
+          const currentColor = edge.style?.stroke || '#94a3b8';
           return {
             ...edge,
             animated: true,
@@ -130,6 +132,7 @@ function FlowCanvasInner({ equipmentData }) {
               ...edge.style,
               opacity: 1,
               strokeWidth: 3,
+              filter: `drop-shadow(0 0 4px ${currentColor}) drop-shadow(0 0 8px ${currentColor})`,
             },
           };
         } else {
@@ -397,6 +400,9 @@ function FlowCanvasInner({ equipmentData }) {
           </button>
         )}
       </div>
+      
+      {/* Stream Legend */}
+      <StreamLegend />
       
       {/* Stream Tooltip - shown when edge is clicked */}
       {selectedEdge && (
