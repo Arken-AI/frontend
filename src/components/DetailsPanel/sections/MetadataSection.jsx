@@ -16,10 +16,28 @@ import { inferLabel } from '../utils';
 import { MetadataValue } from '../renderers';
 
 /**
+ * Check if value is a nested object (not array, not null)
+ */
+function isNestedObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
  * Single field row within the section
  * Justified layout: label left, value right-aligned
+ * For nested objects, render full-width without duplicate label
  */
 function FieldRow({ fieldKey, value }) {
+  // For nested objects, render full-width (the object renderer handles its own header)
+  if (isNestedObject(value) && Object.keys(value).length > 0) {
+    return (
+      <div className="py-2">
+        <MetadataValue value={value} fieldKey={fieldKey} />
+      </div>
+    );
+  }
+
+  // For primitives and arrays, use standard left-right layout
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
       <span className="text-gray-600 text-sm">

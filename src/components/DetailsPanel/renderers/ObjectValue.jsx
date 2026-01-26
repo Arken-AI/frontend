@@ -115,18 +115,156 @@ function ModelNotesCards({ data, className }) {
 }
 
 /**
+ * Render nested key-value pairs with clean left-right layout
+ * Main key spans full width as a subheader, child keys show as left-right pairs
+ */
+function NestedKeyValueBlock({ data, label, depth }) {
+  const MetadataValue = getMetadataValueRenderer();
+  const entries = Object.entries(data);
+  
+  // Check if all values are primitives (simple key-value display)
+  const allPrimitive = entries.every(([, val]) => 
+    val === null || typeof val !== 'object'
+  );
+
+  return (
+    <div className="w-full">
+      {/* Main key as subheader - spans full width */}
+      <div className="text-gray-700 text-sm font-medium mb-2 pb-1 border-b border-gray-100">
+        {label}
+      </div>
+      
+      {/* Child key-value pairs */}
+      <div className="space-y-0">
+        {entries.map(([key, val]) => {
+          const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
+          const isNestedArray = Array.isArray(val);
+          
+          // For nested objects/arrays at deeper levels, render recursively
+          if (isNestedObject || isNestedArray) {
+            return (
+              <div key={key} className="py-2">
+                {MetadataValue ? (
+                  <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                ) : (
+                  <span className="text-gray-900 text-sm font-mono">
+                    {JSON.stringify(val)}
+                  </span>
+                )}
+              </div>
+            );
+          }
+          
+          // Primitive values: clean left-right layout
+          return (
+            <div key={key} className="flex items-center justify-between gap-4 py-1.5">
+              <span className="text-gray-500 text-sm">{inferLabel(key)}</span>
+              <span className="text-gray-900 text-sm font-mono font-medium">
+                {val === null || val === undefined
+                  ? '—'
+                  : typeof val === 'boolean'
+                    ? val ? '✓' : '✗'
+                    : typeof val === 'number'
+                      ? val.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                      : String(val)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Render complex object as collapsible section - expandable link style like Equipment Browser
+ * At depth=0, renders directly without collapsible wrapper (parent section handles that)
  */
 function CollapsibleObject({ data, label, defaultExpanded, depth }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const keyCount = Object.keys(data).length;
+  const entries = Object.entries(data);
 
+  // At depth 0, render directly without collapsible wrapper
+  // The parent MetadataSection already shows the field key
+  if (depth === 0) {
+    return (
+      <div className="w-full">
+        {/* Section label */}
+        <div className="flex items-center gap-2 mb-3">
+          <svg
+            className="w-4 h-4 text-gray-400 rotate-90 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="text-gray-900 text-sm font-medium">{label}</span>
+        </div>
+        
+        {/* Content - nested blocks */}
+        <div className="ml-6 space-y-4">
+          {entries.map(([key, val]) => {
+            const MetadataValue = getMetadataValueRenderer();
+            const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
+            const isNestedArray = Array.isArray(val);
+            
+            // For nested objects, use the clean block layout
+            if (isNestedObject && Object.keys(val).length > 0) {
+              return (
+                <NestedKeyValueBlock
+                  key={key}
+                  data={val}
+                  label={inferLabel(key)}
+                  depth={depth + 1}
+                />
+              );
+            }
+            
+            // For arrays, render with MetadataValue
+            if (isNestedArray) {
+              return (
+                <div key={key} className="py-1">
+                  <div className="text-gray-700 text-sm font-medium mb-2">{inferLabel(key)}</div>
+                  {MetadataValue ? (
+                    <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                  ) : (
+                    <span className="text-gray-900 text-sm font-mono">
+                      {JSON.stringify(val)}
+                    </span>
+                  )}
+                </div>
+              );
+            }
+            
+            // For primitives, show as simple key-value row
+            return (
+              <div key={key} className="flex items-center justify-between gap-4 py-1">
+                <span className="text-gray-500 text-sm">{inferLabel(key)}</span>
+                <span className="text-gray-900 text-sm font-mono font-medium">
+                  {val === null || val === undefined
+                    ? '—'
+                    : typeof val === 'boolean'
+                      ? val ? '✓' : '✗'
+                      : typeof val === 'number'
+                        ? val.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                        : String(val)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // At deeper levels, use collapsible wrapper
   return (
-    <div>
-      {/* Expandable link header */}
+    <div className="w-full">
+      {/* Expandable link header - cleaner without item count */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+        className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full"
       >
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
@@ -137,51 +275,61 @@ function CollapsibleObject({ data, label, defaultExpanded, depth }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
         <span className="text-gray-900 text-sm font-medium">{label}</span>
-        <span className="text-gray-500 text-sm">({keyCount} {keyCount === 1 ? 'item' : 'items'})</span>
       </button>
 
-      {/* Expanded content */}
+      {/* Expanded content - clean nested blocks */}
       <AnimatePresence initial={false}>
         {expanded && (
-          <div className="overflow-hidden mt-2 ml-2 pl-4 border-l-2 border-gray-200">
-            <div className="space-y-2">
-              {Object.entries(data).map(([key, val]) => {
-                const MetadataValue = getMetadataValueRenderer();
-                const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
-                const isNestedArray = Array.isArray(val);
-                
-                // For nested objects/arrays, render them on their own line
-                if (isNestedObject || isNestedArray) {
-                  return (
-                    <div key={key} className="py-1">
-                      {MetadataValue ? (
-                        <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
-                      ) : (
-                        <span className="text-gray-900 text-sm font-mono">
-                          {JSON.stringify(val)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-                
-                // For primitives, show label: value justified
+          <div className="overflow-hidden mt-3 ml-6 space-y-4">
+            {entries.map(([key, val]) => {
+              const MetadataValue = getMetadataValueRenderer();
+              const isNestedObject = val && typeof val === 'object' && !Array.isArray(val);
+              const isNestedArray = Array.isArray(val);
+              
+              // For nested objects, use the new clean block layout
+              if (isNestedObject && Object.keys(val).length > 0) {
                 return (
-                  <div key={key} className="flex items-baseline justify-between gap-4 py-1">
-                    <span className="text-gray-600 text-sm">{inferLabel(key)}</span>
-                    <div className="text-right">
-                      {MetadataValue ? (
-                        <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
-                      ) : (
-                        <span className="text-gray-900 text-sm font-mono">
-                          {JSON.stringify(val)}
-                        </span>
-                      )}
-                    </div>
+                  <NestedKeyValueBlock
+                    key={key}
+                    data={val}
+                    label={inferLabel(key)}
+                    depth={depth + 1}
+                  />
+                );
+              }
+              
+              // For arrays, render with MetadataValue
+              if (isNestedArray) {
+                return (
+                  <div key={key} className="py-1">
+                    <div className="text-gray-700 text-sm font-medium mb-2">{inferLabel(key)}</div>
+                    {MetadataValue ? (
+                      <MetadataValue value={val} fieldKey={key} depth={depth + 1} />
+                    ) : (
+                      <span className="text-gray-900 text-sm font-mono">
+                        {JSON.stringify(val)}
+                      </span>
+                    )}
                   </div>
                 );
-              })}
-            </div>
+              }
+              
+              // For primitives at top level, show as simple key-value row
+              return (
+                <div key={key} className="flex items-center justify-between gap-4 py-1">
+                  <span className="text-gray-500 text-sm">{inferLabel(key)}</span>
+                  <span className="text-gray-900 text-sm font-mono font-medium">
+                    {val === null || val === undefined
+                      ? '—'
+                      : typeof val === 'boolean'
+                        ? val ? '✓' : '✗'
+                        : typeof val === 'number'
+                          ? val.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                          : String(val)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </AnimatePresence>
