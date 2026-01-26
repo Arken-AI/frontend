@@ -94,10 +94,12 @@ function getInputHandlePositions(inputIds) {
 function EquipmentNode({ data, selected }) {
   const { name, inputHandles = [], outputHandles = [] } = data;
   
-  // Enhanced border styling with glow effect for selection
+  // Modern border styling with blue accent instead of black
   const borderColor = selected 
-    ? 'border-primary shadow-lg ring-2 ring-primary/30' 
-    : 'border-border hover:border-border-hover';
+    ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' 
+    : 'border-slate-300 hover:border-blue-400';
+  
+  const bgColor = selected ? 'bg-blue-50' : 'bg-white';
   
   // Calculate handle positions
   const inputPositions = getInputHandlePositions(inputHandles);
@@ -105,12 +107,12 @@ function EquipmentNode({ data, selected }) {
   
   return (
     <div 
-      className={`bg-surface border-2 rounded-lg overflow-hidden transition-all ${borderColor}`}
+      className={`${bgColor} border-2 rounded-lg overflow-hidden transition-all ${borderColor}`}
       style={{ width: 220, minHeight: 60 }}
     >
       {/* Content */}
       <div className="px-3 py-3 flex items-center justify-center">
-        <span className="text-sm font-medium text-content truncate">
+        <span className={`text-sm font-medium truncate ${selected ? 'text-blue-900' : 'text-gray-700'}`}>
           {name}
         </span>
       </div>
@@ -122,7 +124,7 @@ function EquipmentNode({ data, selected }) {
           type="target"
           position={handle.position}
           id={handle.id}
-          className="w-3 h-3 bg-green-500 border-2 border-white"
+          className="w-3 h-3 bg-blue-500 border-2 border-white shadow-sm"
           style={handle.style}
         />
       ))}
@@ -134,7 +136,7 @@ function EquipmentNode({ data, selected }) {
           type="source"
           position={handle.position}
           id={handle.id}
-          className="w-3 h-3 bg-orange-500 border-2 border-white"
+          className="w-3 h-3 bg-blue-500 border-2 border-white shadow-sm"
           style={handle.style}
         />
       ))}
