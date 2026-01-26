@@ -109,6 +109,7 @@ function FlowCanvasInner({ equipmentData }) {
             ...edge.style,
             opacity: 1,
             strokeWidth: 2,
+            filter: 'none', // Remove glow effect
           },
         }))
       );
@@ -168,6 +169,11 @@ function FlowCanvasInner({ equipmentData }) {
     event.stopPropagation();
     setSelectedEdge(edge);
   }, []);
+  
+  // Handle pane click (canvas background) - deselect equipment
+  const onPaneClick = useCallback(() => {
+    clearSelection();
+  }, [clearSelection]);
   
   // Close stream tooltip
   const closeTooltip = useCallback(() => {
@@ -286,6 +292,7 @@ function FlowCanvasInner({ equipmentData }) {
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{
