@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { isSimpleArray, getArrayContentType } from '../utils';
 import { getMetadataValueRenderer } from './rendererRegistry';
+import TableViewModal from '../components/TableViewModal';
 
 /**
  * Render a simple array as inline pills
@@ -130,26 +131,61 @@ function CollapsibleArrayItem({ item, label, index, fieldKey }) {
  */
 function CollapsibleArrayHeader({ items, fieldKey, defaultExpanded, className }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [showTableModal, setShowTableModal] = useState(false);
   const label = fieldKey.split('.').pop()?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Array';
+
+  // Check if items are objects (show table icon only for array of objects)
+  const hasObjectItems = items.length > 0 && items.some(item => item && typeof item === 'object' && !Array.isArray(item));
+  const showTableIcon = hasObjectItems && items.length >= 3;
 
   return (
     <div className={className}>
-      {/* Expandable header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
-      >
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      {/* Expandable header with optional table icon */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-        <span className="text-gray-900 text-sm font-medium">{label}</span>
-        <span className="text-gray-500 text-sm">({items.length} {items.length === 1 ? 'item' : 'items'})</span>
-      </button>
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="text-gray-900 text-sm font-medium">{label}</span>
+          <span className="text-gray-500 text-sm">({items.length} {items.length === 1 ? 'item' : 'items'})</span>
+        </button>
+
+        {/* Table view icon - diagonal arrow */}
+        {showTableIcon && (
+          <button
+            onClick={() => setShowTableModal(true)}
+            className="p-1 rounded hover:bg-gray-100 transition-colors group"
+            title="View as table"
+          >
+            <svg
+              className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              {/* Diagonal arrow (top-right) */}
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H8M17 7v9" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Table View Modal */}
+      <TableViewModal
+        isOpen={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        data={items}
+        title={label}
+      />
 
       {/* Expanded content - show individual items */}
       <AnimatePresence initial={false}>
