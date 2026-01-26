@@ -30,12 +30,19 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
     // Check if this is a feed stream
     if (edge.id.startsWith('edge-feed-')) {
       const streamId = edge.id.replace('edge-feed-', '');
+      // Find the target equipment's input that matches this feed stream
+      const targetEquipment = equipmentData.find(eq => eq.id === edge.target);
+      const inputStream = targetEquipment?.inputs?.find(inp => 
+        inp.streamId === streamId || inp.stream_id === streamId
+      );
+      
       return {
         streamNumber: edge.label,
-        name: streamId.replace(/_/g, ' '),
+        name: inputStream?.name || streamId.replace(/_/g, ' '),
         type: 'Feed Stream',
         source: 'Feed',
-        target: equipmentData.find(eq => eq.id === edge.target)?.name || edge.target,
+        target: targetEquipment?.name || edge.target,
+        ...inputStream,
       };
     }
     
@@ -43,7 +50,10 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
     if (edge.id.startsWith('edge-product-')) {
       const streamId = edge.id.replace('edge-product-', '');
       const sourceEquipment = equipmentData.find(eq => eq.id === edge.source);
-      const streamData = sourceEquipment?.outputs.find(out => out.stream_id === streamId);
+      // Find the output stream - now outputs use streamId field
+      const streamData = sourceEquipment?.outputs?.find(out => 
+        out.streamId === streamId || out.stream_id === streamId
+      );
       
       return {
         streamNumber: edge.label,
@@ -56,18 +66,29 @@ export default function StreamTooltip({ edge, equipmentData, onClose }) {
     }
     
     // Intermediate stream between equipment
-    const streamId = edge.id.replace('edge-', '');
+    const edgeId = edge.id.replace('edge-', '');
     const sourceEquipment = equipmentData.find(eq => eq.id === edge.source);
     const targetEquipment = equipmentData.find(eq => eq.id === edge.target);
-    const streamData = sourceEquipment?.outputs.find(out => out.stream_id === streamId);
+    
+    // Find stream data from source equipment's outputs (now keyed by edge ID)
+    const streamData = sourceEquipment?.outputs?.find(out => 
+      out.streamId === edgeId || out.stream_id === edgeId
+    );
+    
+    // If not found in outputs, try finding in target's inputs
+    const inputStreamData = targetEquipment?.inputs?.find(inp =>
+      inp.streamId === edgeId || inp.stream_id === edgeId
+    );
+    
+    const finalStreamData = streamData || inputStreamData || {};
     
     return {
       streamNumber: edge.label,
-      name: streamData?.name || streamId.replace(/_/g, ' '),
+      name: finalStreamData?.name || edgeId.replace(/_/g, ' '),
       type: 'Intermediate Stream',
       source: sourceEquipment?.name || edge.source,
       target: targetEquipment?.name || edge.target,
-      ...streamData,
+      ...finalStreamData,
     };
   };
 

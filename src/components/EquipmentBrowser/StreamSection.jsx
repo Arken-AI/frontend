@@ -190,6 +190,7 @@ function ConstraintsCard({ constraints, editedValues, validationErrors, onParame
 /**
  * Individual Stream Card
  * Clean layout without left border accent
+ * Shows destination/source info for streams
  */
 function StreamCard({ stream, isOutput, editedValues, validationErrors, onParameterChange }) {
   const streamId = stream.streamId || stream.stream_id;
@@ -206,6 +207,36 @@ function StreamCard({ stream, isOutput, editedValues, validationErrors, onParame
         <span className="text-sm font-medium text-gray-900">
           {stream.name || streamId}
         </span>
+        {/* Destination badge for output streams */}
+        {isOutput && stream.targetEquipment && (
+          <div className="mt-1">
+            <span 
+              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                stream.isRecycle 
+                  ? 'bg-orange-100 text-orange-700 border border-orange-200' 
+                  : 'bg-blue-50 text-blue-600 border border-blue-200'
+              }`}
+            >
+              <span>→</span>
+              <span className="font-medium">{stream.targetEquipment}</span>
+              {stream.targetPort && (
+                <span className="text-gray-500">({stream.targetPort})</span>
+              )}
+              {stream.isRecycle && (
+                <span className="ml-0.5">🔄</span>
+              )}
+            </span>
+          </div>
+        )}
+        {/* Source badge for input streams */}
+        {!isOutput && stream.sourceEquipment && (
+          <div className="mt-1">
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+              <span className="font-medium">{stream.sourceEquipment}</span>
+              <span>→</span>
+            </span>
+          </div>
+        )}
       </div>
       
       {/* Stream Properties */}

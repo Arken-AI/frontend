@@ -51,18 +51,30 @@ export function transformEquipmentData(apiResponse) {
 
       if (!nodeResult || !equipmentInput) return;
 
-      // Number input streams (if not already numbered)
+      // Number input streams (inlet_ports are edge IDs or feed stream IDs)
       equipmentInput.inlet_ports.forEach((streamId) => {
         if (!streamNumberMap.has(streamId)) {
           streamNumberMap.set(streamId, streamCounter++);
         }
       });
 
-      // Number output streams
-      Object.values(nodeResult.outlets).forEach((stream) => {
-        const streamId = stream.stream_id;
-        if (!streamNumberMap.has(streamId)) {
-          streamNumberMap.set(streamId, streamCounter++);
+      // Number output streams from outgoing edges
+      const outgoingEdges = input.edges.filter((e) => e.source === equipmentId);
+      const portsWithEdges = new Set(outgoingEdges.map((e) => e.source_port));
+
+      outgoingEdges.forEach((edge) => {
+        if (!streamNumberMap.has(edge.id)) {
+          streamNumberMap.set(edge.id, streamCounter++);
+        }
+      });
+
+      // Number terminal output streams (outlets without edges)
+      Object.entries(nodeResult.outlets).forEach(([port, stream]) => {
+        if (
+          !portsWithEdges.has(port) &&
+          !streamNumberMap.has(stream.stream_id)
+        ) {
+          streamNumberMap.set(stream.stream_id, streamCounter++);
         }
       });
     });
@@ -90,27 +102,71 @@ export function transformEquipmentData(apiResponse) {
       const inputs = equipmentInput.inlet_ports.map((streamId) => {
         const streamData = result.stream_results[streamId] || {};
         const feedStream = input.feed_streams.find(
-          (f) => f.stream_id === streamId
+          (f) => f.stream_id === streamId,
         );
+
+        // Find source equipment from edges
+        const sourceEdge = input.edges.find((e) => e.id === streamId);
+
         return {
           streamId,
           streamNumber: streamNumberMap.get(streamId),
-          name: feedStream?.stream_id || streamId,
+          name: streamData.name || feedStream?.stream_id || streamId,
           ...streamData,
           ...(feedStream || {}),
           editable: feedStreamIds.includes(streamId),
+          // Add source info
+          sourceEquipment: sourceEdge?.source || null,
+          sourcePort: sourceEdge?.source_port || null,
         };
       });
 
-      // Build outputs array with stream numbers
-      const outputs = Object.entries(nodeResult.outlets).map(
-        ([port, stream]) => ({
+      // Build outputs array from edges (streams going to next equipment)
+      // Get all edges where this equipment is the source
+      const outgoingEdges = input.edges.filter((e) => e.source === equipmentId);
+
+      // Get outlet ports that have edges
+      const portsWithEdges = new Set(outgoingEdges.map((e) => e.source_port));
+
+      // Build outputs from edges (intermediate streams)
+      const edgeOutputs = outgoingEdges.map((edge) => {
+        const streamData = result.stream_results[edge.id] || {};
+        const streamId = edge.id;
+
+        return {
+          streamId,
+          port: edge.source_port,
+          streamNumber: streamNumberMap.get(streamId),
+          name: streamData.name || `${equipmentId} → ${edge.target}`,
+          ...streamData,
+          editable: false,
+          // Destination info
+          targetEquipment: edge.target,
+          targetPort: edge.target_port,
+          isRecycle: edge.is_recycle || false,
+          isTerminal: false,
+        };
+      });
+
+      // Build outputs for terminal streams (outlets without outgoing edges - go to Product)
+      const terminalOutputs = Object.entries(nodeResult.outlets)
+        .filter(([port]) => !portsWithEdges.has(port))
+        .map(([port, stream]) => ({
+          streamId: stream.stream_id,
           port,
           streamNumber: streamNumberMap.get(stream.stream_id),
+          name: stream.name || `${equipmentId} ${port}`,
           ...stream,
           editable: false,
-        })
-      );
+          // Terminal stream - goes to Product
+          targetEquipment: "Product",
+          targetPort: null,
+          isRecycle: false,
+          isTerminal: true,
+        }));
+
+      // Combine edge outputs and terminal outputs
+      const outputs = [...edgeOutputs, ...terminalOutputs];
 
       return {
         id: equipmentId,
@@ -151,10 +207,10 @@ export function getWarningsData(equipmentData, apiResponse) {
 
   // Calculate total count (excluding duplicates in global warnings)
   const equipmentWarningTexts = new Set(
-    equipmentWarnings.flatMap((eq) => eq.warnings)
+    equipmentWarnings.flatMap((eq) => eq.warnings),
   );
   const uniqueGlobalWarnings = globalWarnings.filter(
-    (w) => !equipmentWarningTexts.has(w)
+    (w) => !equipmentWarningTexts.has(w),
   );
 
   const totalCount =
@@ -172,5 +228,5 @@ export function getWarningsData(equipmentData, apiResponse) {
 export const mockEquipmentData = transformEquipmentData(mockApiResponse);
 export const mockWarningsData = getWarningsData(
   mockEquipmentData,
-  mockApiResponse
+  mockApiResponse,
 );
