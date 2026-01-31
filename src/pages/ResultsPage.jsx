@@ -6,11 +6,11 @@
  * Panel switching controlled by Zustand store.
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import FlowCanvas from '../components/FlowCanvas';
 import ChatPanel from '../components/chat/ChatPanel';
-import { mockEquipmentData } from '../data/mockSimulationData';
+import { transformEquipmentData, getWarningsData } from '../data/mockSimulationData';
 import useSelectionStore from '../store/useSelectionStore';
 import useEquipmentStore from '../stores/useEquipmentStore';
 import ErrorBoundary from '../components/common/ErrorBoundary';
@@ -72,6 +72,21 @@ export default function ResultsPage() {
   const [isDraggingChat, setIsDraggingChat] = useState(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
+  
+  // Derive equipment data from API response
+  const equipmentData = useMemo(() => {
+    if (!apiResponse?.data) return [];
+    // Transform works for both calc_engine and process_server sources
+    return transformEquipmentData(apiResponse.data);
+  }, [apiResponse]);
+  
+  // Derive warnings data from equipment data
+  const warningsData = useMemo(() => {
+    if (!apiResponse?.data || equipmentData.length === 0) {
+      return { equipmentWarnings: {}, globalWarnings: [], totalCount: 0 };
+    }
+    return getWarningsData(equipmentData, apiResponse.data);
+  }, [equipmentData, apiResponse]);
   
   // Fetch simulation results when runId changes
   useEffect(() => {
@@ -143,42 +158,42 @@ export default function ResultsPage() {
         case 'Tab':
           e.preventDefault();
           // Cycle through equipment
-          if (mockEquipmentData.length === 0) return;
+          if (equipmentData.length === 0) return;
           
           const currentIndex = selectedEquipmentId 
-            ? mockEquipmentData.findIndex(eq => eq.id === selectedEquipmentId)
+            ? equipmentData.findIndex(eq => eq.id === selectedEquipmentId)
             : -1;
           
           let nextIndex;
           if (e.shiftKey) {
             // Shift+Tab: previous equipment
-            nextIndex = currentIndex <= 0 ? mockEquipmentData.length - 1 : currentIndex - 1;
+            nextIndex = currentIndex <= 0 ? equipmentData.length - 1 : currentIndex - 1;
           } else {
             // Tab: next equipment
-            nextIndex = currentIndex >= mockEquipmentData.length - 1 ? 0 : currentIndex + 1;
+            nextIndex = currentIndex >= equipmentData.length - 1 ? 0 : currentIndex + 1;
           }
           
-          selectEquipment(mockEquipmentData[nextIndex].id);
+          selectEquipment(equipmentData[nextIndex].id);
           break;
           
         case 'ArrowDown':
         case 'ArrowUp':
           e.preventDefault();
           // Navigate through equipment list
-          if (mockEquipmentData.length === 0) return;
+          if (equipmentData.length === 0) return;
           
           const currentIdx = selectedEquipmentId 
-            ? mockEquipmentData.findIndex(eq => eq.id === selectedEquipmentId)
+            ? equipmentData.findIndex(eq => eq.id === selectedEquipmentId)
             : -1;
           
           let newIdx;
           if (e.key === 'ArrowDown') {
-            newIdx = currentIdx >= mockEquipmentData.length - 1 ? 0 : currentIdx + 1;
+            newIdx = currentIdx >= equipmentData.length - 1 ? 0 : currentIdx + 1;
           } else {
-            newIdx = currentIdx <= 0 ? mockEquipmentData.length - 1 : currentIdx - 1;
+            newIdx = currentIdx <= 0 ? equipmentData.length - 1 : currentIdx - 1;
           }
           
-          selectEquipment(mockEquipmentData[newIdx].id);
+          selectEquipment(equipmentData[newIdx].id);
           break;
           
         default:
@@ -188,7 +203,7 @@ export default function ResultsPage() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEquipmentId, selectEquipment, clearSelection]);
+  }, [selectedEquipmentId, selectEquipment, clearSelection, equipmentData]);
 
   // Handle activity bar icon click
   const handleActivityBarClick = (sectionId) => {
@@ -423,7 +438,7 @@ export default function ResultsPage() {
         <ActivityBar
           sections={SIDEBAR_SECTIONS.map(s => ({
             ...s,
-            badge: s.id === 'warnings' ? mockEquipmentData.reduce((sum, eq) => sum + (eq.warnings?.length || 0), 0) : undefined
+            badge: s.id === 'warnings' ? warningsData.totalCount : undefined
           }))}
           activeSection={activePanel}
           onSectionClick={handleActivityBarClick}
@@ -451,7 +466,11 @@ export default function ResultsPage() {
             {/* Sidebar Content */}
             <div className={`flex-1 overflow-auto ${activePanel === 'warnings' ? '' : 'p-4'}`}>
               <ErrorBoundary fallbackMessage="Unable to load this panel. Please try refreshing the page.">
-                <SidebarContent section={activePanel} />
+                <SidebarContent 
+                  section={activePanel} 
+                  equipmentData={equipmentData}
+                  warningsData={warningsData}
+                />
               </ErrorBoundary>
             </div>
           </div>
@@ -475,7 +494,7 @@ export default function ResultsPage() {
         {/* Middle Canvas */}
         <div className="flex-1 canvas-grid relative">
           <ErrorBoundary fallbackMessage="Unable to load flowsheet. Please refresh the page.">
-            <FlowCanvas equipmentData={mockEquipmentData} />
+            <FlowCanvas equipmentData={equipmentData} />
           </ErrorBoundary>
         </div>
 
@@ -527,15 +546,14 @@ export default function ResultsPage() {
 import EquipmentBrowser from '../components/EquipmentBrowser';
 import WarningsPanel from '../components/WarningsPanel';
 import { DetailsPanel } from '../components/DetailsPanel';
-import { mockWarningsData } from '../data/mockSimulationData';
 
-function SidebarContent({ section }) {
+function SidebarContent({ section, equipmentData, warningsData }) {
   // Get selected equipment from store
   const { selectedEquipmentId } = useSelectionStore();
   
   // Find selected equipment data
   const selectedEquipment = selectedEquipmentId 
-    ? mockEquipmentData.find(eq => eq.id === selectedEquipmentId)
+    ? equipmentData.find(eq => eq.id === selectedEquipmentId)
     : null;
 
   switch (section) {
@@ -590,7 +608,7 @@ function SidebarContent({ section }) {
       );
     
     case 'warnings':
-      return <WarningsPanel warningsData={mockWarningsData} />;
+      return <WarningsPanel warningsData={warningsData} />;
     
     case 'history':
       return (
