@@ -38,7 +38,8 @@ export default function ChatPanel({
     currentContext, 
     createNewConversation,
     conversations,
-    conversationsLoading
+    conversationsLoading,
+    updateLatestRunId
   } = useChatContext();
 
   // Dropdown state for conversation history
@@ -141,6 +142,11 @@ export default function ChatPanel({
             token_usage: response.token_usage,
           },
         });
+        
+        // Update latest run ID for "View Flowsheet" button
+        if (response.run_ids && response.run_ids.length > 0) {
+          updateLatestRunId(response.run_ids);
+        }
       } else if (response.status === 'error') {
         dispatch({ 
           type: 'SET_ERROR', 
@@ -155,7 +161,7 @@ export default function ChatPanel({
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to send message' });
       dispatch({ type: 'SET_THINKING', payload: false });
     }
-  }, [conversationId, dispatch, refreshConversations, setConversationId]);
+  }, [conversationId, dispatch, refreshConversations, setConversationId, updateLatestRunId]);
 
   // Reset state when conversation changes
   useEffect(() => {

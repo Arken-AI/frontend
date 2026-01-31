@@ -22,7 +22,7 @@ import MessageInput from './MessageInput';
 import WelcomeScreen from './WelcomeScreen';
 
 function ChatContainer() {
-  const { conversationId, setConversationId, refreshConversations, currentContext, contextLoading } = useChatContext();
+  const { conversationId, setConversationId, refreshConversations, currentContext, contextLoading, updateLatestRunId } = useChatContext();
   const [state, dispatch] = useChatState();
   const previousConversationIdRef = useRef(conversationId);
   const lastSequenceRef = useRef(0);
@@ -106,6 +106,11 @@ function ChatContainer() {
             token_usage: response.token_usage,
           },
         });
+        
+        // Update latest run ID for "View Flowsheet" button
+        if (response.run_ids && response.run_ids.length > 0) {
+          updateLatestRunId(response.run_ids);
+        }
       } else if (response.status === 'error') {
         dispatch({ 
           type: 'SET_ERROR', 
@@ -125,6 +130,7 @@ function ChatContainer() {
     dispatch,
     refreshConversations,
     setConversationId,
+    updateLatestRunId,
   ]);
 
   // Reset state when conversation changes

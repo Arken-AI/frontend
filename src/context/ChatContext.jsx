@@ -108,6 +108,16 @@ export function ChatProvider({ children }) {
   }, [setConversationId]);
 
   /**
+   * Update latest run ID (called after simulation completes)
+   * Takes the first run_id from the array (most recent)
+   */
+  const updateLatestRunId = useCallback((runIds) => {
+    if (runIds && runIds.length > 0) {
+      setLatestRunId(runIds[0]);
+    }
+  }, []);
+
+  /**
    * Switch to a different conversation
    */
   const switchConversation = useCallback((convId) => {
@@ -180,6 +190,7 @@ export function ChatProvider({ children }) {
     contextLoading,
     loadConversationContext,
     latestRunId,
+    updateLatestRunId,
     
     // Actions
     deleteConversation,

@@ -7,14 +7,13 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { mockEquipmentData } from '../../data/mockSimulationData';
 import EquipmentCard from './EquipmentCard';
 import useSelectionStore from '../../store/useSelectionStore';
 import useEquipmentStore from '../../stores/useEquipmentStore';
 import { SkeletonEquipmentCard } from '../common/SkeletonLoader';
 import { NoEquipmentFound } from '../common/EmptyState';
 
-export default function EquipmentBrowser() {
+export default function EquipmentBrowser({ equipmentData = [] }) {
   // Track which equipment card is expanded (null = all collapsed)
   const [expandedId, setExpandedId] = useState(null);
   
@@ -32,8 +31,8 @@ export default function EquipmentBrowser() {
   // Refs for auto-scroll functionality
   const cardRefs = useRef({});
   
-  // Equipment data (will come from API/store in Phase 3)
-  const equipmentList = mockEquipmentData;
+  // Equipment data from API
+  const equipmentList = equipmentData;
 
   // Auto-scroll to selected equipment when selection changes externally (e.g., from canvas)
   useEffect(() => {

@@ -494,7 +494,7 @@ export default function ResultsPage() {
         {/* Middle Canvas */}
         <div className="flex-1 canvas-grid relative">
           <ErrorBoundary fallbackMessage="Unable to load flowsheet. Please refresh the page.">
-            <FlowCanvas equipmentData={equipmentData} />
+            <FlowCanvas equipmentData={equipmentData} apiData={apiResponse?.data} />
           </ErrorBoundary>
         </div>
 
@@ -558,7 +558,7 @@ function SidebarContent({ section, equipmentData, warningsData }) {
 
   switch (section) {
     case 'equipment':
-      return <EquipmentBrowser />;
+      return <EquipmentBrowser equipmentData={equipmentData} />;
     
     case 'details': {
       // Use the new DetailsPanel component

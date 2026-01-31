@@ -10,7 +10,6 @@
 
 import { useMemo } from "react";
 import dagre from "dagre";
-import { mockApiResponse } from "../../data/mockSimulationData";
 
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 60;
@@ -79,18 +78,18 @@ function getLabelBgColor(streamColor) {
   return colorMap[streamColor] || "#f1f5f9";
 }
 
-export default function useFlowLayout(equipmentData) {
+export default function useFlowLayout(equipmentData, apiData) {
   const { nodes, edges } = useMemo(() => {
-    if (!equipmentData || equipmentData.length === 0) {
+    if (!equipmentData || equipmentData.length === 0 || !apiData) {
       return { nodes: [], edges: [] };
     }
 
     const flowNodes = [];
     const flowEdges = [];
 
-    // Get API data
-    const apiEdges = mockApiResponse.input.edges || [];
-    const feedStreams = mockApiResponse.input.feed_streams || [];
+    // Get API data from passed parameter
+    const apiEdges = apiData.input?.edges || [];
+    const feedStreams = apiData.input?.feed_streams || [];
 
     // Build stream number map from equipment inputs/outputs
     const streamNumberMap = new Map();
@@ -398,7 +397,7 @@ export default function useFlowLayout(equipmentData) {
     });
 
     return { nodes: flowNodes, edges: flowEdges };
-  }, [equipmentData]);
+  }, [equipmentData, apiData]);
 
   return { nodes, edges };
 }

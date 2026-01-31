@@ -50,7 +50,7 @@ const minimapNodeColor = (node) => {
 };
 
 // Inner component that uses useReactFlow (must be inside ReactFlowProvider)
-function FlowCanvasInner({ equipmentData }) {
+function FlowCanvasInner({ equipmentData, apiData }) {
   // Get selection state from store
   const { selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
   
@@ -70,7 +70,7 @@ function FlowCanvasInner({ equipmentData }) {
   const { fitView, setCenter } = useReactFlow();
   
   // Transform data to nodes and edges with layout
-  const { nodes: layoutNodes, edges: layoutEdges } = useFlowLayout(equipmentData);
+  const { nodes: layoutNodes, edges: layoutEdges } = useFlowLayout(equipmentData, apiData);
   
   // Use React Flow state management
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);
@@ -424,10 +424,10 @@ function FlowCanvasInner({ equipmentData }) {
 }
 
 // Wrapper component that provides ReactFlowProvider context
-export default function FlowCanvas({ equipmentData }) {
+export default function FlowCanvas({ equipmentData, apiData }) {
   return (
     <ReactFlowProvider>
-      <FlowCanvasInner equipmentData={equipmentData} />
+      <FlowCanvasInner equipmentData={equipmentData} apiData={apiData} />
     </ReactFlowProvider>
   );
 }
