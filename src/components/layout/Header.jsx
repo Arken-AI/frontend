@@ -9,9 +9,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useChatContext } from '../../context/ChatContext';
 import { checkHealth } from '../../api/client';
-import { Menu, Settings, Wifi, WifiOff, ChevronRight } from 'lucide-react';
+import { Menu, Settings, Wifi, WifiOff, ChevronRight, Eye } from 'lucide-react';
 
 /**
  * Health Badge - Consistent with Equipment Browser badges
@@ -51,7 +52,8 @@ export default function Header({
   showBackButton = false,
   onBackClick
 }) {
-  const { conversationId, conversations } = useChatContext();
+  const navigate = useNavigate();
+  const { conversationId, conversations, latestRunId } = useChatContext();
   const [health, setHealth] = useState(null);
   const [healthLoading, setHealthLoading] = useState(true);
 
@@ -122,6 +124,20 @@ export default function Header({
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+        {/* View Flowsheet button - only show if there's a recent simulation */}
+        {latestRunId && (
+          <button
+            onClick={() => navigate(`/results/${latestRunId}`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+                     text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100
+                     border border-blue-200 rounded-lg transition-colors"
+            title="View latest simulation results"
+          >
+            <Eye size={16} />
+            <span className="hidden sm:inline">View Flowsheet</span>
+          </button>
+        )}
+        
         {/* Health indicator */}
         <HealthBadge status={health} loading={healthLoading} />
 

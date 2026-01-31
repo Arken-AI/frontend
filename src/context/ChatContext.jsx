@@ -27,6 +27,9 @@ export function ChatProvider({ children }) {
   // Current conversation context (messages, state)
   const [currentContext, setCurrentContext] = useState(null);
   const [contextLoading, setContextLoading] = useState(false);
+  
+  // Track latest run_id from context (for "View Flowsheet" button)
+  const [latestRunId, setLatestRunId] = useState(null);
 
   /**
    * Load conversation list from backend
@@ -101,6 +104,7 @@ export function ChatProvider({ children }) {
   const createNewConversation = useCallback(() => {
     setConversationId(null);
     setCurrentContext(null);
+    setLatestRunId(null);
   }, [setConversationId]);
 
   /**
@@ -131,6 +135,9 @@ export function ChatProvider({ children }) {
         const context = await getContext(conversationId);
         if (isMounted) {
           setCurrentContext(context);
+          // Extract latest run_id (first in run_ids array)
+          const runIds = context?.run_ids || [];
+          setLatestRunId(runIds.length > 0 ? runIds[0] : null);
         }
       } catch (error) {
         console.error('Failed to load conversation context:', error);
@@ -140,6 +147,7 @@ export function ChatProvider({ children }) {
             setConversationId(null);
           }
           setCurrentContext(null);
+          setLatestRunId(null);
         }
       } finally {
         if (isMounted) {
@@ -171,6 +179,7 @@ export function ChatProvider({ children }) {
     currentContext,
     contextLoading,
     loadConversationContext,
+    latestRunId,
     
     // Actions
     deleteConversation,
