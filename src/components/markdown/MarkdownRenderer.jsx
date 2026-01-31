@@ -150,20 +150,31 @@ export default function MarkdownRenderer({ content }) {
         
         // Paragraphs - avoid wrapping block-level elements
         p({ children, node }) {
-          // Check if paragraph contains code blocks, which are block-level
-          const hasCodeBlock = node?.children?.some(
-            child => child.type === 'element' && child.tagName === 'code' && 
-            child.properties?.className?.some(c => c.startsWith('language-'))
-          );
+          // Check if paragraph contains any child that will render as a block element
+          // This includes code blocks, divs, pre tags, tables, etc.
+          const hasBlockChild = Array.isArray(children) && children.some(child => {
+            // Check if it's a React element (component)
+            if (child?.type) {
+              // CodeBlock component renders a div
+              if (child.type === CodeBlock || child.type?.name === 'CodeBlock') {
+                return true;
+              }
+              // Check for other block-level components
+              if (typeof child.type === 'string' && ['div', 'pre', 'table', 'blockquote'].includes(child.type)) {
+                return true;
+              }
+            }
+            return false;
+          });
           
-          // Check if contains other block elements (divs, pre tags, etc.)
-          const hasBlockElement = node?.children?.some(
+          // Also check the node's children from the AST
+          const nodeHasBlockElement = node?.children?.some(
             child => child.type === 'element' && 
-            ['pre', 'div', 'table', 'blockquote'].includes(child.tagName)
+            ['pre', 'div', 'table', 'blockquote', 'code'].includes(child.tagName)
           );
           
           // If it contains block elements, render as div to maintain valid HTML
-          if (hasCodeBlock || hasBlockElement) {
+          if (hasBlockChild || nodeHasBlockElement) {
             return <div className="mb-2 last:mb-0">{children}</div>;
           }
           
