@@ -16,6 +16,7 @@ import useEquipmentStore from '../stores/useEquipmentStore';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import { ActivityBar } from '../components/layout';
 import { getRunResults } from '../api/client';
+import { useChatContext } from '../context/ChatContext';
 import toast from 'react-hot-toast';
 
 // Sidebar sections configuration
@@ -42,6 +43,7 @@ const CHAT_COLLAPSE_THRESHOLD = 200;
 export default function ResultsPage() {
   const { runId } = useParams();
   const navigate = useNavigate();
+  const { loadConversation } = useChatContext();
   
   // API response state for simulation results
   const [apiResponse, setApiResponse] = useState(null);
@@ -71,6 +73,9 @@ export default function ResultsPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingChat, setIsDraggingChat] = useState(false);
   const dragStartX = useRef(0);
+  
+  // Track loaded conversation to prevent duplicate loads
+  const loadedConversationRef = useRef(null);
   const dragStartWidth = useRef(0);
   
   // Derive equipment data from API response
@@ -107,7 +112,25 @@ export default function ResultsPage() {
         
         // Only update state if component is still mounted
         if (isMounted) {
+          // Check if run data exists
+          if (!result) {
+            navigate('/');
+            return;
+          }
+          
           setApiResponse(result);
+          
+          // Load conversation if conversation_id exists and not already loaded
+          if (result.conversation_id && loadedConversationRef.current !== result.conversation_id) {
+            try {
+              loadedConversationRef.current = result.conversation_id;
+              await loadConversation(result.conversation_id);
+            } catch (convError) {
+              console.error('Failed to load conversation:', convError);
+              // Continue even if conversation fails to load
+            }
+          }
+          
           setLoading(false);
         }
       } catch (err) {
@@ -115,6 +138,8 @@ export default function ResultsPage() {
           setError(err.message || 'Failed to load simulation results');
           setLoading(false);
           toast.error(err.message || 'Failed to load simulation results');
+          // Redirect to home on error
+          navigate('/');
         }
       }
     };
@@ -125,7 +150,7 @@ export default function ResultsPage() {
     return () => {
       isMounted = false;
     };
-  }, [runId]);
+  }, [runId, navigate]);
   
   // Ensure sidebar opens when active panel changes (e.g., from Warnings "View Equipment")
   useEffect(() => {

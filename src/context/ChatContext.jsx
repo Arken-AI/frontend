@@ -5,7 +5,7 @@
  * Provides conversation data and actions to all child components.
  */
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getConversations, getContext, deleteConversation as apiDeleteConversation } from '../api/client';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -30,6 +30,9 @@ export function ChatProvider({ children }) {
   
   // Track latest run_id from context (for "View Flowsheet" button)
   const [latestRunId, setLatestRunId] = useState(null);
+  
+  // Ref to track if context was loaded via loadConversation (skip useEffect fetch)
+  const skipNextContextFetchRef = useRef(false);
 
   /**
    * Load conversation list from backend
@@ -118,6 +121,36 @@ export function ChatProvider({ children }) {
   }, []);
 
   /**
+   * Load a conversation by ID (used when navigating to ResultsPage)
+   * This loads the conversation context and sets it as active
+   * Skips the automatic useEffect fetch by using a ref flag
+   */
+  const loadConversation = useCallback(async (convId) => {
+    if (!convId) return;
+    
+    try {
+      const context = await getContext(convId);
+      
+      // Set context FIRST
+      setCurrentContext(context);
+      
+      // Extract latest run_id
+      const runIds = context?.run_ids || [];
+      setLatestRunId(runIds.length > 0 ? runIds[0] : null);
+      
+      // Mark that we should skip the next useEffect fetch
+      skipNextContextFetchRef.current = true;
+      
+      // Set as active conversation (triggers useEffect but it will skip)
+      setConversationId(convId);
+      
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+      throw error; // Re-throw so ResultsPage can handle redirect
+    }
+  }, [setConversationId]);
+
+  /**
    * Switch to a different conversation
    */
   const switchConversation = useCallback((convId) => {
@@ -129,13 +162,19 @@ export function ChatProvider({ children }) {
     refreshConversations();
   }, [refreshConversations]);
 
-  // Load context when conversation changes
+  // Load context when conversation changes (skip if loadConversation was just called)
   useEffect(() => {
     let isMounted = true;
     
     const loadContext = async () => {
       if (!conversationId) {
         setCurrentContext(null);
+        return;
+      }
+      
+      // Skip if loadConversation was just called (it already loaded the context)
+      if (skipNextContextFetchRef.current) {
+        skipNextContextFetchRef.current = false;
         return;
       }
       
@@ -171,7 +210,7 @@ export function ChatProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [conversationId]); // Only depend on conversationId, not on loadConversationContext
+  }, [conversationId]); // Only depend on conversationId
 
   // Context value
   const value = {
@@ -189,6 +228,7 @@ export function ChatProvider({ children }) {
     currentContext,
     contextLoading,
     loadConversationContext,
+    loadConversation,
     latestRunId,
     updateLatestRunId,
     
