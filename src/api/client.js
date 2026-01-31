@@ -47,7 +47,7 @@ export async function sendMessage({ message, conversation_id = null }) {
  */
 export async function getConversations(limit = 50, offset = 0) {
   const response = await fetch(
-    `${API_BASE}/conversations?limit=${limit}&offset=${offset}`
+    `${API_BASE}/conversations?limit=${limit}&offset=${offset}`,
   );
 
   if (!response.ok) {
@@ -112,4 +112,63 @@ export async function checkHealth() {
  */
 export function getStreamUrl(conversationId, afterSequence = 0) {
   return `${API_BASE}/chat/${conversationId}/stream?after_sequence=${afterSequence}`;
+}
+
+/**
+ * Get simulation run results by ID
+ * @param {string} runId - Unique run identifier
+ * @returns {Promise<Object>} Run result with data field containing full simulation response
+ * @throws {Error} "Run not found" for 404, or other error messages
+ */
+export async function getRunResults(runId) {
+  const response = await fetch(`${API_BASE}/runs/${runId}`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Run not found");
+    }
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch run results" }));
+    throw new Error(error.detail || "Failed to fetch run results");
+  }
+
+  return response.json();
+}
+
+/**
+ * List simulation runs with optional filters and pagination
+ * @param {Object} params - Query parameters
+ * @param {string|null} params.source - Filter by source: "calc_engine", "process_server", or null for both
+ * @param {string|null} params.user_id - Filter by user ID
+ * @param {string|null} params.process_id - Filter by process ID (e.g., "sugar", "ethanol")
+ * @param {string|null} params.status - Filter by status: "pending", "running", "completed", "failed", "error"
+ * @param {number} params.limit - Maximum number of runs to return (default 20, max 100)
+ * @returns {Promise<Object>} { runs: [], has_more: boolean }
+ */
+export async function listRuns({
+  source = null,
+  user_id = null,
+  process_id = null,
+  status = null,
+  limit = 20,
+} = {}) {
+  // Build query parameters
+  const params = new URLSearchParams();
+  if (source) params.append("source", source);
+  if (user_id) params.append("user_id", user_id);
+  if (process_id) params.append("process_id", process_id);
+  if (status) params.append("status", status);
+  params.append("limit", limit.toString());
+
+  const response = await fetch(`${API_BASE}/runs?${params.toString()}`);
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch runs list" }));
+    throw new Error(error.detail || "Failed to fetch runs list");
+  }
+
+  return response.json();
 }
