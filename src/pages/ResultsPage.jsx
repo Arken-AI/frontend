@@ -15,6 +15,7 @@ import useSelectionStore from '../store/useSelectionStore';
 import useEquipmentStore from '../stores/useEquipmentStore';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import { ActivityBar } from '../components/layout';
+import { getRunResults } from '../api/client';
 import toast from 'react-hot-toast';
 
 // Sidebar sections configuration
@@ -42,6 +43,11 @@ export default function ResultsPage() {
   const { runId } = useParams();
   const navigate = useNavigate();
   
+  // API response state for simulation results
+  const [apiResponse, setApiResponse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   // Get active panel and selection from Zustand store
   const { activePanel, setActivePanel, selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
   
@@ -66,6 +72,45 @@ export default function ResultsPage() {
   const [isDraggingChat, setIsDraggingChat] = useState(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
+  
+  // Fetch simulation results when runId changes
+  useEffect(() => {
+    let isMounted = true; // Cleanup flag
+    
+    const fetchResults = async () => {
+      if (!runId) {
+        setError('No run ID provided');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const result = await getRunResults(runId);
+        
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setApiResponse(result);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Failed to load simulation results');
+          setLoading(false);
+          toast.error(err.message || 'Failed to load simulation results');
+        }
+      }
+    };
+    
+    fetchResults();
+    
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
+  }, [runId]);
   
   // Ensure sidebar opens when active panel changes (e.g., from Warnings "View Equipment")
   useEffect(() => {
