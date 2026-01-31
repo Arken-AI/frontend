@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 // Custom code block with copy button
 function CodeBlock({ children, className }) {
@@ -75,7 +76,46 @@ function TableCell({ children, isHeader }) {
 }
 
 export default function MarkdownRenderer({ content }) {
+  const navigate = useNavigate();
+  
   if (!content) return null;
+  
+  // Custom link component that handles internal navigation
+  function LinkRenderer({ href, children }) {
+    const handleClick = (e) => {
+      // Check if this is an internal /results/ link
+      if (href && href.includes('/results/')) {
+        e.preventDefault();
+        
+        // Extract the path from the full URL or use as-is if it's already a path
+        let path = href;
+        try {
+          const url = new URL(href);
+          path = url.pathname; // Extract just the path from full URL
+        } catch {
+          // href is already a relative path, use it directly
+        }
+        
+        // Navigate using React Router
+        navigate(path);
+      }
+      // For external links, let the default behavior happen (open in new tab)
+    };
+    
+    const isInternalResultLink = href && href.includes('/results/');
+    
+    return (
+      <a
+        href={href}
+        onClick={handleClick}
+        target={isInternalResultLink ? undefined : "_blank"}
+        rel={isInternalResultLink ? undefined : "noopener noreferrer"}
+        className="text-primary hover:text-primary-hover underline cursor-pointer"
+      >
+        {children}
+      </a>
+    );
+  }
   
   return (
     <ReactMarkdown
@@ -105,19 +145,8 @@ export default function MarkdownRenderer({ content }) {
         th: ({ children }) => <TableCell isHeader>{children}</TableCell>,
         td: ({ children }) => <TableCell>{children}</TableCell>,
         
-        // Links
-        a({ href, children }) {
-          return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary-hover underline"
-            >
-              {children}
-            </a>
-          );
-        },
+        // Links - use custom handler for internal navigation
+        a: LinkRenderer,
         
         // Paragraphs - avoid wrapping block-level elements
         p({ children, node }) {
