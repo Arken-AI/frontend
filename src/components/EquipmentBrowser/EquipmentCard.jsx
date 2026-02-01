@@ -92,14 +92,53 @@ function EquipmentParamsSection({
   
   if (editableParams.length === 0) return null;
   
-  // Check if parameter is a dropdown (string type with options)
+  // Check if parameter is a dropdown (string type with options OR boolean)
   const isDropdownParam = (param) => {
-    return param.type === 'string' && (param.allowed_values || param.options);
+    // String with allowed values
+    if (param.type === 'string' && (param.allowed_values || param.options)) {
+      return true;
+    }
+    // Boolean type or boolean value
+    if (param.type === 'boolean' || typeof param.value === 'boolean') {
+      return true;
+    }
+    return false;
+  };
+  
+  // Check if parameter is boolean
+  const isBooleanParam = (param) => {
+    return param.type === 'boolean' || typeof param.value === 'boolean';
   };
   
   // Get dropdown options
   const getDropdownOptions = (param) => {
+    // Boolean params always have true/false options
+    if (isBooleanParam(param)) {
+      return ['true', 'false'];
+    }
     return param.allowed_values || param.options || [];
+  };
+  
+  // Get current value for dropdown (handle boolean conversion)
+  const getDropdownValue = (param) => {
+    const val = editedValues[param.key] ?? param.value;
+    // Convert boolean to string for dropdown
+    if (typeof val === 'boolean') {
+      return val ? 'true' : 'false';
+    }
+    return val;
+  };
+  
+  // Handle dropdown change (convert back to boolean if needed)
+  const handleDropdownChange = (param, stringValue) => {
+    if (onParameterChange) {
+      // Convert string back to boolean for boolean params
+      if (isBooleanParam(param)) {
+        onParameterChange(param.key, stringValue === 'true', true);
+      } else {
+        onParameterChange(param.key, stringValue, true);
+      }
+    }
   };
   
   return (
@@ -135,17 +174,13 @@ function EquipmentParamsSection({
             <div className="pl-4 py-2 space-y-1">
               {editableParams.map((param) => (
                 isDropdownParam(param) ? (
-                  // Dropdown Select for string parameters with options
+                  // Dropdown Select for string parameters with options OR booleans
                   <div key={param.key} className="py-1">
                     <div className="grid grid-cols-[1fr_100px_80px] items-center gap-2">
                       <span className="text-sm text-gray-700">{formatParamLabel(param.key)}</span>
                       <select
-                        value={editedValues[param.key] ?? param.value}
-                        onChange={(e) => {
-                          if (onParameterChange) {
-                            onParameterChange(param.key, e.target.value, true);
-                          }
-                        }}
+                        value={getDropdownValue(param)}
+                        onChange={(e) => handleDropdownChange(param, e.target.value)}
                         className="w-full px-2 py-1.5 text-sm text-right font-mono rounded-md 
                           bg-gray-100 border border-gray-200 hover:border-gray-300
                           focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-200
