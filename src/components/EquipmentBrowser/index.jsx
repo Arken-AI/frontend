@@ -61,7 +61,7 @@ export default function EquipmentBrowser({ equipmentData = [] }) {
    * Handle parameter change from equipment card
    * @param {string} equipmentId - Equipment identifier
    * @param {string} paramName - Parameter name
-   * @param {number} value - New value
+   * @param {number|string} value - New value
    * @param {boolean} isValid - Whether value passes validation
    */
   const handleParameterChange = (equipmentId, paramName, value, isValid) => {
@@ -70,10 +70,16 @@ export default function EquipmentBrowser({ equipmentData = [] }) {
     if (!equipment) return;
     
     // Find constraint for this parameter
-    const constraint = equipment.constraints.find(c => c.key === paramName);
-    const constraints = constraint ? { min: constraint.min, max: constraint.max } : {};
+    const constraint = equipment.constraints?.find(c => c.key === paramName);
     
-    // Validate parameter
+    // String parameters (dropdowns) - skip numeric validation, update directly
+    if (constraint?.type === 'string' || typeof value === 'string' && isNaN(parseFloat(value))) {
+      updateParameter(equipmentId, paramName, value);
+      return;
+    }
+    
+    // Numeric parameters - validate against min/max
+    const constraints = constraint ? { min: constraint.min, max: constraint.max } : {};
     const error = validateParameter(equipmentId, paramName, value, constraints);
     
     // Update parameter value in store (only if valid)

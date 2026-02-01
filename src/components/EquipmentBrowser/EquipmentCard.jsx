@@ -92,6 +92,16 @@ function EquipmentParamsSection({
   
   if (editableParams.length === 0) return null;
   
+  // Check if parameter is a dropdown (string type with options)
+  const isDropdownParam = (param) => {
+    return param.type === 'string' && (param.allowed_values || param.options);
+  };
+  
+  // Get dropdown options
+  const getDropdownOptions = (param) => {
+    return param.allowed_values || param.options || [];
+  };
+  
   return (
     <div className="mb-3">
       {/* Section Header */}
@@ -122,23 +132,53 @@ function EquipmentParamsSection({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="pl-4 py-2 space-y-2">
+            <div className="pl-4 py-2 space-y-1">
               {editableParams.map((param) => (
-                <StreamField
-                  key={param.key}
-                  label={formatParamLabel(param.key)}
-                  value={editedValues[param.key] ?? param.value}
-                  unit={param.unit || ''}
-                  min={param.min}
-                  max={param.max}
-                  editable={param.editable !== false}
-                  error={validationErrors[param.key]}
-                  onChange={(newValue, isValid) => {
-                    if (onParameterChange) {
-                      onParameterChange(param.key, newValue, isValid);
-                    }
-                  }}
-                />
+                isDropdownParam(param) ? (
+                  // Dropdown Select for string parameters with options
+                  <div key={param.key} className="py-1">
+                    <div className="grid grid-cols-[1fr_100px_80px] items-center gap-2">
+                      <span className="text-sm text-gray-700">{formatParamLabel(param.key)}</span>
+                      <select
+                        value={editedValues[param.key] ?? param.value}
+                        onChange={(e) => {
+                          if (onParameterChange) {
+                            onParameterChange(param.key, e.target.value, true);
+                          }
+                        }}
+                        className="w-full px-2 py-1.5 text-sm text-right font-mono rounded-md 
+                          bg-gray-100 border border-gray-200 hover:border-gray-300
+                          focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-200
+                          focus:outline-none transition-all cursor-pointer"
+                      >
+                        {getDropdownOptions(param).map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Empty space to align with unit column */}
+                      <span className="text-sm text-gray-500"></span>
+                    </div>
+                  </div>
+                ) : (
+                  // Number input for numeric parameters
+                  <StreamField
+                    key={param.key}
+                    label={formatParamLabel(param.key)}
+                    value={editedValues[param.key] ?? param.value}
+                    unit={param.unit || ''}
+                    min={param.min}
+                    max={param.max}
+                    editable={param.editable !== false}
+                    error={validationErrors[param.key]}
+                    onChange={(newValue, isValid) => {
+                      if (onParameterChange) {
+                        onParameterChange(param.key, newValue, isValid);
+                      }
+                    }}
+                  />
+                )
               ))}
             </div>
           </motion.div>

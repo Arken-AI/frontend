@@ -127,13 +127,11 @@ export default function StreamField({
   // Locked field (output) - value with lock icon
   if (locked) {
     return (
-      <div className="flex items-center justify-between py-1">
+      <div className="grid grid-cols-[1fr_100px_80px_20px] items-center gap-2 py-1">
         <span className="text-sm text-gray-700">{label}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-mono text-gray-900">{formatValue(value)}</span>
-          <span className="text-sm text-gray-500 w-12">{unit || ''}</span>
-          <span className="text-orange-400 text-sm">🔒</span>
-        </div>
+        <span className="text-sm font-mono text-gray-900 text-right">{formatValue(value)}</span>
+        <span className="text-sm text-gray-500 text-left">{unit || ''}</span>
+        <span className="text-orange-400 text-sm">🔒</span>
       </div>
     );
   }
@@ -142,46 +140,48 @@ export default function StreamField({
   if (editable) {
     return (
       <div className="py-1">
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-[1fr_100px_80px] items-center gap-2">
           <span className="text-sm text-gray-700">{label}</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={localValue}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={handleBlur}
-              className={`w-24 px-3 py-1.5 text-right font-mono text-sm rounded-md transition-all
-                ${error
-                  ? 'bg-red-50 border-2 border-red-400 focus:ring-2 focus:ring-red-200' 
-                  : isFocused
-                    ? 'bg-white border-2 border-blue-400 focus:ring-2 focus:ring-blue-200'
-                    : 'bg-gray-100 border border-gray-200 hover:border-gray-300'
-                }
-                focus:outline-none`}
-            />
-            <span className="text-sm text-gray-500 w-12">{unit || ''}</span>
-          </div>
+          <input
+            type="text"
+            value={localValue}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={handleBlur}
+            className={`w-full px-3 py-1.5 text-right font-mono text-sm rounded-md transition-all
+              ${error
+                ? 'bg-red-50 border-2 border-red-400 focus:ring-2 focus:ring-red-200' 
+                : isFocused
+                  ? 'bg-white border-2 border-blue-400 focus:ring-2 focus:ring-blue-200'
+                  : 'bg-gray-100 border border-gray-200 hover:border-gray-300'
+              }
+              focus:outline-none`}
+          />
+          <span className="text-sm text-gray-500 text-left">{unit || ''}</span>
         </div>
         
-        {/* Min/Max hint when focused */}
+        {/* Min/Max hint when focused - positioned under input column */}
         {isFocused && !error && (min !== undefined || max !== undefined) && (
-          <div className="flex justify-end mt-1 mr-14">
-            <span className="text-xs text-gray-500">
+          <div className="grid grid-cols-[1fr_100px_80px] items-center gap-2 mt-1">
+            <span></span>
+            <span className="text-xs text-gray-500 text-right">
               {min !== undefined && max !== undefined
                 ? `Range: ${formatLimit(min)} - ${formatLimit(max)}`
                 : min !== undefined
                   ? `Min: ${formatLimit(min)}`
                   : `Max: ${formatLimit(max)}`}
             </span>
+            <span></span>
           </div>
         )}
         
-        {/* Error message */}
+        {/* Error message - positioned under input column */}
         {error && (
-          <div className="flex justify-end mt-1 mr-14">
-            <span className="text-xs text-red-500">⚠ {error}</span>
+          <div className="grid grid-cols-[1fr_100px_80px] items-center gap-2 mt-1">
+            <span></span>
+            <span className="text-xs text-red-500 text-right">⚠ {error}</span>
+            <span></span>
           </div>
         )}
       </div>
@@ -190,12 +190,10 @@ export default function StreamField({
 
   // Read-only field (non-editable, non-locked) - like Phase
   return (
-    <div className="flex items-center justify-between py-1">
+    <div className="grid grid-cols-[1fr_100px_80px] items-center gap-2 py-1">
       <span className="text-sm text-gray-700">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-900">{formatValue(value)}</span>
-        {locked && <span className="text-orange-400 text-sm">🔒</span>}
-      </div>
+      <span className="text-sm text-gray-900 text-right">{formatValue(value)}</span>
+      <span className="text-sm text-gray-500 text-left">{unit || ''}</span>
     </div>
   );
 }
