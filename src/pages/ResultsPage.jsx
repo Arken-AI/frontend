@@ -81,8 +81,13 @@ export default function ResultsPage() {
   // Derive equipment data from API response
   const equipmentData = useMemo(() => {
     if (!apiResponse?.data) return [];
+    // DEBUG: Log raw API response to verify constraints are present
+    console.log('[Step 1] Raw API Response:', apiResponse.data);
+    console.log('[Step 1] Feed streams with constraints:', apiResponse.data?.input?.feed_streams);
     // Transform works for both calc_engine and process_server sources
-    return transformEquipmentData(apiResponse.data);
+    const transformed = transformEquipmentData(apiResponse.data);
+    console.log('[Step 2] Transformed equipment data:', transformed);
+    return transformed;
   }, [apiResponse]);
   
   // Derive warnings data from equipment data

@@ -191,14 +191,43 @@ function ConstraintsCard({ constraints, editedValues, validationErrors, onParame
  * Individual Stream Card
  * Clean layout without left border accent
  * Shows destination/source info for streams
+ * Uses dynamic constraints from API response (enriched with editability flags)
  */
 function StreamCard({ stream, isOutput, editedValues, validationErrors, onParameterChange }) {
   const streamId = stream.streamId || stream.stream_id;
-  const editable = stream.editable && !isOutput;
+  
+  // DEBUG: Log stream data to verify constraints are passed through
+  console.log(`[Step 2] StreamCard - ${streamId}:`, {
+    editable: stream.editable,
+    constraints: stream.constraints,
+    hasConstraints: !!stream.constraints
+  });
+  
+  // Get constraints from stream data (enriched from API)
+  // Structure: { temperature_K: {min, max, unit, editable}, pressure_Pa: {...}, ... }
+  const streamConstraints = stream.constraints || {};
+  
+  // Get editability: feed streams are editable, output streams are not
+  const streamEditable = stream.editable && !isOutput;
+  
   const streamNumber = stream.streamNumber;
   
   // Helper to get field key for this stream
   const getFieldKey = (fieldName) => `${streamId}_${fieldName}`;
+  
+  // Helper to get constraint for a specific field with defaults
+  const getFieldConstraint = (fieldName) => {
+    return streamConstraints[fieldName] || {};
+  };
+  
+  // Helper to get clean unit for flow rate based on flow_basis
+  const getFlowRateUnit = () => {
+    // Use stream's flow_basis to determine unit (more reliable than constraint description)
+    if (stream.flow_basis === 'mass') {
+      return 'kg/s';
+    }
+    return 'mol/s'; // Default to molar
+  };
   
   return (
     <div className="pl-2 py-1">
@@ -239,16 +268,16 @@ function StreamCard({ stream, isOutput, editedValues, validationErrors, onParame
         )}
       </div>
       
-      {/* Stream Properties */}
+      {/* Stream Properties - Using dynamic constraints from API */}
       <div className="space-y-3">
         <StreamField
           label="Temperature"
           value={editedValues[getFieldKey('temperature_K')] ?? stream.temperature_K}
-          unit="K"
-          editable={editable}
+          unit={getFieldConstraint('temperature_K').unit || "K"}
+          editable={streamEditable && (getFieldConstraint('temperature_K').editable !== false)}
           locked={isOutput}
-          min={200}
-          max={1000}
+          min={getFieldConstraint('temperature_K').min}
+          max={getFieldConstraint('temperature_K').max}
           error={validationErrors[getFieldKey('temperature_K')]}
           onChange={(newValue, isValid) => {
             if (onParameterChange) {
@@ -259,11 +288,11 @@ function StreamCard({ stream, isOutput, editedValues, validationErrors, onParame
         <StreamField
           label="Pressure"
           value={editedValues[getFieldKey('pressure_Pa')] ?? stream.pressure_Pa}
-          unit="Pa"
-          editable={editable}
+          unit={getFieldConstraint('pressure_Pa').unit || "Pa"}
+          editable={streamEditable && (getFieldConstraint('pressure_Pa').editable !== false)}
           locked={isOutput}
-          min={1000}
-          max={10000000}
+          min={getFieldConstraint('pressure_Pa').min}
+          max={getFieldConstraint('pressure_Pa').max}
           error={validationErrors[getFieldKey('pressure_Pa')]}
           onChange={(newValue, isValid) => {
             if (onParameterChange) {
@@ -274,11 +303,11 @@ function StreamCard({ stream, isOutput, editedValues, validationErrors, onParame
         <StreamField
           label="Flow Rate"
           value={editedValues[getFieldKey('flow_rate')] ?? stream.flow_rate}
-          unit={stream.flow_basis === 'mass' ? 'kg/h' : 'kmol/h'}
-          editable={editable}
+          unit={getFlowRateUnit()}
+          editable={streamEditable && (getFieldConstraint('flow_rate').editable !== false)}
           locked={isOutput}
-          min={0}
-          max={1000000}
+          min={getFieldConstraint('flow_rate').min}
+          max={getFieldConstraint('flow_rate').max}
           error={validationErrors[getFieldKey('flow_rate')]}
           onChange={(newValue, isValid) => {
             if (onParameterChange) {
@@ -298,7 +327,7 @@ function StreamCard({ stream, isOutput, editedValues, validationErrors, onParame
           <CompositionTable
             composition={stream.composition}
             basis={stream.composition_basis}
-            editable={editable}
+            editable={streamEditable && (getFieldConstraint('composition').editable !== false)}
             locked={isOutput}
           />
         )}
