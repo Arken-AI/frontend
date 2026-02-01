@@ -221,12 +221,13 @@ function StreamCard({ stream, isOutput, editedValues, validationErrors, onParame
   };
   
   // Helper to get clean unit for flow rate based on flow_basis
+  // Fixed: Use stream.flow_basis instead of constraint description
   const getFlowRateUnit = () => {
-    // Use stream's flow_basis to determine unit (more reliable than constraint description)
+    console.log('[Debug] Flow rate unit - flow_basis:', stream.flow_basis);
     if (stream.flow_basis === 'mass') {
       return 'kg/s';
     }
-    return 'mol/s'; // Default to molar
+    return 'mol/s';
   };
   
   return (

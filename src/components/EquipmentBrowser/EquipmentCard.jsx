@@ -7,9 +7,10 @@
  * Highlights when selected via Zustand store.
  */
 
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StreamSection from './StreamSection';
+import StreamField from './StreamField';
 
 /**
  * Status Badge Component
@@ -59,6 +60,91 @@ function WarningBadge({ count }) {
       <span>⚠</span>
       <span>{count}</span>
     </span>
+  );
+}
+
+/**
+ * Format constraint key to display label
+ */
+function formatParamLabel(key) {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/ Pa$/, ' (Pa)')
+    .replace(/ K$/, ' (K)')
+    .replace(/ Kw$/, ' (kW)');
+}
+
+/**
+ * Equipment Parameters Section
+ * Shows editable equipment parameters like reflux_ratio, num_stages, etc.
+ */
+function EquipmentParamsSection({ 
+  constraints = [], 
+  editedValues = {}, 
+  validationErrors = {}, 
+  onParameterChange 
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Filter to only show editable parameters
+  const editableParams = constraints.filter(c => c.editable !== false);
+  
+  if (editableParams.length === 0) return null;
+  
+  return (
+    <div className="mb-3">
+      {/* Section Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-2 py-2 text-left hover:bg-gray-50 rounded-md -mx-1 px-1 cursor-pointer"
+      >
+        <span className={`text-gray-400 text-sm transition-transform duration-200 ${
+          isExpanded ? 'rotate-90' : ''
+        }`}>
+          ›
+        </span>
+        <span className="text-sm font-semibold uppercase tracking-wide text-purple-600">
+          ⚙️ PARAMETERS
+        </span>
+        <span className="text-sm font-medium text-purple-400">
+          ({editableParams.length} editable)
+        </span>
+      </button>
+      
+      {/* Parameters Content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="pl-4 py-2 space-y-2">
+              {editableParams.map((param) => (
+                <StreamField
+                  key={param.key}
+                  label={formatParamLabel(param.key)}
+                  value={editedValues[param.key] ?? param.value}
+                  unit={param.unit || ''}
+                  min={param.min}
+                  max={param.max}
+                  editable={param.editable !== false}
+                  error={validationErrors[param.key]}
+                  onChange={(newValue, isValid) => {
+                    if (onParameterChange) {
+                      onParameterChange(param.key, newValue, isValid);
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -138,13 +224,22 @@ const EquipmentCard = forwardRef(({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4">
+          {/* EQUIPMENT PARAMETERS Section */}
+          {constraints && constraints.length > 0 && (
+            <EquipmentParamsSection
+              constraints={constraints}
+              editedValues={editedValues}
+              validationErrors={validationErrors}
+              onParameterChange={onParameterChange}
+            />
+          )}
+
           {/* INPUTS Section - All input streams */}
           {inputs.length > 0 && (
             <StreamSection 
               title="INPUTS" 
               streams={inputs} 
               type="input"
-              constraints={constraints}
               editedValues={editedValues}
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
