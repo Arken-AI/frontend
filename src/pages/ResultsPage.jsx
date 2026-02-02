@@ -18,6 +18,7 @@ import { ActivityBar } from '../components/layout';
 import { getRunResults } from '../api/client';
 import { useChatContext } from '../context/ChatContext';
 import toast from 'react-hot-toast';
+import { PFDReportModal } from '../components/PFDReport';
 
 // Sidebar sections configuration
 const SIDEBAR_SECTIONS = [
@@ -68,6 +69,9 @@ export default function ResultsPage() {
   // Right chat panel state
   const [isRightChatOpen, setIsRightChatOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(CHAT_DEFAULT_WIDTH);
+  
+  // PFD Report modal state
+  const [isPFDReportOpen, setIsPFDReportOpen] = useState(false);
   
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -440,6 +444,17 @@ export default function ResultsPage() {
             </button>
           )}
           
+          {/* PFD Report Button */}
+          <button
+            onClick={() => setIsPFDReportOpen(true)}
+            disabled={!apiResponse?.data}
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            title="Generate PFD Report with material balance table"
+          >
+            <span>📊</span>
+            <span>PFD Report</span>
+          </button>
+          
           {/* Back to Chat Link */}
           <Link 
             to="/" 
@@ -565,6 +580,14 @@ export default function ResultsPage() {
           </div>
         </div>
       </div>
+      
+      {/* PFD Report Modal */}
+      <PFDReportModal
+        isOpen={isPFDReportOpen}
+        onClose={() => setIsPFDReportOpen(false)}
+        apiResponse={apiResponse?.data}
+        simulationName={`Run_${runId}`}
+      />
     </div>
   );
 }

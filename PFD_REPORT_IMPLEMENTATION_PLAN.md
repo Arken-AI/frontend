@@ -277,22 +277,30 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ### Step 6.1: Add Trigger Button to ResultsPage
 
+## Phase 6: Integration ✅ COMPLETED
+
+### Step 6.1: Add Trigger Button to ResultsPage ✅
+
 **File:** `src/pages/ResultsPage.jsx`
 
 **Tasks:**
-- [ ] Add "Generate PFD Report" button in the toolbar/header area
-- [ ] Connect button click to open PFDReportModal
-- [ ] Pass apiResponse data to modal
+- [x] Add "Generate PFD Report" button in the toolbar/header area
+- [x] Connect button click to open PFDReportModal
+- [x] Pass apiResponse data to modal
+- [x] Disable button when no simulation data available
 
 ---
 
-### Step 6.2: Wire Up Data Flow
+### Step 6.2: Wire Up Data Flow ✅
 
 **Tasks:**
-- [ ] ResultsPage passes `apiResponse.data` to PFDReportModal
-- [ ] PFDReportModal calls `collectStreamData()` utility
-- [ ] Data flows to BlockDiagram and StreamDataTable components
-- [ ] Export functions receive the report container ref
+- [x] Import PFDReportModal component
+- [x] Add state for modal visibility (`isPFDReportOpen`)
+- [x] ResultsPage passes `apiResponse.data` to PFDReportModal
+- [x] Pass simulation name as `Run_{runId}`
+- [x] PFDReportModal internally calls `collectStreamData()` utility
+- [x] Data flows to BlockDiagram and StreamDataTable components
+- [x] Export functions work automatically (built into modal)
 
 ---
 
