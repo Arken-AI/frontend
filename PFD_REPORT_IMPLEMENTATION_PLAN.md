@@ -74,49 +74,63 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-## Phase 2: PFD Block Diagram Component
+## Phase 2: PFD Block Diagram Component ✅ COMPLETED
 
-### Step 2.1: Create Simple Block Diagram Component
-
-**File:** `src/components/PFDReport/BlockDiagram.jsx`
-
-**Purpose:** Render a simplified, clean block diagram suitable for export.
-
-**Tasks:**
-- [ ] Use SVG or HTML/CSS for rendering (no React Flow - too complex for export)
-- [ ] Render equipment as simple rectangles with names
-- [ ] Render connections as lines with arrow heads
-- [ ] Display stream numbers in circles (①②③) on connection lines
-- [ ] Auto-layout based on execution order (left-to-right flow)
-- [ ] Handle branching (splitters, multiple outputs)
-- [ ] Handle recycle streams (show with different line style)
-
-**Design Decisions:**
-- Equipment boxes: White fill, black border, equipment name centered
-- Stream lines: Black, 1-2px stroke, with arrow markers
-- Stream labels: Circled numbers positioned at midpoint of lines
-- Feed labels: Show "Feed" text at left edge
-- Product labels: Show "Product" text at right edge
-
----
-
-### Step 2.2: Create Layout Algorithm
+### Step 2.1: Create Layout Algorithm ✅
 
 **File:** `src/utils/pfdLayoutAlgorithm.js`
 
 **Purpose:** Calculate x, y positions for equipment and connection paths.
 
 **Tasks:**
-- [ ] Use execution order for horizontal positioning
-- [ ] Detect parallel branches (e.g., distillate + bottoms from column)
-- [ ] Calculate vertical offsets for branches
-- [ ] Generate connection path coordinates (orthogonal routing)
-- [ ] Return layout object: `{ nodes: [{id, x, y, width, height}], edges: [{...}] }`
+- [x] Use execution order for horizontal positioning
+- [x] Detect parallel branches (e.g., distillate + bottoms from column)
+- [x] Calculate vertical offsets for branches
+- [x] Generate connection path coordinates (orthogonal routing)
+- [x] Return layout object: `{ nodes, edges, feeds, products, dimensions }`
+- [x] Handle recycle streams with curved paths
+- [x] Avoid overlapping nodes
+- [x] Maintain left-to-right flow direction
 
-**Constraints:**
-- Maintain left-to-right flow direction
-- Avoid overlapping nodes
-- Keep stream lines from crossing when possible
+---
+
+### Step 2.2: Create Block Diagram Component ✅
+
+**File:** `src/components/PFDReport/BlockDiagram.jsx`
+
+**Purpose:** Render a simplified, clean block diagram suitable for export.
+
+**Tasks:**
+- [x] Use SVG for rendering (no React Flow - better for export)
+- [x] Render equipment as rounded rectangles with names
+- [x] Render connections as lines with arrow heads
+- [x] Display stream numbers in circles (①②③) on connection lines
+- [x] Auto-layout based on execution order (left-to-right flow)
+- [x] Handle branching (splitters, multiple outputs)
+- [x] Handle recycle streams (show with dashed lines)
+- [x] Color scheme support (default, print, dark)
+- [x] Interactive click handlers for nodes and edges
+- [x] Feed arrows with labels on left side
+- [x] Product arrows with labels on right side
+- [x] Compact and Printable variants
+
+**Design Applied:**
+- Equipment boxes: White fill, blue border, equipment name centered
+- Stream lines: Blue stroke with arrow markers
+- Stream labels: Blue circles with white numbers at line midpoints
+- Feed labels: "Feed" text with stream name at left edge
+- Product labels: "Product" text with stream name at right edge
+- Recycle streams: Dashed lines with curved paths
+
+---
+
+### Step 2.3: Export Barrel Updated ✅
+
+**File:** `src/components/PFDReport/index.js`
+
+- [x] Export BlockDiagram
+- [x] Export CompactBlockDiagram
+- [x] Export PrintableBlockDiagram
 
 ---
 

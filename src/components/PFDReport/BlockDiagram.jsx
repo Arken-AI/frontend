@@ -1,0 +1,565 @@
+/**
+ * Block Diagram Component
+ *
+ * Renders an SVG-based Process Flow Diagram (PFD) showing equipment
+ * connected by stream lines with numbered labels.
+ *
+ * Features:
+ * - Equipment boxes with names and type icons
+ * - Stream lines with arrow markers
+ * - Circled stream numbers on connections
+ * - Feed and product stream arrows
+ * - Recycle streams with dashed lines
+ * - Color-coded stream types
+ */
+
+import { useMemo } from "react";
+import { calculatePFDLayout } from "../../utils/pfdLayoutAlgorithm";
+import { collectAllStreams } from "../../utils/streamDataCollector";
+
+// =============================================================================
+// EQUIPMENT TYPE ICONS
+// =============================================================================
+
+const EQUIPMENT_ICONS = {
+  mixer: "M",
+  splitter: "S",
+  heater: "H",
+  cooler: "C",
+  pump: "P",
+  compressor: "K",
+  valve: "V",
+  flash_drum: "F",
+  distillation_column: "D",
+  column: "D",
+  stripper_column: "ST",
+  absorber: "A",
+  reactor: "R",
+  heat_exchanger: "HX",
+  multi_effect_evaporator: "ME",
+  evaporator: "E",
+  crystallizer: "CR",
+  centrifuge: "CF",
+  filter: "FI",
+  tank: "T",
+  default: "□",
+};
+
+/**
+ * Get icon/abbreviation for equipment type
+ */
+function getEquipmentIcon(type) {
+  return EQUIPMENT_ICONS[type] || EQUIPMENT_ICONS.default;
+}
+
+// =============================================================================
+// SVG MARKER DEFINITIONS
+// =============================================================================
+
+function SvgDefs() {
+  return (
+    <defs>
+      {/* Arrow marker for normal streams */}
+      <marker
+        id="arrowhead"
+        markerWidth="10"
+        markerHeight="7"
+        refX="9"
+        refY="3.5"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <polygon points="0 0, 10 3.5, 0 7" fill="#374151" />
+      </marker>
+
+      {/* Arrow marker for recycle streams */}
+      <marker
+        id="arrowhead-recycle"
+        markerWidth="10"
+        markerHeight="7"
+        refX="9"
+        refY="3.5"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <polygon points="0 0, 10 3.5, 0 7" fill="#f97316" />
+      </marker>
+
+      {/* Arrow marker for feed streams */}
+      <marker
+        id="arrowhead-feed"
+        markerWidth="10"
+        markerHeight="7"
+        refX="9"
+        refY="3.5"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+      </marker>
+
+      {/* Arrow marker for product streams */}
+      <marker
+        id="arrowhead-product"
+        markerWidth="10"
+        markerHeight="7"
+        refX="9"
+        refY="3.5"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e" />
+      </marker>
+
+      {/* Shadow filter for nodes */}
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="2" dy="2" stdDeviation="2" floodOpacity="0.15" />
+      </filter>
+    </defs>
+  );
+}
+
+// =============================================================================
+// SUB-COMPONENTS
+// =============================================================================
+
+/**
+ * Equipment Node (Rectangle with name)
+ */
+function EquipmentNode({ node, onClick, isSelected }) {
+  const icon = getEquipmentIcon(node.type);
+
+  return (
+    <g
+      className="equipment-node"
+      transform={`translate(${node.x}, ${node.y})`}
+      onClick={() => onClick?.(node.id)}
+      style={{ cursor: onClick ? "pointer" : "default" }}
+    >
+      {/* Background rectangle */}
+      <rect
+        width={node.width}
+        height={node.height}
+        rx={8}
+        ry={8}
+        fill="white"
+        stroke={isSelected ? "#3b82f6" : "#374151"}
+        strokeWidth={isSelected ? 3 : 2}
+        filter="url(#shadow)"
+      />
+
+      {/* Equipment type icon (top-left corner) */}
+      <text
+        x={10}
+        y={18}
+        fontSize="12"
+        fontWeight="bold"
+        fill="#6b7280"
+        fontFamily="monospace"
+      >
+        {icon}
+      </text>
+
+      {/* Equipment name (centered) */}
+      <text
+        x={node.width / 2}
+        y={node.height / 2 + 5}
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="500"
+        fill="#1f2937"
+      >
+        {truncateName(node.name, 14)}
+      </text>
+
+      {/* Equipment type (bottom) */}
+      <text
+        x={node.width / 2}
+        y={node.height - 8}
+        textAnchor="middle"
+        fontSize="9"
+        fill="#9ca3af"
+      >
+        {formatType(node.type)}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * Stream Line (Edge between equipment)
+ */
+function StreamLine({ edge, onClick }) {
+  const strokeColor = edge.isRecycle ? "#f97316" : "#374151";
+  const strokeDash = edge.isRecycle ? "5,5" : "none";
+  const markerId = edge.isRecycle ? "url(#arrowhead-recycle)" : "url(#arrowhead)";
+
+  return (
+    <g className="stream-line" onClick={() => onClick?.(edge.streamNumber)}>
+      {/* Path */}
+      <path
+        d={edge.path}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={2}
+        strokeDasharray={strokeDash}
+        markerEnd={markerId}
+        style={{ cursor: onClick ? "pointer" : "default" }}
+      />
+
+      {/* Stream number label */}
+      <StreamLabel
+        x={edge.labelPosition.x}
+        y={edge.labelPosition.y}
+        number={edge.displayNumber}
+        type={edge.isRecycle ? "recycle" : "intermediate"}
+      />
+    </g>
+  );
+}
+
+/**
+ * Feed Stream Arrow
+ */
+function FeedArrow({ feed, onClick }) {
+  return (
+    <g className="feed-arrow" onClick={() => onClick?.(feed.streamNumber)}>
+      {/* Path */}
+      <path
+        d={feed.path}
+        fill="none"
+        stroke="#3b82f6"
+        strokeWidth={2}
+        markerEnd="url(#arrowhead-feed)"
+        style={{ cursor: onClick ? "pointer" : "default" }}
+      />
+
+      {/* "Feed" label */}
+      <text
+        x={feed.startPoint.x + 5}
+        y={feed.startPoint.y - 8}
+        fontSize="10"
+        fill="#3b82f6"
+        fontWeight="500"
+      >
+        {feed.label}
+      </text>
+
+      {/* Stream number */}
+      <StreamLabel
+        x={feed.labelPosition.x}
+        y={feed.labelPosition.y}
+        number={feed.displayNumber}
+        type="feed"
+      />
+    </g>
+  );
+}
+
+/**
+ * Product Stream Arrow
+ */
+function ProductArrow({ product, onClick }) {
+  return (
+    <g className="product-arrow" onClick={() => onClick?.(product.streamNumber)}>
+      {/* Path */}
+      <path
+        d={product.path}
+        fill="none"
+        stroke="#22c55e"
+        strokeWidth={2}
+        markerEnd="url(#arrowhead-product)"
+        style={{ cursor: onClick ? "pointer" : "default" }}
+      />
+
+      {/* "Product" label */}
+      <text
+        x={product.endPoint.x - 5}
+        y={product.endPoint.y - 8}
+        fontSize="10"
+        fill="#22c55e"
+        fontWeight="500"
+        textAnchor="end"
+      >
+        {product.label}
+      </text>
+
+      {/* Stream number */}
+      <StreamLabel
+        x={product.labelPosition.x}
+        y={product.labelPosition.y}
+        number={product.displayNumber}
+        type="product"
+      />
+    </g>
+  );
+}
+
+/**
+ * Circled Stream Number Label
+ */
+function StreamLabel({ x, y, number, type }) {
+  const colors = {
+    feed: { bg: "#dbeafe", border: "#3b82f6", text: "#1d4ed8" },
+    product: { bg: "#dcfce7", border: "#22c55e", text: "#15803d" },
+    recycle: { bg: "#ffedd5", border: "#f97316", text: "#c2410c" },
+    intermediate: { bg: "#f3f4f6", border: "#6b7280", text: "#374151" },
+  };
+
+  const color = colors[type] || colors.intermediate;
+
+  return (
+    <g className="stream-label">
+      {/* Background circle */}
+      <circle cx={x} cy={y} r={12} fill={color.bg} stroke={color.border} strokeWidth={1} />
+
+      {/* Number text */}
+      <text
+        x={x}
+        y={y}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize="12"
+        fontWeight="600"
+        fill={color.text}
+      >
+        {number}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * Diagram Title
+ */
+function DiagramTitle({ title, x, y }) {
+  return (
+    <text
+      x={x}
+      y={y}
+      fontSize="16"
+      fontWeight="600"
+      fill="#1f2937"
+      textAnchor="middle"
+    >
+      {title}
+    </text>
+  );
+}
+
+/**
+ * Legend showing stream type colors
+ */
+function Legend({ x, y }) {
+  const items = [
+    { label: "Feed", color: "#3b82f6" },
+    { label: "Intermediate", color: "#374151" },
+    { label: "Product", color: "#22c55e" },
+    { label: "Recycle", color: "#f97316", dashed: true },
+  ];
+
+  return (
+    <g className="legend" transform={`translate(${x}, ${y})`}>
+      {items.map((item, index) => (
+        <g key={item.label} transform={`translate(${index * 100}, 0)`}>
+          <line
+            x1={0}
+            y1={0}
+            x2={25}
+            y2={0}
+            stroke={item.color}
+            strokeWidth={2}
+            strokeDasharray={item.dashed ? "5,5" : "none"}
+          />
+          <text x={30} y={4} fontSize="10" fill="#6b7280">
+            {item.label}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Truncate name to fit in box
+ */
+function truncateName(name, maxLength) {
+  if (!name) return "";
+  if (name.length <= maxLength) return name;
+  return name.substring(0, maxLength - 2) + "..";
+}
+
+/**
+ * Format equipment type for display
+ */
+function formatType(type) {
+  if (!type) return "";
+  return type
+    .replace(/_/g, " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+/**
+ * Block Diagram Component
+ */
+export default function BlockDiagram({
+  apiResponse,
+  streams: providedStreams,
+  width: customWidth,
+  height: customHeight,
+  title = "Process Flow Diagram",
+  showTitle = true,
+  showLegend = true,
+  showStreamNumbers = true,
+  onEquipmentClick = null,
+  onStreamClick = null,
+  selectedEquipment = null,
+  className = "",
+}) {
+  // Collect streams if not provided
+  const streams = useMemo(() => {
+    if (providedStreams) return providedStreams;
+    const { streams: collected } = collectAllStreams(apiResponse);
+    return collected;
+  }, [apiResponse, providedStreams]);
+
+  // Calculate layout
+  const layout = useMemo(() => {
+    return calculatePFDLayout(apiResponse, streams);
+  }, [apiResponse, streams]);
+
+  // Handle empty layout
+  if (!layout || layout.nodes.length === 0) {
+    return (
+      <div className={`block-diagram-empty p-8 text-center text-gray-500 border border-dashed border-gray-300 rounded-lg ${className}`}>
+        <p>No equipment to display</p>
+      </div>
+    );
+  }
+
+  // Use calculated or custom dimensions
+  const width = customWidth || layout.dimensions.width;
+  const height = customHeight || layout.dimensions.height + (showTitle ? 40 : 0) + (showLegend ? 30 : 0);
+
+  // Adjust viewBox for title and legend
+  const titleOffset = showTitle ? 40 : 0;
+  const legendOffset = showLegend ? 30 : 0;
+  const viewBoxY = layout.dimensions.minY - titleOffset;
+  const viewBoxHeight = layout.dimensions.height + titleOffset + legendOffset;
+  const viewBox = `0 ${viewBoxY} ${width} ${viewBoxHeight}`;
+
+  return (
+    <div className={`block-diagram ${className}`}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={viewBox}
+        preserveAspectRatio="xMidYMid meet"
+        style={{ maxWidth: width, maxHeight: height }}
+      >
+        {/* SVG Definitions (markers, filters) */}
+        <SvgDefs />
+
+        {/* Background */}
+        <rect
+          x={0}
+          y={viewBoxY}
+          width={width}
+          height={viewBoxHeight}
+          fill="white"
+        />
+
+        {/* Title */}
+        {showTitle && (
+          <DiagramTitle
+            title={title}
+            x={width / 2}
+            y={viewBoxY + 25}
+          />
+        )}
+
+        {/* Legend */}
+        {showLegend && (
+          <Legend
+            x={width / 2 - 180}
+            y={viewBoxY + viewBoxHeight - 15}
+          />
+        )}
+
+        {/* Render order: edges first, then nodes (so nodes are on top) */}
+
+        {/* Feed arrows */}
+        {layout.feeds.map((feed) => (
+          <FeedArrow
+            key={feed.id}
+            feed={feed}
+            onClick={onStreamClick}
+          />
+        ))}
+
+        {/* Stream lines (edges) */}
+        {layout.edges.map((edge) => (
+          <StreamLine
+            key={edge.id}
+            edge={edge}
+            onClick={onStreamClick}
+          />
+        ))}
+
+        {/* Product arrows */}
+        {layout.products.map((product) => (
+          <ProductArrow
+            key={product.id}
+            product={product}
+            onClick={onStreamClick}
+          />
+        ))}
+
+        {/* Equipment nodes */}
+        {layout.nodes.map((node) => (
+          <EquipmentNode
+            key={node.id}
+            node={node}
+            onClick={onEquipmentClick}
+            isSelected={selectedEquipment === node.id}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Compact version for smaller displays
+ */
+export function CompactBlockDiagram(props) {
+  return (
+    <BlockDiagram
+      {...props}
+      showTitle={false}
+      showLegend={false}
+    />
+  );
+}
+
+/**
+ * Print-friendly version with white background
+ */
+export function PrintableBlockDiagram(props) {
+  return (
+    <BlockDiagram
+      {...props}
+      className={`${props.className || ""} print-friendly`}
+    />
+  );
+}

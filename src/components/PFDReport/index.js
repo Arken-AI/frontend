@@ -11,7 +11,13 @@ export {
   PrintableStreamDataTable,
 } from "./StreamDataTable";
 
-// Future exports (Phase 2 & 4):
-// export { default as BlockDiagram } from './BlockDiagram';
+// Block Diagram (SVG-based PFD)
+export {
+  default as BlockDiagram,
+  CompactBlockDiagram,
+  PrintableBlockDiagram,
+} from "./BlockDiagram";
+
+// Future exports (Phase 4):
 // export { default as PFDReportModal } from './PFDReportModal';
 // export { default as ExportWrapper } from './ExportWrapper';
