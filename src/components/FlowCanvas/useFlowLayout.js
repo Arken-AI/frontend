@@ -178,7 +178,7 @@ export default function useFlowLayout(equipmentData, apiData) {
         targetHandle: feed.stream_id, // Connect to specific input handle
         type: "smoothstep",
         animated: false,
-        label: streamNumber ? `S${streamNumber}` : feed.stream_id,
+        label: streamNumber ? String(streamNumber) : feed.stream_id,
         markerEnd: {
           type: "arrowclosed",
           width: 10,
@@ -246,7 +246,7 @@ export default function useFlowLayout(equipmentData, apiData) {
         targetHandle: edge.id, // Connect to specific input handle
         type: "smoothstep",
         animated: false,
-        label: streamNumber ? `S${streamNumber}` : edge.id,
+        label: streamNumber ? String(streamNumber) : edge.id,
         markerEnd: {
           type: "arrowclosed",
           width: 10,
@@ -309,7 +309,7 @@ export default function useFlowLayout(equipmentData, apiData) {
             target: productNodeId,
             type: "smoothstep",
             animated: false,
-            label: streamNumber ? `S${streamNumber}` : streamId,
+            label: streamNumber ? String(streamNumber) : streamId,
             markerEnd: {
               type: "arrowclosed",
               width: 10,

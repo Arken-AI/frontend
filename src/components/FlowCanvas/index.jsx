@@ -50,8 +50,8 @@ const minimapNodeColor = (node) => {
 };
 
 // Inner component that uses useReactFlow (must be inside ReactFlowProvider)
-function FlowCanvasInner({ equipmentData, apiData }) {
-  // Get selection state from store
+function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
+  // Get selection state from store (only if not readOnly)
   const { selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
   
   // Get runId for export filename
@@ -288,12 +288,21 @@ function FlowCanvasInner({ equipmentData, apiData }) {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
-        onEdgeClick={onEdgeClick}
-        onPaneClick={onPaneClick}
+        onNodesChange={readOnly ? undefined : onNodesChange}
+        onEdgesChange={readOnly ? undefined : onEdgesChange}
+        onNodeClick={readOnly ? undefined : onNodeClick}
+        onEdgeClick={readOnly ? undefined : onEdgeClick}
+        onPaneClick={readOnly ? undefined : onPaneClick}
         nodeTypes={nodeTypes}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        elementsSelectable={!readOnly}
+        panOnDrag={!readOnly}
+        panOnScroll={false}
+        zoomOnScroll={!readOnly}
+        zoomOnPinch={!readOnly}
+        zoomOnDoubleClick={!readOnly}
+        preventScrolling={!readOnly}
         fitView
         fitViewOptions={{
           padding: 0.2,
@@ -318,28 +327,33 @@ function FlowCanvasInner({ equipmentData, apiData }) {
           color="#cbd5e1"
         />
         
-        {/* Zoom Controls */}
-        <Controls
-          showInteractive={false}
-          position="bottom-right"
-        />
+        {/* Zoom Controls - hide in readOnly */}
+        {!readOnly && (
+          <Controls
+            showInteractive={false}
+            position="bottom-right"
+          />
+        )}
         
-        {/* Mini Map */}
-        <MiniMap
-          nodeColor={minimapNodeColor}
-          nodeStrokeWidth={3}
-          zoomable
-          pannable
-          position="bottom-left"
-          style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-          }}
-        />
+        {/* Mini Map - hide in readOnly */}
+        {!readOnly && (
+          <MiniMap
+            nodeColor={minimapNodeColor}
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+            position="bottom-left"
+            style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+            }}
+          />
+        )}
       </ReactFlow>
       
-      {/* Canvas Controls - Top Right */}
-      <div className="canvas-controls absolute top-3 right-3 flex flex-col gap-1.5 z-20">
+      {/* Canvas Controls - Top Right (hide in readOnly) */}
+      {!readOnly && (
+        <div className="canvas-controls absolute top-3 right-3 flex flex-col gap-1.5 z-20">
         <button
           onClick={zoomToSelected}
           disabled={!selectedEquipmentId}
@@ -368,9 +382,11 @@ function FlowCanvasInner({ equipmentData, apiData }) {
           <span>Export</span>
         </button>
       </div>
+      )}
       
-      {/* Keyboard Shortcuts Hint - Collapsible */}
-      <div className="keyboard-shortcuts absolute top-3 left-3 z-20">
+      {/* Keyboard Shortcuts Hint - Collapsible (hide in readOnly) */}
+      {!readOnly && (
+        <div className="keyboard-shortcuts absolute top-3 left-3 z-20">
         {showShortcuts ? (
           <div className="bg-white border-2 border-gray-900 rounded-lg px-3 py-2 shadow-md">
             <div className="flex items-center justify-between mb-2">
@@ -407,12 +423,13 @@ function FlowCanvasInner({ equipmentData, apiData }) {
           </button>
         )}
       </div>
+      )}
       
-      {/* Stream Legend - positioned below help button */}
-      <StreamLegend showShortcuts={showShortcuts} />
+      {/* Stream Legend - positioned below help button (hide in readOnly) */}
+      {!readOnly && <StreamLegend showShortcuts={showShortcuts} />}
       
-      {/* Stream Tooltip - shown when edge is clicked */}
-      {selectedEdge && (
+      {/* Stream Tooltip - shown when edge is clicked (hide in readOnly) */}
+      {!readOnly && selectedEdge && (
         <StreamTooltip 
           edge={selectedEdge}
           equipmentData={equipmentData}
@@ -424,10 +441,10 @@ function FlowCanvasInner({ equipmentData, apiData }) {
 }
 
 // Wrapper component that provides ReactFlowProvider context
-export default function FlowCanvas({ equipmentData, apiData }) {
+export default function FlowCanvas({ equipmentData, apiData, readOnly = false }) {
   return (
     <ReactFlowProvider>
-      <FlowCanvasInner equipmentData={equipmentData} apiData={apiData} />
+      <FlowCanvasInner equipmentData={equipmentData} apiData={apiData} readOnly={readOnly} />
     </ReactFlowProvider>
   );
 }

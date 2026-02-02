@@ -59,7 +59,7 @@ function getEquipmentIcon(type) {
 function SvgDefs() {
   return (
     <defs>
-      {/* Arrow marker for normal streams */}
+      {/* Arrow marker for normal streams - lighter gray */}
       <marker
         id="arrowhead"
         markerWidth="10"
@@ -69,7 +69,7 @@ function SvgDefs() {
         orient="auto"
         markerUnits="strokeWidth"
       >
-        <polygon points="0 0, 10 3.5, 0 7" fill="#374151" />
+        <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
       </marker>
 
       {/* Arrow marker for recycle streams */}
@@ -124,11 +124,9 @@ function SvgDefs() {
 // =============================================================================
 
 /**
- * Equipment Node (Rectangle with name)
+ * Equipment Node - Clean simple box with just the name (like FlowCanvas)
  */
 function EquipmentNode({ node, onClick, isSelected }) {
-  const icon = getEquipmentIcon(node.type);
-
   return (
     <g
       className="equipment-node"
@@ -136,51 +134,28 @@ function EquipmentNode({ node, onClick, isSelected }) {
       onClick={() => onClick?.(node.id)}
       style={{ cursor: onClick ? "pointer" : "default" }}
     >
-      {/* Background rectangle */}
+      {/* Background rectangle - clean white with subtle border */}
       <rect
         width={node.width}
         height={node.height}
         rx={8}
         ry={8}
-        fill="white"
-        stroke={isSelected ? "#3b82f6" : "#374151"}
-        strokeWidth={isSelected ? 3 : 2}
+        fill={isSelected ? "#eff6ff" : "white"}
+        stroke={isSelected ? "#3b82f6" : "#cbd5e1"}
+        strokeWidth={2}
         filter="url(#shadow)"
       />
 
-      {/* Equipment type icon (top-left corner) */}
-      <text
-        x={10}
-        y={18}
-        fontSize="12"
-        fontWeight="bold"
-        fill="#6b7280"
-        fontFamily="monospace"
-      >
-        {icon}
-      </text>
-
-      {/* Equipment name (centered) */}
+      {/* Equipment name only - centered, clean */}
       <text
         x={node.width / 2}
         y={node.height / 2 + 5}
         textAnchor="middle"
-        fontSize="11"
+        fontSize="13"
         fontWeight="500"
-        fill="#1f2937"
+        fill={isSelected ? "#1e40af" : "#374151"}
       >
-        {truncateName(node.name, 14)}
-      </text>
-
-      {/* Equipment type (bottom) */}
-      <text
-        x={node.width / 2}
-        y={node.height - 8}
-        textAnchor="middle"
-        fontSize="9"
-        fill="#9ca3af"
-      >
-        {formatType(node.type)}
+        {node.name}
       </text>
     </g>
   );
@@ -190,7 +165,7 @@ function EquipmentNode({ node, onClick, isSelected }) {
  * Stream Line (Edge between equipment)
  */
 function StreamLine({ edge, onClick }) {
-  const strokeColor = edge.isRecycle ? "#f97316" : "#374151";
+  const strokeColor = edge.isRecycle ? "#f97316" : "#94a3b8";
   const strokeDash = edge.isRecycle ? "5,5" : "none";
   const markerId = edge.isRecycle ? "url(#arrowhead-recycle)" : "url(#arrowhead)";
 
@@ -272,14 +247,14 @@ function ProductArrow({ product, onClick }) {
         style={{ cursor: onClick ? "pointer" : "default" }}
       />
 
-      {/* "Product" label */}
+      {/* "Product" label - positioned at the end of arrow */}
       <text
-        x={product.endPoint.x - 5}
-        y={product.endPoint.y - 8}
+        x={product.endPoint.x + 5}
+        y={product.endPoint.y + 4}
         fontSize="10"
         fill="#22c55e"
         fontWeight="500"
-        textAnchor="end"
+        textAnchor="start"
       >
         {product.label}
       </text>
@@ -303,7 +278,7 @@ function StreamLabel({ x, y, number, type }) {
     feed: { bg: "#dbeafe", border: "#3b82f6", text: "#1d4ed8" },
     product: { bg: "#dcfce7", border: "#22c55e", text: "#15803d" },
     recycle: { bg: "#ffedd5", border: "#f97316", text: "#c2410c" },
-    intermediate: { bg: "#f3f4f6", border: "#6b7280", text: "#374151" },
+    intermediate: { bg: "#f1f5f9", border: "#94a3b8", text: "#475569" },
   };
 
   const color = colors[type] || colors.intermediate;
@@ -311,7 +286,7 @@ function StreamLabel({ x, y, number, type }) {
   return (
     <g className="stream-label">
       {/* Background circle */}
-      <circle cx={x} cy={y} r={12} fill={color.bg} stroke={color.border} strokeWidth={1} />
+      <circle cx={x} cy={y} r={14} fill={color.bg} stroke={color.border} strokeWidth={1.5} />
 
       {/* Number text */}
       <text
@@ -319,7 +294,7 @@ function StreamLabel({ x, y, number, type }) {
         y={y}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize="12"
+        fontSize="11"
         fontWeight="600"
         fill={color.text}
       >
@@ -353,7 +328,7 @@ function DiagramTitle({ title, x, y }) {
 function Legend({ x, y }) {
   const items = [
     { label: "Feed", color: "#3b82f6" },
-    { label: "Intermediate", color: "#374151" },
+    { label: "Intermediate", color: "#94a3b8" },
     { label: "Product", color: "#22c55e" },
     { label: "Recycle", color: "#f97316", dashed: true },
   ];
@@ -361,17 +336,17 @@ function Legend({ x, y }) {
   return (
     <g className="legend" transform={`translate(${x}, ${y})`}>
       {items.map((item, index) => (
-        <g key={item.label} transform={`translate(${index * 100}, 0)`}>
+        <g key={item.label} transform={`translate(${index * 120}, 0)`}>
           <line
             x1={0}
             y1={0}
-            x2={25}
+            x2={30}
             y2={0}
             stroke={item.color}
             strokeWidth={2}
             strokeDasharray={item.dashed ? "5,5" : "none"}
           />
-          <text x={30} y={4} fontSize="10" fill="#6b7280">
+          <text x={36} y={4} fontSize="11" fill="#64748b">
             {item.label}
           </text>
         </g>

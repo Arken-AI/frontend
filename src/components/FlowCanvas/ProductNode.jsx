@@ -31,7 +31,7 @@ function ProductNode({ data, selected }) {
       {/* Content */}
       <div className="flex flex-col">
         <span className="text-[10px] font-semibold text-orange-700">
-          {streamNumber ? `S${streamNumber}` : 'PRODUCT'}
+          {streamNumber ? streamNumber : 'PRODUCT'}
         </span>
         <span className="text-[9px] text-orange-600 truncate max-w-[120px]">
           {name}

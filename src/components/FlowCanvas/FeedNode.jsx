@@ -23,7 +23,7 @@ function FeedNode({ data, selected }) {
       {/* Content */}
       <div className="flex flex-col">
         <span className="text-[10px] font-semibold text-green-700">
-          {streamNumber ? `S${streamNumber}` : 'FEED'}
+          {streamNumber ? streamNumber : 'FEED'}
         </span>
         <span className="text-[9px] text-green-600 truncate max-w-[100px]">
           {name}

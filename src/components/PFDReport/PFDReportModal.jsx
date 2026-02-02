@@ -2,7 +2,7 @@
  * PFD Report Modal Component
  *
  * A full-screen modal that displays the complete PFD report including:
- * - Process Flow Diagram (Block Diagram)
+ * - Process Flow Diagram (using FlowCanvas in read-only mode)
  * - Material Balance Table
  * - Export options (PNG, PDF)
  *
@@ -12,13 +12,15 @@
  * - Export wrapper for clean image/PDF generation
  */
 
-import { useState, useMemo, useRef, useCallback } from "react";
-import BlockDiagram, { PrintableBlockDiagram } from "./BlockDiagram";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import FlowCanvas from "../FlowCanvas";
 import StreamDataTable, { PrintableStreamDataTable } from "./StreamDataTable";
 import { collectAllStreams } from "../../utils/streamDataCollector";
 import { generateTableData } from "../../utils/tableDataGenerator";
+import { transformEquipmentData } from "../../data/mockSimulationData";
 import { exportToPNG } from "../../utils/exportPNG";
 import { exportToPDFSinglePage } from "../../utils/exportPDF";
+import toast from "react-hot-toast";
 
 // =============================================================================
 // ICONS
@@ -211,6 +213,15 @@ export default function PFDReportModal({
     return collectAllStreams(apiResponse);
   }, [apiResponse]);
 
+  // Transform API response to equipment data for FlowCanvas
+  // Note: apiResponse is already the .data portion passed from ResultsPage
+  const equipmentData = useMemo(() => {
+    if (!apiResponse) {
+      return [];
+    }
+    return transformEquipmentData(apiResponse);
+  }, [apiResponse]);
+
   // Generate table data from streams
   const tableData = useMemo(() => {
     if (compounds.length === 0 || streams.length === 0) {
@@ -225,6 +236,20 @@ export default function PFDReportModal({
     });
   }, [compounds, streams]);
 
+  // Keyboard handler for Escape to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Handle PNG export - uses built-in utility or custom callback
   const handleExportPNG = useCallback(async () => {
     if (!contentRef.current) return;
@@ -238,8 +263,10 @@ export default function PFDReportModal({
         // Use built-in export utility
         await exportToPNG(contentRef.current, `${simulationName}_PFD_Report`);
       }
+      toast.success("PNG exported successfully!");
     } catch (error) {
       console.error("PNG export failed:", error);
+      toast.error("Failed to export PNG. Please try again.");
     } finally {
       setExportingPNG(false);
     }
@@ -264,8 +291,10 @@ export default function PFDReportModal({
           showFooter: true,
         });
       }
+      toast.success("PDF exported successfully!");
     } catch (error) {
       console.error("PDF export failed:", error);
+      toast.error("Failed to export PDF. Please try again.");
     } finally {
       setExportingPDF(false);
     }
@@ -344,7 +373,7 @@ export default function PFDReportModal({
         </div>
 
         {/* Content Area (Scrollable) */}
-        <div className="flex-1 overflow-auto p-6 bg-gray-100">
+        <div className="flex-1 overflow-y-auto min-h-0 p-6 bg-gray-100">
           {!hasData ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-8">
@@ -374,20 +403,17 @@ export default function PFDReportModal({
                 </p>
               </div>
 
-              {/* Block Diagram Section */}
+              {/* Flow Diagram Section - using FlowCanvas in read-only mode */}
               <div className="p-6 border-b border-gray-200">
                 <SectionHeader
                   title="Process Flow Diagram"
-                  subtitle={`${streams.length} streams, ${metadata.equipmentCount || "N/A"} equipment units`}
+                  subtitle={`${streams.length} streams, ${equipmentData.length} equipment units`}
                 />
-                <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
-                  <PrintableBlockDiagram
-                    apiResponse={apiResponse}
-                    streams={streams}
-                    title={simulationName}
-                    showTitle={false}
-                    showLegend={true}
-                    onStreamClick={handleStreamClick}
+                <div className="bg-gray-50 rounded-lg overflow-hidden" style={{ height: '400px' }}>
+                  <FlowCanvas
+                    equipmentData={equipmentData}
+                    apiData={apiResponse}
+                    readOnly={true}
                   />
                 </div>
               </div>

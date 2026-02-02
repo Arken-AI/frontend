@@ -19,23 +19,23 @@ import { formatStreamNumber } from "./streamDataCollector";
 // =============================================================================
 
 const DEFAULT_CONFIG = {
-  // Node dimensions
-  nodeWidth: 120,
-  nodeHeight: 60,
+  // Node dimensions - matched to FlowCanvas EquipmentNode (220px width)
+  nodeWidth: 200,
+  nodeHeight: 50,
   nodeRadius: 8, // Corner radius
 
   // Spacing
-  columnGap: 180, // Horizontal space between columns
-  rowGap: 100, // Vertical space between rows
-  padding: 60, // Diagram edge padding
+  columnGap: 280, // Horizontal space between columns (wider for longer names)
+  rowGap: 120, // Vertical space between rows
+  padding: 80, // Diagram edge padding
 
   // Stream labels
-  labelRadius: 12, // Circle radius for stream numbers
-  labelOffset: 15, // Distance from line to label
+  labelRadius: 14, // Circle radius for stream numbers
+  labelOffset: 20, // Distance from line to label
 
   // Feed/Product arrows
-  feedArrowLength: 80,
-  productArrowLength: 80,
+  feedArrowLength: 100,
+  productArrowLength: 100,
 
   // Port positions (relative to node)
   ports: {
@@ -575,26 +575,38 @@ function calculateProductPositions(
 
     // Get ports that have edges
     const portsWithEdges = new Set(nodeOutEdges.map((e) => e.source_port));
+    const hasOutgoingEdge = nodeOutEdges.length > 0;
 
     // Find outlets without edges (terminal products)
-    Object.entries(nodeResult.outlets).forEach(([portName, outlet], index) => {
+    let productIndex = 0;
+    Object.entries(nodeResult.outlets).forEach(([portName, outlet]) => {
       if (portsWithEdges.has(portName)) return;
 
       const streamId = outlet.stream_id || `${node.id}_${portName}`;
       const streamInfo = streamNumberMap.get(streamId);
 
-      // Determine exit port
+      // If node has outgoing edges, offset product arrows downward to avoid overlap
       const exitPort = node.ports.right;
-      const yOffset = index * 25;
+      const yOffset = hasOutgoingEdge
+        ? (productIndex + 1) * 35 // Offset down if there are outgoing edges
+        : productIndex * 35;
 
       const startX = exitPort.x;
       const startY = exitPort.y + yOffset;
       const endX = startX + cfg.productArrowLength;
       const endY = startY;
 
-      const path = `M ${startX} ${startY} L ${endX} ${endY}`;
+      // Create angled path if offset to make it cleaner
+      let path;
+      if (yOffset > 0) {
+        // Go out a bit, then angle down, then continue
+        const midX = startX + 20;
+        path = `M ${exitPort.x} ${exitPort.y} L ${midX} ${exitPort.y} L ${midX + 15} ${startY} L ${endX} ${endY}`;
+      } else {
+        path = `M ${startX} ${startY} L ${endX} ${endY}`;
+      }
 
-      const labelX = (startX + endX) / 2;
+      const labelX = (startX + endX) / 2 + 20;
       const labelY = startY - cfg.labelOffset;
 
       products.push({
@@ -609,6 +621,8 @@ function calculateProductPositions(
         labelPosition: { x: labelX, y: labelY },
         label: "Product",
       });
+
+      productIndex++;
     });
   });
 
@@ -634,9 +648,10 @@ function calculateDimensions(nodes, feeds, products, cfg) {
     minY = Math.min(minY, node.y);
   });
 
-  // From products (extend right)
+  // From products (extend right) - add extra space for "Product" label text
   products.forEach((product) => {
-    maxX = Math.max(maxX, product.endPoint.x);
+    maxX = Math.max(maxX, product.endPoint.x + 60); // Extra space for label
+    maxY = Math.max(maxY, product.endPoint.y + 20);
   });
 
   // Add padding
@@ -669,4 +684,5 @@ function createEmptyLayout() {
 // EXPORTS
 // =============================================================================
 
-export { calculatePFDLayout, DEFAULT_CONFIG };
+// calculatePFDLayout is already exported at function definition
+export { DEFAULT_CONFIG };
