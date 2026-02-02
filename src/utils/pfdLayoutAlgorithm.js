@@ -669,7 +669,4 @@ function createEmptyLayout() {
 // EXPORTS
 // =============================================================================
 
-export default {
-  calculatePFDLayout,
-  DEFAULT_CONFIG,
-};
+export { calculatePFDLayout, DEFAULT_CONFIG };

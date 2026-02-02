@@ -18,6 +18,9 @@ export {
   PrintableBlockDiagram,
 } from "./BlockDiagram";
 
-// Future exports (Phase 4):
-// export { default as PFDReportModal } from './PFDReportModal';
-// export { default as ExportWrapper } from './ExportWrapper';
+// PFD Report Modal (container combining diagram + table)
+export { default as PFDReportModal, PFDReportEmbed } from "./PFDReportModal";
+
+// Future exports (Phase 5):
+// export { exportToPNG } from '../../utils/exportPNG';
+// export { exportToPDF } from '../../utils/exportPDF';
