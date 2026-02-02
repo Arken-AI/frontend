@@ -8,20 +8,20 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-## Phase 1: Data Standardization Layer
+## Phase 1: Data Standardization Layer ✅ COMPLETED
 
-### Step 1.1: Create Stream Data Collector Utility
+### Step 1.1: Create Stream Data Collector Utility ✅
 
 **File:** `src/utils/streamDataCollector.js`
 
 **Purpose:** Extract and normalize all streams from any process simulation response into a standard format.
 
 **Tasks:**
-- [ ] Parse `input.feed_streams` to get feed stream data
-- [ ] Parse `input.edges` + `result.stream_results` to get intermediate streams
-- [ ] Parse `result.node_results` outlets to identify product/terminal streams
-- [ ] Assign sequential stream numbers (①, ②, ③...)
-- [ ] Return unified stream array with: `{ number, id, name, type, temperature_K, pressure_Pa, flow_rate, flow_basis, composition, source, target }`
+- [x] Parse `input.feed_streams` to get feed stream data
+- [x] Parse `input.edges` + `result.stream_results` to get intermediate streams
+- [x] Parse `result.node_results` outlets to identify product/terminal streams
+- [x] Assign sequential stream numbers (①, ②, ③...)
+- [x] Return unified stream array with: `{ number, id, name, type, temperature_K, pressure_Pa, flow_rate, flow_basis, composition, source, target }`
 
 **Input:** API response (`apiResponse.data`)
 
@@ -29,16 +29,16 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-### Step 1.2: Create Compound Formatter Utility
+### Step 1.2: Create Compound Formatter Utility ✅
 
 **File:** `src/utils/compoundFormatter.js`
 
 **Purpose:** Convert compound names to proper chemical formulas with subscripts.
 
 **Tasks:**
-- [ ] Create mapping for common compounds (water → H₂O, benzene → C₆H₆, etc.)
-- [ ] Handle unknown compounds gracefully (capitalize first letter)
-- [ ] Support both display format (subscripts) and plain text format
+- [x] Create mapping for common compounds (water → H₂O, benzene → C₆H₆, etc.)
+- [x] Handle unknown compounds gracefully (capitalize first letter)
+- [x] Support both display format (subscripts) and plain text format
 
 **Examples:**
 - `water` → `H₂O`
@@ -48,18 +48,20 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-### Step 1.3: Create Table Data Generator
+### Step 1.3: Create Table Data Generator ✅
 
 **File:** `src/utils/tableDataGenerator.js`
 
 **Purpose:** Transform stream data into table-ready format.
 
 **Tasks:**
-- [ ] Generate dynamic rows based on compounds list
-- [ ] Generate dynamic columns based on stream count
-- [ ] Calculate cell values (composition percentages, flow rates)
-- [ ] Add summary rows (Total Flow, Temperature, Pressure)
-- [ ] Handle missing data gracefully (show `-` or `Trace`)
+- [x] Generate dynamic rows based on compounds list
+- [x] Generate dynamic columns based on stream count
+- [x] Calculate cell values (composition percentages, flow rates)
+- [x] Add summary rows (Total Flow, Temperature, Pressure)
+- [x] Handle missing data gracefully (show `-` or `Trace`)
+- [x] Support unit conversions (Pa→kPa, K→C)
+- [x] CSV export functionality
 
 **Output Format:**
 ```
