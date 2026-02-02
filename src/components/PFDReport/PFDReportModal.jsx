@@ -14,13 +14,12 @@
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import FlowCanvas from "../FlowCanvas";
-import BlockDiagram, { PrintableBlockDiagram } from "./BlockDiagram";
 import StreamDataTable, { PrintableStreamDataTable } from "./StreamDataTable";
 import { collectAllStreams } from "../../utils/streamDataCollector";
 import { generateTableData } from "../../utils/tableDataGenerator";
 import { transformEquipmentData } from "../../data/mockSimulationData";
-import { exportToPNG } from "../../utils/exportPNG";
-import { exportToPDFSinglePage } from "../../utils/exportPDF";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 import toast from "react-hot-toast";
 
 // =============================================================================
@@ -187,24 +186,20 @@ function ExportButton({ onClick, icon, label, loading, disabled }) {
  * @param {Function} props.onClose - Callback to close the modal
  * @param {Object} props.apiResponse - The API response data from simulation
  * @param {string} props.simulationName - Optional name for the simulation
- * @param {Function} props.onExportPNG - Callback to export as PNG
- * @param {Function} props.onExportPDF - Callback to export as PDF
  */
 export default function PFDReportModal({
   isOpen,
   onClose,
   apiResponse,
   simulationName = "Simulation",
-  onExportPNG,
-  onExportPDF,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [exportingPNG, setExportingPNG] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [selectedStream, setSelectedStream] = useState(null);
 
-  // Ref for the exportable content area (uses SVG BlockDiagram for clean export)
-  const exportRef = useRef(null);
+  // Ref for the exportable content area
+  const contentRef = useRef(null);
 
   // Process the API response to get streams and table data
   const { compounds, streams, metadata } = useMemo(() => {
@@ -251,19 +246,30 @@ export default function PFDReportModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Handle PNG export - uses SVG-based export container for clean rendering
+  // Handle PNG export - captures current view using html-to-image
   const handleExportPNG = useCallback(async () => {
-    if (!exportRef.current) return;
-
+    if (!contentRef.current) {
+      toast.error("Content not ready for export");
+      return;
+    }
+    
     setExportingPNG(true);
     try {
-      if (onExportPNG) {
-        // Use custom callback if provided
-        await onExportPNG(exportRef.current, simulationName);
-      } else {
-        // Use built-in export utility
-        await exportToPNG(exportRef.current, `${simulationName}_PFD_Report`);
-      }
+      const dataUrl = await toPng(contentRef.current, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2, // High quality
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        },
+      });
+      
+      // Trigger download
+      const link = document.createElement('a');
+      link.download = `${simulationName}_PFD_Report.png`;
+      link.href = dataUrl;
+      link.click();
+      
       toast.success("PNG exported successfully!");
     } catch (error) {
       console.error("PNG export failed:", error);
@@ -271,27 +277,60 @@ export default function PFDReportModal({
     } finally {
       setExportingPNG(false);
     }
-  }, [onExportPNG, simulationName]);
+  }, [simulationName]);
 
-  // Handle PDF export - uses SVG-based export container for clean rendering
+  // Handle PDF export - captures current view and creates PDF
   const handleExportPDF = useCallback(async () => {
-    if (!exportRef.current) return;
-
+    if (!contentRef.current) {
+      toast.error("Content not ready for export");
+      return;
+    }
+    
     setExportingPDF(true);
     try {
-      if (onExportPDF) {
-        // Use custom callback if provided
-        await onExportPDF(exportRef.current, simulationName);
+      const dataUrl = await toPng(contentRef.current, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        },
+      });
+      
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: 'a4',
+      });
+      
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Load image to get dimensions
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(resolve => { img.onload = resolve; });
+      
+      // Calculate scaling to fit page
+      const imgRatio = img.width / img.height;
+      const pageRatio = pageWidth / pageHeight;
+      
+      let imgWidth, imgHeight;
+      if (imgRatio > pageRatio) {
+        imgWidth = pageWidth - 40;
+        imgHeight = imgWidth / imgRatio;
       } else {
-        // Use built-in export utility
-        await exportToPDFSinglePage(exportRef.current, `${simulationName}_PFD_Report`, {
-          orientation: "landscape",
-          pageSize: "a4",
-          headerText: `PFD Report: ${simulationName}`,
-          showHeader: true,
-          showFooter: true,
-        });
+        imgHeight = pageHeight - 40;
+        imgWidth = imgHeight * imgRatio;
       }
+      
+      const x = (pageWidth - imgWidth) / 2;
+      const y = (pageHeight - imgHeight) / 2;
+      
+      pdf.addImage(dataUrl, 'PNG', x, y, imgWidth, imgHeight);
+      pdf.save(`${simulationName}_PFD_Report.pdf`);
+      
       toast.success("PDF exported successfully!");
     } catch (error) {
       console.error("PDF export failed:", error);
@@ -299,7 +338,7 @@ export default function PFDReportModal({
     } finally {
       setExportingPDF(false);
     }
-  }, [onExportPDF, simulationName]);
+  }, [simulationName]);
 
   // Handle stream click (highlight in both diagram and table)
   const handleStreamClick = useCallback((streamNumber) => {
@@ -387,7 +426,7 @@ export default function PFDReportModal({
               </div>
             </div>
           ) : (
-            <div className="pfd-report-content bg-white rounded-lg shadow-sm">
+            <div ref={contentRef} className="pfd-report-content bg-white rounded-lg shadow-sm">
               {/* Report Header (for export) */}
               <div className="p-6 border-b border-gray-200 print:block">
                 <h1 className="text-2xl font-bold text-gray-900 text-center">
@@ -401,7 +440,7 @@ export default function PFDReportModal({
                 </p>
               </div>
 
-              {/* Flow Diagram Section - using FlowCanvas in read-only mode */}
+              {/* Flow Diagram Section - FlowCanvas in read-only mode */}
               <div className="p-6 border-b border-gray-200">
                 <SectionHeader
                   title="Process Flow Diagram"
@@ -467,56 +506,6 @@ export default function PFDReportModal({
           </div>
         </div>
       </div>
-
-      {/* Hidden Export Container - Uses SVG BlockDiagram for clean PNG/PDF export */}
-      {hasData && (
-        <div
-          ref={exportRef}
-          className="fixed -left-[9999px] top-0 bg-white"
-          style={{ width: '1200px' }}
-          aria-hidden="true"
-        >
-          {/* Report Header */}
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900 text-center">
-              Process Flow Diagram Report
-            </h1>
-            <p className="text-center text-gray-600 mt-1">{simulationName}</p>
-            <p className="text-center text-gray-400 text-sm mt-1">{timestamp}</p>
-          </div>
-
-          {/* SVG Block Diagram - for clean export */}
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Process Flow Diagram</h3>
-            <p className="text-sm text-gray-500 mb-4">{streams.length} streams, {equipmentData.length} equipment units</p>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <PrintableBlockDiagram
-                apiResponse={apiResponse}
-                streams={streams}
-                title={simulationName}
-                showTitle={false}
-                showLegend={true}
-              />
-            </div>
-          </div>
-
-          {/* Material Balance Table */}
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Material Balance Table</h3>
-            <p className="text-sm text-gray-500 mb-4">{compounds.length} components across {streams.length} streams</p>
-            <PrintableStreamDataTable
-              tableData={tableData}
-              title=""
-              highlightStream={selectedStream}
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50 text-center text-sm text-gray-500">
-            <p>Generated by ARKEN AI Process Simulation Platform</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
