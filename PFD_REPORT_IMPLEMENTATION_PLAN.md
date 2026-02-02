@@ -227,37 +227,49 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-## Phase 5: Export Functionality
+## Phase 5: Export Functionality ✅ COMPLETED
 
-### Step 5.1: Implement PNG Export
+### Step 5.1: Implement PNG Export ✅
 
 **File:** `src/utils/exportPNG.js`
 
-**Dependencies:** `html2canvas`
+**Dependencies:** `html2canvas` (installed)
 
 **Tasks:**
-- [ ] Install html2canvas: `npm install html2canvas`
-- [ ] Capture the report container as canvas
-- [ ] Convert canvas to PNG blob
-- [ ] Trigger download with filename: `{simulation_name}_PFD_Report.png`
-- [ ] Handle high-DPI screens (scale factor)
+- [x] Install html2canvas: `npm install html2canvas`
+- [x] Capture the report container as canvas
+- [x] Convert canvas to PNG blob
+- [x] Trigger download with filename: `{simulation_name}_PFD_Report.png`
+- [x] Handle high-DPI screens (scale factor 2x)
+- [x] Additional utilities: `captureAsDataURL`, `captureAsCanvas`
 
 ---
 
-### Step 5.2: Implement PDF Export
+### Step 5.2: Implement PDF Export ✅
 
 **File:** `src/utils/exportPDF.js`
 
-**Dependencies:** `jspdf`, `html2canvas`
+**Dependencies:** `jspdf`, `html2canvas` (installed)
 
 **Tasks:**
-- [ ] Install jspdf: `npm install jspdf`
-- [ ] Capture content using html2canvas
-- [ ] Create PDF document with proper dimensions
-- [ ] Add captured image to PDF
-- [ ] Handle multi-page if content is tall
-- [ ] Add header/footer (optional: date, page numbers)
-- [ ] Trigger download: `{simulation_name}_PFD_Report.pdf`
+- [x] Install jspdf: `npm install jspdf`
+- [x] Capture content using html2canvas
+- [x] Create PDF document with proper dimensions
+- [x] Add captured image to PDF
+- [x] Handle multi-page if content is tall (`exportToPDF`)
+- [x] Single-page fit option (`exportToPDFSinglePage`)
+- [x] Add header/footer (date, page numbers)
+- [x] Trigger download: `{simulation_name}_PFD_Report.pdf`
+- [x] A4 and Letter page size support
+- [x] Portrait and Landscape orientation
+
+### Step 5.3: Integrate with PFDReportModal ✅
+
+**Tasks:**
+- [x] Import export utilities into PFDReportModal
+- [x] Wire export buttons to use built-in utilities
+- [x] Make custom callbacks optional (utilities work out of box)
+- [x] Update index.js exports
 
 ---
 

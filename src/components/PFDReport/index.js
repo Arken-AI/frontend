@@ -21,6 +21,11 @@ export {
 // PFD Report Modal (container combining diagram + table)
 export { default as PFDReportModal, PFDReportEmbed } from "./PFDReportModal";
 
-// Future exports (Phase 5):
-// export { exportToPNG } from '../../utils/exportPNG';
-// export { exportToPDF } from '../../utils/exportPDF';
+// Export utilities (PNG and PDF)
+export {
+  exportToPNG,
+  captureAsDataURL,
+  captureAsCanvas,
+} from "../../utils/exportPNG";
+
+export { exportToPDF, exportToPDFSinglePage } from "../../utils/exportPDF";

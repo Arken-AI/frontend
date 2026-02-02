@@ -17,6 +17,8 @@ import BlockDiagram, { PrintableBlockDiagram } from "./BlockDiagram";
 import StreamDataTable, { PrintableStreamDataTable } from "./StreamDataTable";
 import { collectAllStreams } from "../../utils/streamDataCollector";
 import { generateTableData } from "../../utils/tableDataGenerator";
+import { exportToPNG } from "../../utils/exportPNG";
+import { exportToPDFSinglePage } from "../../utils/exportPDF";
 
 // =============================================================================
 // ICONS
@@ -223,13 +225,19 @@ export default function PFDReportModal({
     });
   }, [compounds, streams]);
 
-  // Handle PNG export
+  // Handle PNG export - uses built-in utility or custom callback
   const handleExportPNG = useCallback(async () => {
-    if (!contentRef.current || !onExportPNG) return;
+    if (!contentRef.current) return;
 
     setExportingPNG(true);
     try {
-      await onExportPNG(contentRef.current, simulationName);
+      if (onExportPNG) {
+        // Use custom callback if provided
+        await onExportPNG(contentRef.current, simulationName);
+      } else {
+        // Use built-in export utility
+        await exportToPNG(contentRef.current, `${simulationName}_PFD_Report`);
+      }
     } catch (error) {
       console.error("PNG export failed:", error);
     } finally {
@@ -237,13 +245,25 @@ export default function PFDReportModal({
     }
   }, [onExportPNG, simulationName]);
 
-  // Handle PDF export
+  // Handle PDF export - uses built-in utility or custom callback
   const handleExportPDF = useCallback(async () => {
-    if (!contentRef.current || !onExportPDF) return;
+    if (!contentRef.current) return;
 
     setExportingPDF(true);
     try {
-      await onExportPDF(contentRef.current, simulationName);
+      if (onExportPDF) {
+        // Use custom callback if provided
+        await onExportPDF(contentRef.current, simulationName);
+      } else {
+        // Use built-in export utility
+        await exportToPDFSinglePage(contentRef.current, `${simulationName}_PFD_Report`, {
+          orientation: "landscape",
+          pageSize: "a4",
+          headerText: `PFD Report: ${simulationName}`,
+          showHeader: true,
+          showFooter: true,
+        });
+      }
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {
@@ -411,14 +431,14 @@ export default function PFDReportModal({
               icon={<ImageIcon />}
               label="Download PNG"
               loading={exportingPNG}
-              disabled={!hasData || !onExportPNG}
+              disabled={!hasData}
             />
             <ExportButton
               onClick={handleExportPDF}
               icon={<DocumentIcon />}
               label="Download PDF"
               loading={exportingPDF}
-              disabled={!hasData || !onExportPDF}
+              disabled={!hasData}
             />
           </div>
         </div>
