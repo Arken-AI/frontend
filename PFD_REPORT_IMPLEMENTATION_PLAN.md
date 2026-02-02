@@ -120,21 +120,26 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-## Phase 3: Material Balance Table Component
+## Phase 3: Material Balance Table Component ✅ COMPLETED
 
-### Step 3.1: Create Stream Data Table Component
+### Step 3.1: Create Stream Data Table Component ✅
 
 **File:** `src/components/PFDReport/StreamDataTable.jsx`
 
 **Purpose:** Render the horizontal material balance table.
 
 **Tasks:**
-- [ ] Render header row with stream numbers and names
-- [ ] Render component rows (dynamic based on compounds)
-- [ ] Render summary rows (Total, Temperature, Pressure)
-- [ ] Format numbers appropriately (2-4 decimal places)
-- [ ] Handle wide tables (horizontal scroll if needed)
-- [ ] Style for print/export (clean, professional look)
+- [x] Render header row with stream numbers and names
+- [x] Render component rows (dynamic based on compounds)
+- [x] Render summary rows (Total, Temperature, Pressure)
+- [x] Format numbers appropriately (2-4 decimal places)
+- [x] Handle wide tables (horizontal scroll if needed)
+- [x] Style for print/export (clean, professional look)
+- [x] Color-coded columns (feed=blue, product=green, recycle=orange)
+- [x] Sticky header and first column support
+- [x] Compact and Printable variants
+- [x] Legend showing stream type colors
+- [x] Metadata footer (flow basis, composition basis, units)
 
 **Table Structure:**
 ```
@@ -150,16 +155,26 @@ Generate a Process Flow Diagram (PFD) with Material Balance Table from dynamic s
 
 ---
 
-### Step 3.2: Add Table Styling
+### Step 3.2: Add Table Styling ✅
 
-**File:** `src/components/PFDReport/StreamDataTable.css` (or Tailwind classes)
+**File:** Uses Tailwind CSS classes (no separate CSS file needed)
 
 **Tasks:**
-- [ ] Professional table styling (borders, spacing)
-- [ ] Alternating row colors for readability
-- [ ] Highlight summary rows
-- [ ] Distinguish feed/product columns visually
-- [ ] Responsive but also print-friendly
+- [x] Professional table styling (borders, spacing)
+- [x] Alternating row colors for readability
+- [x] Highlight summary rows
+- [x] Distinguish feed/product columns visually
+- [x] Responsive but also print-friendly
+
+---
+
+### Step 3.3: Export Barrel File ✅
+
+**File:** `src/components/PFDReport/index.js`
+
+- [x] Export StreamDataTable
+- [x] Export CompactStreamDataTable
+- [x] Export PrintableStreamDataTable
 
 ---
 
