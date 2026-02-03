@@ -118,13 +118,6 @@ function getInputHandlePositions(inputIds) {
 function EquipmentNode({ data, selected }) {
   const { name, type, inputHandles = [], outputHandles = [] } = data;
   
-  // Modern border styling with blue accent instead of black
-  const borderColor = selected 
-    ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' 
-    : 'border-slate-300 hover:border-blue-400';
-  
-  const bgColor = selected ? 'bg-blue-50' : 'bg-white';
-  
   // Get icon for this equipment type
   const icon = getEquipmentIcon(type);
   
@@ -132,32 +125,64 @@ function EquipmentNode({ data, selected }) {
   const inputPositions = getInputHandlePositions(inputHandles);
   const outputPositions = getOutputHandlePositions(outputHandles);
   
+  // If we have an icon, show ONLY the icon (no border, no label)
+  if (icon) {
+    return (
+      <div 
+        className="relative"
+        style={{ width: 60, height: 80 }}
+      >
+        {/* Equipment Icon Only - no border, no label */}
+        <img 
+          src={icon} 
+          alt={name} 
+          title={name}
+          className={`w-full h-full object-contain transition-all ${selected ? 'drop-shadow-lg' : ''}`}
+        />
+        
+        {/* Dynamic Input Handles (Left side) */}
+        {inputPositions.map((handle) => (
+          <Handle
+            key={`input-${handle.id}`}
+            type="target"
+            position={handle.position}
+            id={handle.id}
+            className="w-2 h-2 bg-blue-500 border border-white"
+            style={handle.style}
+          />
+        ))}
+        
+        {/* Dynamic Output Handles (Top/Right/Bottom) */}
+        {outputPositions.map((handle) => (
+          <Handle
+            key={`output-${handle.id}`}
+            type="source"
+            position={handle.position}
+            id={handle.id}
+            className="w-2 h-2 bg-blue-500 border border-white"
+            style={handle.style}
+          />
+        ))}
+      </div>
+    );
+  }
+  
+  // Fallback: Text with border (for equipment without icons)
+  const borderColor = selected 
+    ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' 
+    : 'border-slate-300 hover:border-blue-400';
+  
+  const bgColor = selected ? 'bg-blue-50' : 'bg-white';
+  
   return (
     <div 
       className={`${bgColor} border-2 rounded-lg overflow-hidden transition-all ${borderColor}`}
-      style={{ width: icon ? 100 : 220, minHeight: icon ? 120 : 60 }}
+      style={{ width: 220, minHeight: 60 }}
     >
-      {/* Content - Icon or Text */}
-      <div className="px-2 py-2 flex flex-col items-center justify-center h-full">
-        {icon ? (
-          <>
-            {/* Equipment Icon */}
-            <img 
-              src={icon} 
-              alt={name} 
-              className="w-12 h-16 object-contain"
-            />
-            {/* Equipment Name - small below icon */}
-            <span className={`text-[10px] font-medium text-center mt-1 leading-tight ${selected ? 'text-blue-900' : 'text-gray-600'}`}>
-              {name}
-            </span>
-          </>
-        ) : (
-          /* Fallback: Text only */
-          <span className={`text-sm font-medium truncate ${selected ? 'text-blue-900' : 'text-gray-700'}`}>
-            {name}
-          </span>
-        )}
+      <div className="px-3 py-3 flex items-center justify-center">
+        <span className={`text-sm font-medium truncate ${selected ? 'text-blue-900' : 'text-gray-700'}`}>
+          {name}
+        </span>
       </div>
       
       {/* Dynamic Input Handles (Left side) */}
