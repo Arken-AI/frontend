@@ -8,6 +8,30 @@
 
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
+// Import equipment icons
+import distillationColumnIcon from '../../assets/images/distillition_column.png';
+import coolerIcon from '../../assets/images/cooler.png';
+
+/**
+ * Equipment type to icon mapping
+ */
+const EQUIPMENT_ICONS = {
+  distillation_column: distillationColumnIcon,
+  column: distillationColumnIcon,
+  stripper_column: distillationColumnIcon,
+  absorber: distillationColumnIcon,
+  cooler: coolerIcon,
+  // Add more mappings as you add more icons
+};
+
+/**
+ * Get icon for equipment type
+ */
+function getEquipmentIcon(type) {
+  if (!type) return null;
+  const key = type.toLowerCase().replace(/ /g, '_');
+  return EQUIPMENT_ICONS[key] || null;
+}
 
 /**
  * Calculate handle positions for multiple connections
@@ -92,7 +116,7 @@ function getInputHandlePositions(inputIds) {
 }
 
 function EquipmentNode({ data, selected }) {
-  const { name, inputHandles = [], outputHandles = [] } = data;
+  const { name, type, inputHandles = [], outputHandles = [] } = data;
   
   // Modern border styling with blue accent instead of black
   const borderColor = selected 
@@ -101,6 +125,9 @@ function EquipmentNode({ data, selected }) {
   
   const bgColor = selected ? 'bg-blue-50' : 'bg-white';
   
+  // Get icon for this equipment type
+  const icon = getEquipmentIcon(type);
+  
   // Calculate handle positions
   const inputPositions = getInputHandlePositions(inputHandles);
   const outputPositions = getOutputHandlePositions(outputHandles);
@@ -108,13 +135,29 @@ function EquipmentNode({ data, selected }) {
   return (
     <div 
       className={`${bgColor} border-2 rounded-lg overflow-hidden transition-all ${borderColor}`}
-      style={{ width: 220, minHeight: 60 }}
+      style={{ width: icon ? 100 : 220, minHeight: icon ? 120 : 60 }}
     >
-      {/* Content */}
-      <div className="px-3 py-3 flex items-center justify-center">
-        <span className={`text-sm font-medium truncate ${selected ? 'text-blue-900' : 'text-gray-700'}`}>
-          {name}
-        </span>
+      {/* Content - Icon or Text */}
+      <div className="px-2 py-2 flex flex-col items-center justify-center h-full">
+        {icon ? (
+          <>
+            {/* Equipment Icon */}
+            <img 
+              src={icon} 
+              alt={name} 
+              className="w-12 h-16 object-contain"
+            />
+            {/* Equipment Name - small below icon */}
+            <span className={`text-[10px] font-medium text-center mt-1 leading-tight ${selected ? 'text-blue-900' : 'text-gray-600'}`}>
+              {name}
+            </span>
+          </>
+        ) : (
+          /* Fallback: Text only */
+          <span className={`text-sm font-medium truncate ${selected ? 'text-blue-900' : 'text-gray-700'}`}>
+            {name}
+          </span>
+        )}
       </div>
       
       {/* Dynamic Input Handles (Left side) */}
