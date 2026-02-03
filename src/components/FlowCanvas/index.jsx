@@ -70,7 +70,7 @@ function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
   const { fitView, setCenter } = useReactFlow();
   
   // Transform data to nodes and edges with layout
-  const { nodes: layoutNodes, edges: layoutEdges } = useFlowLayout(equipmentData, apiData);
+  const { nodes: layoutNodes, edges: layoutEdges } = useFlowLayout(equipmentData, apiData, readOnly);
   
   // Use React Flow state management
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes);

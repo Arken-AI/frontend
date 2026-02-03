@@ -116,7 +116,7 @@ function getInputHandlePositions(inputIds) {
 }
 
 function EquipmentNode({ data, selected }) {
-  const { name, type, inputHandles = [], outputHandles = [] } = data;
+  const { name, type, inputHandles = [], outputHandles = [], readOnly = false } = data;
   
   // Get icon for this equipment type
   const icon = getEquipmentIcon(type);
@@ -125,8 +125,8 @@ function EquipmentNode({ data, selected }) {
   const inputPositions = getInputHandlePositions(inputHandles);
   const outputPositions = getOutputHandlePositions(outputHandles);
   
-  // If we have an icon, show ONLY the icon (no border, no label)
-  if (icon) {
+  // In PFD mode (readOnly), show ONLY the icon (no border, no label)
+  if (icon && readOnly) {
     return (
       <div 
         className="relative"

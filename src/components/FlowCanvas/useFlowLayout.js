@@ -78,7 +78,11 @@ function getLabelBgColor(streamColor) {
   return colorMap[streamColor] || "#f1f5f9";
 }
 
-export default function useFlowLayout(equipmentData, apiData) {
+export default function useFlowLayout(
+  equipmentData,
+  apiData,
+  readOnly = false,
+) {
   const { nodes, edges } = useMemo(() => {
     if (!equipmentData || equipmentData.length === 0 || !apiData) {
       return { nodes: [], edges: [] };
@@ -219,6 +223,7 @@ export default function useFlowLayout(equipmentData, apiData) {
           ...equipment,
           inputHandles,
           outputHandles,
+          readOnly,
         },
       });
     });
