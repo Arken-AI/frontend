@@ -8,30 +8,6 @@
 
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
-// Import equipment icons
-import distillationColumnIcon from '../../assets/images/distillition_column.png';
-import coolerIcon from '../../assets/images/cooler.png';
-
-/**
- * Equipment type to icon mapping
- */
-const EQUIPMENT_ICONS = {
-  distillation_column: distillationColumnIcon,
-  column: distillationColumnIcon,
-  stripper_column: distillationColumnIcon,
-  absorber: distillationColumnIcon,
-  cooler: coolerIcon,
-  // Add more mappings as you add more icons
-};
-
-/**
- * Get icon for equipment type
- */
-function getEquipmentIcon(type) {
-  if (!type) return null;
-  const key = type.toLowerCase().replace(/ /g, '_');
-  return EQUIPMENT_ICONS[key] || null;
-}
 
 /**
  * Calculate handle positions for multiple connections
@@ -118,56 +94,11 @@ function getInputHandlePositions(inputIds) {
 function EquipmentNode({ data, selected }) {
   const { name, type, inputHandles = [], outputHandles = [], readOnly = false } = data;
   
-  // Get icon for this equipment type
-  const icon = getEquipmentIcon(type);
-  
   // Calculate handle positions
   const inputPositions = getInputHandlePositions(inputHandles);
   const outputPositions = getOutputHandlePositions(outputHandles);
   
-  // In PFD mode (readOnly), show ONLY the icon (no border, no label)
-  if (icon && readOnly) {
-    return (
-      <div 
-        className="relative"
-        style={{ width: 60, height: 80 }}
-      >
-        {/* Equipment Icon Only - no border, no label */}
-        <img 
-          src={icon} 
-          alt={name} 
-          title={name}
-          className={`w-full h-full object-contain transition-all ${selected ? 'drop-shadow-lg' : ''}`}
-        />
-        
-        {/* Dynamic Input Handles (Left side) */}
-        {inputPositions.map((handle) => (
-          <Handle
-            key={`input-${handle.id}`}
-            type="target"
-            position={handle.position}
-            id={handle.id}
-            className="w-2 h-2 bg-blue-500 border border-white"
-            style={handle.style}
-          />
-        ))}
-        
-        {/* Dynamic Output Handles (Top/Right/Bottom) */}
-        {outputPositions.map((handle) => (
-          <Handle
-            key={`output-${handle.id}`}
-            type="source"
-            position={handle.position}
-            id={handle.id}
-            className="w-2 h-2 bg-blue-500 border border-white"
-            style={handle.style}
-          />
-        ))}
-      </div>
-    );
-  }
-  
-  // Fallback: Text with border (for equipment without icons)
+  // Standard text block style
   const borderColor = selected 
     ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' 
     : 'border-slate-300 hover:border-blue-400';
