@@ -33,7 +33,7 @@ import {
 // CONSTANTS
 // =============================================================================
 
-const POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
+const POLL_INTERVAL_MS = 1000; // Poll every 1 second for more responsive feedback
 
 const STATUS = {
   IDLE: "idle",
@@ -106,8 +106,12 @@ export function useDetailedReport() {
 
         // Update state from response
         setStatus(statusResponse.status);
-        setProgress(statusResponse.progress || 0);
-        setCurrentStep(statusResponse.current_step || "");
+
+        // Ensure progress never goes backwards and shows meaningful values
+        const newProgress = statusResponse.progress || 0;
+        setProgress((prev) => Math.max(prev, newProgress));
+
+        setCurrentStep(statusResponse.current_step || "Processing...");
 
         // Handle terminal states
         if (statusResponse.status === "completed") {
@@ -131,10 +135,14 @@ export function useDetailedReport() {
       stopPolling();
       isCancelledRef.current = false;
 
+      // Don't set hardcoded progress - let the first poll set it from backend
+      // This ensures we show real progress from the start
+      setCurrentStep("Starting report generation...");
+
       // Immediate first poll
       pollStatus(id);
 
-      // Start interval
+      // Start interval with faster polling for responsive updates
       pollIntervalRef.current = setInterval(() => {
         pollStatus(id);
       }, POLL_INTERVAL_MS);

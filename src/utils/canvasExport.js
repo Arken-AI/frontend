@@ -4,7 +4,8 @@
  * Captures the ReactFlow PFD canvas and exports it as a base64 PNG string
  * suitable for sending to the backend report generation API.
  *
- * Uses html2canvas (already installed in the project) for DOM capture.
+ * Uses html-to-image (toPng) which works better with ReactFlow/SVG elements
+ * than html2canvas. This is the same library used by PFDReportModal for exports.
  *
  * Usage:
  * ```javascript
@@ -16,7 +17,7 @@
  * ```
  */
 
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 
 // =============================================================================
 // CONFIGURATION
@@ -24,23 +25,16 @@ import html2canvas from "html2canvas";
 
 const DEFAULT_CAPTURE_OPTIONS = {
   // Scale factor for high-quality output (2 = retina quality)
-  scale: 2,
+  pixelRatio: 2,
 
   // White background for PDF compatibility
   backgroundColor: "#ffffff",
 
-  // Disable logging in production
-  logging: false,
-
-  // Enable CORS for external resources
-  useCORS: true,
-
-  // Allow tainted canvas
-  allowTaint: true,
-
-  // Ignore scroll offset
-  scrollX: 0,
-  scrollY: 0,
+  // Style overrides for consistent capture
+  style: {
+    transform: "scale(1)",
+    transformOrigin: "top left",
+  },
 };
 
 // =============================================================================
@@ -55,7 +49,7 @@ const DEFAULT_CAPTURE_OPTIONS = {
  *
  * @param {HTMLElement} element - The DOM element to capture (typically the ReactFlow container)
  * @param {Object} options - Optional configuration overrides
- * @param {number} options.scale - Scale factor (default: 2)
+ * @param {number} options.pixelRatio - Scale factor (default: 2)
  * @param {string} options.backgroundColor - Background color (default: '#ffffff')
  * @returns {Promise<string>} Base64 encoded PNG string (without data:image/png;base64, prefix)
  */
@@ -67,19 +61,14 @@ export async function capturePFDAsBase64(element, options = {}) {
   const config = { ...DEFAULT_CAPTURE_OPTIONS, ...options };
 
   try {
-    // Capture the element as canvas
-    const canvas = await html2canvas(element, {
-      scale: config.scale,
+    // Use html-to-image (toPng) which works better with ReactFlow/SVG
+    const dataUrl = await toPng(element, {
+      pixelRatio: config.pixelRatio,
       backgroundColor: config.backgroundColor,
-      logging: config.logging,
-      useCORS: config.useCORS,
-      allowTaint: config.allowTaint,
-      scrollX: config.scrollX,
-      scrollY: config.scrollY,
+      style: config.style,
     });
 
-    // Convert to base64 (strip the data URL prefix for backend)
-    const dataUrl = canvas.toDataURL("image/png", 0.95);
+    // Strip the data URL prefix for backend (just the base64 content)
     const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
 
     return base64;
@@ -106,17 +95,13 @@ export async function capturePFDAsDataUrl(element, options = {}) {
   const config = { ...DEFAULT_CAPTURE_OPTIONS, ...options };
 
   try {
-    const canvas = await html2canvas(element, {
-      scale: config.scale,
+    const dataUrl = await toPng(element, {
+      pixelRatio: config.pixelRatio,
       backgroundColor: config.backgroundColor,
-      logging: config.logging,
-      useCORS: config.useCORS,
-      allowTaint: config.allowTaint,
-      scrollX: config.scrollX,
-      scrollY: config.scrollY,
+      style: config.style,
     });
 
-    return canvas.toDataURL("image/png", 0.95);
+    return dataUrl;
   } catch (error) {
     console.error("[canvasExport] Error capturing PFD:", error);
     throw new Error(`Failed to capture PFD image: ${error.message}`);

@@ -116,8 +116,10 @@ function ProgressBar({ progress, isAnimated = true }) {
   return (
     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
       <div
-        className={`h-full rounded-full transition-all duration-500 ease-out ${
-          isAnimated ? "bg-gradient-to-r from-blue-500 to-blue-600" : "bg-blue-500"
+        className={`h-full rounded-full ${
+          isAnimated 
+            ? "bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-1000 ease-out" 
+            : "bg-blue-500"
         }`}
         style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
       />
@@ -289,13 +291,15 @@ export default function ReportProgressModal({
           <span className="font-medium">{Math.round(progress)}%</span>
         </div>
 
-        {/* Info text */}
+        {/* Info text - shows contextual message based on progress */}
         <p className="text-xs text-gray-500 text-center mb-6">
-          {progress < 50
+          {progress < 30
             ? "Collecting simulation data and formatting tables..."
-            : progress < 70
+            : progress < 65
               ? "Generating AI narratives (this may take a moment)..."
-              : "Building PDF document..."}
+              : progress < 90
+                ? "Building PDF document..."
+                : "Finalizing report..."}
         </p>
 
         {/* Cancel button */}
