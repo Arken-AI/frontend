@@ -19,6 +19,7 @@ import { getRunResults } from '../api/client';
 import { useChatContext } from '../context/ChatContext';
 import toast from 'react-hot-toast';
 import { PFDReportModal } from '../components/PFDReport';
+import { DetailedReportButton } from '../components/DetailedReport';
 
 // Sidebar sections configuration
 const SIDEBAR_SECTIONS = [
@@ -81,6 +82,9 @@ export default function ResultsPage() {
   // Track loaded conversation to prevent duplicate loads
   const loadedConversationRef = useRef(null);
   const dragStartWidth = useRef(0);
+  
+  // Ref for PFD container (used by DetailedReportButton for canvas capture)
+  const pfdContainerRef = useRef(null);
   
   // Derive equipment data from API response
   const equipmentData = useMemo(() => {
@@ -455,6 +459,13 @@ export default function ResultsPage() {
             <span>PFD Report</span>
           </button>
           
+          {/* Detailed Report Button (AI-powered PDF generation) */}
+          <DetailedReportButton
+            runId={runId}
+            pfdContainerRef={pfdContainerRef}
+            disabled={!apiResponse?.data}
+          />
+          
           {/* Back to Chat Link */}
           <Link 
             to="/" 
@@ -537,7 +548,7 @@ export default function ResultsPage() {
         {isLeftSidebarOpen && <div className="w-px bg-border flex-shrink-0" />}
 
         {/* Middle Canvas */}
-        <div className="flex-1 canvas-grid relative">
+        <div className="flex-1 canvas-grid relative" ref={pfdContainerRef}>
           <ErrorBoundary fallbackMessage="Unable to load flowsheet. Please refresh the page.">
             <FlowCanvas equipmentData={equipmentData} apiData={apiResponse?.data} />
           </ErrorBoundary>
