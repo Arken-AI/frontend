@@ -7,7 +7,7 @@
  * Click on edges to view stream details.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -50,11 +50,18 @@ const minimapNodeColor = (node) => {
 };
 
 // Inner component that uses useReactFlow (must be inside ReactFlowProvider)
-function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
+const FlowCanvasInner = forwardRef(function FlowCanvasInner({ 
+  equipmentData, 
+  apiData, 
+  readOnly = false,
+  allowPanZoom = false,  // Allow pan/zoom even in readOnly mode (for PFD report)
+  showLegend = true,     // Show stream legend
+  exportFilename = null, // Custom filename for exports
+}, ref) {
   // Get selection state from store (only if not readOnly)
   const { selectedEquipmentId, selectEquipment, clearSelection } = useSelectionStore();
   
-  // Get runId for export filename
+  // Get runId for export filename (fallback)
   const { runId } = useParams();
   
   // Stream tooltip state
@@ -263,7 +270,67 @@ function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
       console.error('Failed to export PNG:', err);
       toast.error('Failed to export flowsheet', { id: exportToast });
     }
-  }, [runId, nodes]);
+  }, [runId, exportFilename, nodes]);
+  
+  /**
+   * Get full flowsheet as PNG data URL (for embedding in reports)
+   * Returns the data URL without triggering a download
+   */
+  const getFullFlowsheetPng = useCallback(async () => {
+    const viewportElement = document.querySelector('.react-flow__viewport');
+    if (!viewportElement) {
+      throw new Error('Unable to find canvas element');
+    }
+    
+    // Calculate bounds of ALL nodes to capture full flowsheet
+    const nodesBounds = getNodesBounds(nodes);
+    
+    // Add padding around the flowsheet
+    const padding = 40;
+    const imageWidth = nodesBounds.width + padding * 2;
+    const imageHeight = nodesBounds.height + padding * 2;
+    
+    // Calculate the viewport transform needed to show all nodes
+    const viewport = getViewportForBounds(
+      nodesBounds,
+      imageWidth,
+      imageHeight,
+      0.5,  // minZoom
+      1,    // maxZoom - use exactly 1 for crisp export
+      padding
+    );
+    
+    // Store current transform to restore later
+    const currentTransform = viewportElement.style.transform;
+    
+    // Temporarily set viewport to calculated transform
+    viewportElement.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+    
+    try {
+      const dataUrl = await toPng(viewportElement, {
+        backgroundColor: '#ffffff',
+        width: imageWidth,
+        height: imageHeight,
+        style: {
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+        },
+      });
+      
+      return { dataUrl, width: imageWidth, height: imageHeight };
+    } finally {
+      // Always restore original transform
+      viewportElement.style.transform = currentTransform;
+    }
+  }, [nodes]);
+  
+  // Expose functions via ref for parent components (e.g., PFDReportModal)
+  useImperativeHandle(ref, () => ({
+    getFullFlowsheetPng,
+    exportPNG,
+    resetView,
+    fitView: () => fitView({ padding: 0.2 }),
+  }), [getFullFlowsheetPng, exportPNG, resetView, fitView]);
   
   // Show loading overlay if data is still loading
   if (isLoading) {
@@ -297,10 +364,10 @@ function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
         elementsSelectable={!readOnly}
-        panOnDrag={!readOnly}
+        panOnDrag={!readOnly || allowPanZoom}
         panOnScroll={false}
-        zoomOnScroll={!readOnly}
-        zoomOnPinch={!readOnly}
+        zoomOnScroll={!readOnly || allowPanZoom}
+        zoomOnPinch={!readOnly || allowPanZoom}
         zoomOnDoubleClick={!readOnly}
         preventScrolling={!readOnly}
         fitView
@@ -425,8 +492,8 @@ function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
       </div>
       )}
       
-      {/* Stream Legend - positioned below help button (hide in readOnly) */}
-      {!readOnly && <StreamLegend showShortcuts={showShortcuts} />}
+      {/* Stream Legend - positioned below help button (show based on showLegend prop) */}
+      {showLegend && !readOnly && <StreamLegend showShortcuts={showShortcuts} />}
       
       {/* Stream Tooltip - shown when edge is clicked (hide in readOnly) */}
       {!readOnly && selectedEdge && (
@@ -438,13 +505,30 @@ function FlowCanvasInner({ equipmentData, apiData, readOnly = false }) {
       )}
     </div>
   );
-}
+});
 
 // Wrapper component that provides ReactFlowProvider context
-export default function FlowCanvas({ equipmentData, apiData, readOnly = false }) {
+const FlowCanvas = forwardRef(function FlowCanvas({ 
+  equipmentData, 
+  apiData, 
+  readOnly = false,
+  allowPanZoom = false,
+  showLegend = true,
+  exportFilename = null,
+}, ref) {
   return (
     <ReactFlowProvider>
-      <FlowCanvasInner equipmentData={equipmentData} apiData={apiData} readOnly={readOnly} />
+      <FlowCanvasInner 
+        ref={ref}
+        equipmentData={equipmentData} 
+        apiData={apiData} 
+        readOnly={readOnly}
+        allowPanZoom={allowPanZoom}
+        showLegend={showLegend}
+        exportFilename={exportFilename}
+      />
     </ReactFlowProvider>
   );
-}
+});
+
+export default FlowCanvas;

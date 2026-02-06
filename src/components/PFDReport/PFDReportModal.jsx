@@ -2,25 +2,32 @@
  * PFD Report Modal Component
  *
  * A full-screen modal that displays the complete PFD report including:
- * - Process Flow Diagram (using FlowCanvas in read-only mode for viewing)
- * - Material Balance Table
- * - Export options (PNG, PDF) - uses SVG BlockDiagram for export
+ * - Process Flow Diagram (using FlowCanvas - same as Results Page)
+ * - Material Balance Table (paginated for many streams)
+ * - Export options (PNG, PDF) - captures full flowsheet at optimal zoom
  *
  * Features:
- * - Responsive layout with scroll for large content
- * - Print-optimized rendering
- * - Export wrapper for clean image/PDF generation
+ * - Interactive FlowCanvas with pan/zoom for viewing
+ * - Export always captures full flowsheet regardless of current view
+ * - Paginated tables prevent horizontal overflow in exports
  */
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import FlowCanvas from "../FlowCanvas";
-import StreamDataTable, { PrintableStreamDataTable } from "./StreamDataTable";
+import { PrintableStreamDataTable } from "./StreamDataTable";
 import { collectAllStreams } from "../../utils/streamDataCollector";
 import { generateTableData } from "../../utils/tableDataGenerator";
 import { transformEquipmentData } from "../../data/mockSimulationData";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import toast from "react-hot-toast";
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/** Maximum number of stream columns per table before splitting */
+const MAX_STREAMS_PER_TABLE = 6;
 
 // =============================================================================
 // ICONS
@@ -197,8 +204,11 @@ export default function PFDReportModal({
   const [exportingPNG, setExportingPNG] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [selectedStream, setSelectedStream] = useState(null);
+  const [diagramPngCache, setDiagramPngCache] = useState(null);
 
-  // Ref for the exportable content area
+  // Ref for FlowCanvas to access export functions
+  const flowCanvasRef = useRef(null);
+  // Ref for the exportable content area (tables only - diagram captured separately)
   const contentRef = useRef(null);
 
   // Process the API response to get streams and table data
@@ -246,28 +256,95 @@ export default function PFDReportModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Handle PNG export - captures current view using html-to-image
+  /**
+   * Capture the full flowsheet diagram as PNG using FlowCanvas's export function.
+   * This ensures the entire diagram is captured at optimal zoom regardless of
+   * the user's current view.
+   */
+  const captureFlowsheetPng = useCallback(async () => {
+    if (!flowCanvasRef.current?.getFullFlowsheetPng) {
+      throw new Error("FlowCanvas not ready");
+    }
+    return await flowCanvasRef.current.getFullFlowsheetPng();
+  }, []);
+
+  // Handle PNG export - captures full diagram + tables as composite image
   const handleExportPNG = useCallback(async () => {
-    if (!contentRef.current) {
+    if (!contentRef.current || !flowCanvasRef.current) {
       toast.error("Content not ready for export");
       return;
     }
     
     setExportingPNG(true);
     try {
-      const dataUrl = await toPng(contentRef.current, {
+      // Step 1: Capture the full flowsheet diagram
+      const { dataUrl: diagramDataUrl, width: diagramWidth, height: diagramHeight } = 
+        await captureFlowsheetPng();
+      
+      // Step 2: Capture the tables section
+      const tablesDataUrl = await toPng(contentRef.current, {
         backgroundColor: '#ffffff',
-        pixelRatio: 2, // High quality
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left',
-        },
+        pixelRatio: 2,
       });
       
-      // Trigger download
+      // Load tables image to get dimensions
+      const tablesImg = new Image();
+      tablesImg.src = tablesDataUrl;
+      await new Promise(resolve => { tablesImg.onload = resolve; });
+      
+      // Load diagram image
+      const diagramImg = new Image();
+      diagramImg.src = diagramDataUrl;
+      await new Promise(resolve => { diagramImg.onload = resolve; });
+      
+      // Step 3: Combine into single image
+      const combinedWidth = Math.max(diagramWidth, tablesImg.width / 2);
+      const headerHeight = 80;
+      const diagramSectionHeight = diagramHeight + 40;
+      const tablesSectionHeight = tablesImg.height / 2;
+      const footerHeight = 40;
+      const combinedHeight = headerHeight + diagramSectionHeight + tablesSectionHeight + footerHeight;
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = combinedWidth;
+      canvas.height = combinedHeight;
+      const ctx = canvas.getContext('2d');
+      const exportTimestamp = new Date().toLocaleString();
+      
+      // White background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, combinedWidth, combinedHeight);
+      
+      // Header
+      ctx.fillStyle = '#1f2937';
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Process Flow Diagram Report', combinedWidth / 2, 35);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText(simulationName, combinedWidth / 2, 55);
+      ctx.fillText(exportTimestamp, combinedWidth / 2, 72);
+      
+      // Diagram (centered)
+      const diagramX = (combinedWidth - diagramWidth) / 2;
+      ctx.drawImage(diagramImg, diagramX, headerHeight + 10, diagramWidth, diagramHeight);
+      
+      // Tables (scaled to fit width)
+      const tablesScale = combinedWidth / (tablesImg.width / 2);
+      const scaledTablesWidth = tablesImg.width / 2;
+      const scaledTablesHeight = tablesImg.height / 2;
+      ctx.drawImage(tablesImg, 0, headerHeight + diagramSectionHeight, scaledTablesWidth, scaledTablesHeight);
+      
+      // Footer
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Generated by ARKEN AI Process Simulation Platform', combinedWidth / 2, combinedHeight - 15);
+      
+      // Download
       const link = document.createElement('a');
       link.download = `${simulationName}_PFD_Report.png`;
-      link.href = dataUrl;
+      link.href = canvas.toDataURL('image/png');
       link.click();
       
       toast.success("PNG exported successfully!");
@@ -277,58 +354,180 @@ export default function PFDReportModal({
     } finally {
       setExportingPNG(false);
     }
-  }, [simulationName]);
+  }, [simulationName, captureFlowsheetPng]);
 
-  // Handle PDF export - captures current view and creates PDF
+  // Handle PDF export - creates a cohesive flowing document
   const handleExportPDF = useCallback(async () => {
-    if (!contentRef.current) {
+    if (!contentRef.current || !flowCanvasRef.current) {
       toast.error("Content not ready for export");
       return;
     }
     
     setExportingPDF(true);
     try {
-      const dataUrl = await toPng(contentRef.current, {
+      // Step 1: Capture the full flowsheet diagram
+      const { dataUrl: diagramDataUrl, width: diagramWidth, height: diagramHeight } = 
+        await captureFlowsheetPng();
+      
+      // Step 2: Capture the tables section
+      const tablesDataUrl = await toPng(contentRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left',
-        },
       });
       
-      // Create PDF
+      // Load images
+      const diagramImg = new Image();
+      diagramImg.src = diagramDataUrl;
+      await new Promise(resolve => { diagramImg.onload = resolve; });
+      
+      const tablesImg = new Image();
+      tablesImg.src = tablesDataUrl;
+      await new Promise(resolve => { tablesImg.onload = resolve; });
+      
+      // Create portrait PDF for a proper report layout
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'px',
         format: 'a4',
       });
       
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 40;
+      const usableWidth = pageWidth - margin * 2;
+      const footerHeight = 30;
+      const usableHeight = pageHeight - margin - footerHeight;
       
-      // Load image to get dimensions
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise(resolve => { img.onload = resolve; });
+      const exportTimestamp = new Date().toLocaleString();
+      let currentY = margin;
       
-      // Calculate scaling to fit page
-      const imgRatio = img.width / img.height;
-      const pageRatio = pageWidth / pageHeight;
+      // Helper to add footer to current page
+      const addFooter = () => {
+        pdf.setFontSize(8);
+        pdf.setTextColor(156, 163, 175);
+        pdf.text('Generated by ARKEN AI Process Simulation Platform', pageWidth / 2, pageHeight - 15, { align: 'center' });
+      };
       
-      let imgWidth, imgHeight;
-      if (imgRatio > pageRatio) {
-        imgWidth = pageWidth - 40;
-        imgHeight = imgWidth / imgRatio;
+      // Helper to check if we need a new page
+      const checkNewPage = (neededHeight) => {
+        if (currentY + neededHeight > usableHeight) {
+          addFooter();
+          pdf.addPage();
+          currentY = margin;
+          return true;
+        }
+        return false;
+      };
+      
+      // === HEADER SECTION ===
+      pdf.setFontSize(22);
+      pdf.setTextColor(31, 41, 55);
+      pdf.text('Process Flow Diagram Report', pageWidth / 2, currentY + 20, { align: 'center' });
+      currentY += 30;
+      
+      pdf.setFontSize(11);
+      pdf.setTextColor(107, 114, 128);
+      pdf.text(simulationName, pageWidth / 2, currentY + 10, { align: 'center' });
+      currentY += 18;
+      
+      pdf.text(exportTimestamp, pageWidth / 2, currentY + 8, { align: 'center' });
+      currentY += 25;
+      
+      // Divider line
+      pdf.setDrawColor(229, 231, 235);
+      pdf.setLineWidth(1);
+      pdf.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 20;
+      
+      // === DIAGRAM SECTION ===
+      // Calculate diagram size - make it prominent but fit well
+      const maxDiagramHeight = 280; // Good size for portrait A4
+      const diagramScale = Math.min(
+        usableWidth / diagramWidth,
+        maxDiagramHeight / diagramHeight
+      );
+      const scaledDiagramWidth = diagramWidth * diagramScale;
+      const scaledDiagramHeight = diagramHeight * diagramScale;
+      const diagramX = margin + (usableWidth - scaledDiagramWidth) / 2; // Center horizontally
+      
+      // Section title
+      pdf.setFontSize(14);
+      pdf.setTextColor(31, 41, 55);
+      pdf.text('Process Flow Diagram', margin, currentY);
+      currentY += 15;
+      
+      // Add diagram centered
+      pdf.addImage(diagramDataUrl, 'PNG', diagramX, currentY, scaledDiagramWidth, scaledDiagramHeight);
+      currentY += scaledDiagramHeight + 25;
+      
+      // === MATERIAL BALANCE TABLE SECTION ===
+      // Check if we have enough space, otherwise start new page
+      const tablesTitleHeight = 30;
+      checkNewPage(tablesTitleHeight + 100); // At least some table content should fit
+      
+      // Section title
+      pdf.setFontSize(14);
+      pdf.setTextColor(31, 41, 55);
+      pdf.text('Material Balance Table', margin, currentY);
+      currentY += 20;
+      
+      // Scale tables to fit page width while maintaining aspect ratio
+      const tablesAspectRatio = tablesImg.height / tablesImg.width;
+      const scaledTablesWidth = usableWidth;
+      const scaledTablesHeight = scaledTablesWidth * tablesAspectRatio * 0.5; // 0.5 for pixelRatio compensation
+      
+      // Center the table horizontally
+      const tablesX = margin;
+      
+      // Check if table fits on current page
+      const remainingSpace = usableHeight - currentY;
+      
+      if (scaledTablesHeight <= remainingSpace) {
+        // Table fits on current page
+        pdf.addImage(tablesDataUrl, 'PNG', tablesX, currentY, scaledTablesWidth, scaledTablesHeight);
+        currentY += scaledTablesHeight + 10;
       } else {
-        imgHeight = pageHeight - 40;
-        imgWidth = imgHeight * imgRatio;
+        // Table needs to span multiple pages - split it
+        const totalTableHeight = tablesImg.height;
+        let sourceY = 0;
+        
+        while (sourceY < totalTableHeight) {
+          const availableHeight = (currentY === margin) ? (usableHeight - margin) : (usableHeight - currentY);
+          const targetHeight = availableHeight;
+          const sourceHeight = targetHeight / (scaledTablesWidth / tablesImg.width) * 2; // Account for pixelRatio
+          
+          // Create a canvas to slice the table image
+          const sliceCanvas = document.createElement('canvas');
+          const sliceHeight = Math.min(sourceHeight, totalTableHeight - sourceY);
+          sliceCanvas.width = tablesImg.width;
+          sliceCanvas.height = sliceHeight;
+          const sliceCtx = sliceCanvas.getContext('2d');
+          sliceCtx.drawImage(
+            tablesImg,
+            0, sourceY, tablesImg.width, sliceHeight,
+            0, 0, tablesImg.width, sliceHeight
+          );
+          
+          const sliceDataUrl = sliceCanvas.toDataURL('image/png');
+          const scaledSliceHeight = sliceHeight * (scaledTablesWidth / tablesImg.width) * 0.5;
+          
+          pdf.addImage(sliceDataUrl, 'PNG', tablesX, currentY, scaledTablesWidth, scaledSliceHeight);
+          
+          sourceY += sliceHeight;
+          
+          if (sourceY < totalTableHeight) {
+            addFooter();
+            pdf.addPage();
+            currentY = margin;
+          } else {
+            currentY += scaledSliceHeight + 10;
+          }
+        }
       }
       
-      const x = (pageWidth - imgWidth) / 2;
-      const y = (pageHeight - imgHeight) / 2;
+      // Add footer to last page
+      addFooter();
       
-      pdf.addImage(dataUrl, 'PNG', x, y, imgWidth, imgHeight);
       pdf.save(`${simulationName}_PFD_Report.pdf`);
       
       toast.success("PDF exported successfully!");
@@ -338,7 +537,7 @@ export default function PFDReportModal({
     } finally {
       setExportingPDF(false);
     }
-  }, [simulationName]);
+  }, [simulationName, captureFlowsheetPng]);
 
   // Handle stream click (highlight in both diagram and table)
   const handleStreamClick = useCallback((streamNumber) => {
@@ -426,53 +625,41 @@ export default function PFDReportModal({
               </div>
             </div>
           ) : (
-            <div ref={contentRef} className="pfd-report-content bg-white rounded-lg shadow-sm">
-              {/* Report Header (for export) */}
-              <div className="p-6 border-b border-gray-200 print:block">
-                <h1 className="text-2xl font-bold text-gray-900 text-center">
-                  Process Flow Diagram Report
-                </h1>
-                <p className="text-center text-gray-600 mt-1">
-                  {simulationName}
-                </p>
-                <p className="text-center text-gray-400 text-sm mt-1">
-                  {timestamp}
-                </p>
-              </div>
-
-              {/* Flow Diagram Section - FlowCanvas in read-only mode */}
-              <div className="p-6 border-b border-gray-200">
-                <SectionHeader
-                  title="Process Flow Diagram"
-                  subtitle={`${streams.length} streams, ${equipmentData.length} equipment units`}
-                />
-                <div className="bg-gray-50 rounded-lg overflow-hidden" style={{ height: '400px' }}>
+            <div className="pfd-report-content space-y-6">
+              {/* Flow Diagram Section - FlowCanvas (same as Results Page) */}
+              <div className="bg-white rounded-lg shadow-sm">
+                <div className="p-4 border-b border-gray-200">
+                  <SectionHeader
+                    title="Process Flow Diagram"
+                    subtitle={`${streams.length} streams, ${equipmentData.length} equipment units • Pan and zoom to explore`}
+                  />
+                </div>
+                <div className="bg-gray-50" style={{ height: '500px' }}>
                   <FlowCanvas
+                    ref={flowCanvasRef}
                     equipmentData={equipmentData}
                     apiData={apiResponse}
                     readOnly={true}
+                    allowPanZoom={true}
+                    showLegend={false}
+                    exportFilename={simulationName}
                   />
                 </div>
               </div>
 
-              {/* Material Balance Table Section */}
-              <div className="p-6">
-                <SectionHeader
-                  title="Material Balance Table"
-                  subtitle={`${compounds.length} components across ${streams.length} streams`}
+              {/* Material Balance Table Section - paginated for many streams */}
+              <div ref={contentRef} className="bg-white rounded-lg shadow-sm p-6 mx-auto" style={{ maxWidth: '1200px' }}>
+                <div className="text-center">
+                  <SectionHeader
+                    title="Material Balance Table"
+                    subtitle={`${compounds.length} components across ${streams.length} streams`}
+                  />
+                </div>
+                <PaginatedStreamTable
+                  tableData={tableData}
+                  maxStreamsPerTable={MAX_STREAMS_PER_TABLE}
+                  highlightStream={selectedStream}
                 />
-                <div className="overflow-auto">
-                  <PrintableStreamDataTable
-                    tableData={tableData}
-                    title=""
-                    highlightStream={selectedStream}
-                  />
-                </div>
-              </div>
-
-              {/* Footer (for export) */}
-              <div className="p-4 border-t border-gray-200 bg-gray-50 text-center text-sm text-gray-500">
-                <p>Generated by ARKEN AI Process Simulation Platform</p>
               </div>
             </div>
           )}
@@ -506,6 +693,69 @@ export default function PFDReportModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// PAGINATED STREAM TABLE
+// =============================================================================
+
+/**
+ * Splits the material balance table into multiple sub-tables when there
+ * are more streams than maxStreamsPerTable. Each sub-table shares the
+ * same row labels (Component column) but shows a different subset of
+ * stream columns. This prevents horizontal overflow and ensures the
+ * full table is visible in both the modal and PNG/PDF exports.
+ */
+function PaginatedStreamTable({ tableData, maxStreamsPerTable = MAX_STREAMS_PER_TABLE, highlightStream }) {
+  const { rows, columns, data, metadata } = tableData;
+
+  // Split columns into chunks
+  const columnChunks = useMemo(() => {
+    if (!columns || columns.length === 0) return [];
+    const chunks = [];
+    for (let i = 0; i < columns.length; i += maxStreamsPerTable) {
+      chunks.push(columns.slice(i, i + maxStreamsPerTable));
+    }
+    return chunks;
+  }, [columns, maxStreamsPerTable]);
+
+  if (columnChunks.length <= 1) {
+    // No need to paginate — single table fits
+    return (
+      <PrintableStreamDataTable
+        tableData={tableData}
+        title=""
+        highlightStream={highlightStream}
+      />
+    );
+  }
+
+  return (
+    <div className="paginated-stream-tables space-y-6">
+      {columnChunks.map((chunk, index) => {
+        // Create a sub-tableData with the same rows/data but only this chunk of columns
+        const subTableData = {
+          rows,
+          columns: chunk,
+          data,
+          metadata,
+        };
+        return (
+          <div key={index}>
+            <p className="text-xs text-gray-400 mb-1 font-medium">
+              Streams {chunk[0].displayNumber} – {chunk[chunk.length - 1].displayNumber}
+              {" "}({index + 1} of {columnChunks.length})
+            </p>
+            <PrintableStreamDataTable
+              tableData={subTableData}
+              title=""
+              highlightStream={highlightStream}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -571,12 +821,15 @@ export function PFDReportEmbed({
         />
       </div>
 
-      {/* Material Balance Table */}
+      {/* Material Balance Table - paginated */}
       <div className="p-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-3">
           Material Balance Table
         </h3>
-        <StreamDataTable tableData={tableData} />
+        <PaginatedStreamTable
+          tableData={tableData}
+          maxStreamsPerTable={MAX_STREAMS_PER_TABLE}
+        />
       </div>
     </div>
   );

@@ -19,23 +19,23 @@ import { formatStreamNumber } from "./streamDataCollector";
 // =============================================================================
 
 const DEFAULT_CONFIG = {
-  // Node dimensions - matched to FlowCanvas EquipmentNode (220px width)
-  nodeWidth: 200,
-  nodeHeight: 50,
+  // Node dimensions - sized for readable equipment names
+  nodeWidth: 220,
+  nodeHeight: 55,
   nodeRadius: 8, // Corner radius
 
   // Spacing
-  columnGap: 280, // Horizontal space between columns (wider for longer names)
-  rowGap: 120, // Vertical space between rows
+  columnGap: 300, // Horizontal space between columns (wider for longer names)
+  rowGap: 130, // Vertical space between rows
   padding: 80, // Diagram edge padding
 
   // Stream labels
-  labelRadius: 14, // Circle radius for stream numbers
-  labelOffset: 20, // Distance from line to label
+  labelRadius: 16, // Circle radius for stream numbers
+  labelOffset: 22, // Distance from line to label
 
   // Feed/Product arrows
-  feedArrowLength: 100,
-  productArrowLength: 100,
+  feedArrowLength: 120,
+  productArrowLength: 120,
 
   // Port positions (relative to node)
   ports: {
@@ -176,17 +176,34 @@ function buildEdgeMap(edges) {
 }
 
 /**
- * Build stream number lookup from collected streams
+ * Build stream number lookup from collected streams.
+ * Creates lookups by stream.id AND by "equipmentId_portName" so that
+ * product streams are always found regardless of ID format.
  */
 function buildStreamNumberMap(streams) {
   const map = new Map();
   (streams || []).forEach((stream) => {
-    map.set(stream.id, {
+    const info = {
       number: stream.number,
       displayNumber: formatStreamNumber(stream.number),
       type: stream.type,
       name: stream.name,
-    });
+    };
+    // Primary key: stream ID
+    map.set(stream.id, info);
+
+    // Secondary key: "sourceEquipmentId_portName" for product stream matching
+    // collectAllStreams stores the display name in .source, but the raw ID
+    // is embedded in the stream.id for terminal outlets (e.g. "equipId_portName")
+    if (stream.sourcePort) {
+      // Try to extract equipment ID from the stream ID itself
+      // Terminal streams have id = outlet.stream_id || `${equipmentId}_${portName}`
+      // So also register the sourcePort-based key
+      const portKey = `${stream.id}`;
+      if (!map.has(portKey)) {
+        map.set(portKey, info);
+      }
+    }
   });
   return map;
 }
@@ -382,9 +399,9 @@ function calculateFeedPositions(feedStreams, nodes, streamNumberMap, cfg) {
     // Create path for feed arrow
     const path = `M ${startX} ${startY} L ${endX} ${endY}`;
 
-    // Label position (midpoint)
+    // Label position (on the line at midpoint)
     const labelX = (startX + endX) / 2;
-    const labelY = startY - cfg.labelOffset;
+    const labelY = startY;
 
     feeds.push({
       id: feed.stream_id,
@@ -530,23 +547,21 @@ function generateRecyclePath(start, end, sourceNode, targetNode, cfg) {
 }
 
 /**
- * Calculate midpoint of path for label placement
+ * Calculate midpoint of path for label placement.
+ * Labels are placed ON the line (inline style).
  */
 function calculatePathMidpoint(start, end, isRecycle, cfg) {
   if (isRecycle) {
-    // For recycle, place label at the top/bottom of the loop
+    // For recycle, place label at the top/bottom of the loop (on the line)
     const midX = (start.x + end.x) / 2;
-    const offsetY =
-      start.y >= end.y
-        ? -cfg.rowGap * 0.6 - cfg.labelOffset
-        : cfg.rowGap * 0.6 + cfg.labelOffset;
+    const offsetY = start.y >= end.y ? -cfg.rowGap * 0.6 : cfg.rowGap * 0.6;
     return { x: midX, y: start.y + offsetY };
   }
 
-  // For normal edges, place at horizontal midpoint
+  // For normal edges, place at midpoint ON the line
   return {
     x: (start.x + end.x) / 2,
-    y: (start.y + end.y) / 2 - cfg.labelOffset,
+    y: (start.y + end.y) / 2,
   };
 }
 
@@ -583,7 +598,23 @@ function calculateProductPositions(
       if (portsWithEdges.has(portName)) return;
 
       const streamId = outlet.stream_id || `${node.id}_${portName}`;
-      const streamInfo = streamNumberMap.get(streamId);
+      // Try multiple lookup strategies to find the stream number:
+      // 1. By outlet.stream_id (most common)
+      // 2. By constructed "equipmentId_portName" fallback
+      // 3. By just the equipment ID prefix match
+      let streamInfo = streamNumberMap.get(streamId);
+      if (!streamInfo && outlet.stream_id) {
+        streamInfo = streamNumberMap.get(`${node.id}_${portName}`);
+      }
+      if (!streamInfo) {
+        // Brute-force: search for any stream whose ID contains this equipment and port
+        for (const [key, val] of streamNumberMap.entries()) {
+          if (key.includes(node.id) && key.includes(portName)) {
+            streamInfo = val;
+            break;
+          }
+        }
+      }
 
       // If node has outgoing edges, offset product arrows downward to avoid overlap
       const exitPort = node.ports.right;
@@ -606,8 +637,8 @@ function calculateProductPositions(
         path = `M ${startX} ${startY} L ${endX} ${endY}`;
       }
 
-      const labelX = (startX + endX) / 2 + 20;
-      const labelY = startY - cfg.labelOffset;
+      const labelX = (startX + endX) / 2;
+      const labelY = startY;
 
       products.push({
         id: streamId,
@@ -648,10 +679,16 @@ function calculateDimensions(nodes, feeds, products, cfg) {
     minY = Math.min(minY, node.y);
   });
 
+  // From feeds (extend left and account for labels above)
+  feeds.forEach((feed) => {
+    minY = Math.min(minY, feed.labelPosition.y - 20);
+  });
+
   // From products (extend right) - add extra space for "Product" label text
   products.forEach((product) => {
-    maxX = Math.max(maxX, product.endPoint.x + 60); // Extra space for label
-    maxY = Math.max(maxY, product.endPoint.y + 20);
+    maxX = Math.max(maxX, product.endPoint.x + 80); // Extra space for label
+    maxY = Math.max(maxY, product.endPoint.y + 30);
+    minY = Math.min(minY, product.labelPosition.y - 20);
   });
 
   // Add padding

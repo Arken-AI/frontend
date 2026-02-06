@@ -127,6 +127,26 @@ function SvgDefs() {
  * Equipment Node - Clean simple box with just the name (like FlowCanvas)
  */
 function EquipmentNode({ node, onClick, isSelected }) {
+  // Split long names into two lines for readability
+  const maxCharsPerLine = Math.floor(node.width / 10);
+  const name = node.name || '';
+  let lines;
+  if (name.length <= maxCharsPerLine) {
+    lines = [name];
+  } else {
+    // Split at last space before maxChars, or force-split
+    const mid = name.lastIndexOf(' ', maxCharsPerLine);
+    if (mid > 0) {
+      lines = [name.slice(0, mid), name.slice(mid + 1)];
+    } else {
+      lines = [name.slice(0, maxCharsPerLine), name.slice(maxCharsPerLine)];
+    }
+    // Truncate second line if still too long
+    if (lines[1] && lines[1].length > maxCharsPerLine) {
+      lines[1] = lines[1].slice(0, maxCharsPerLine - 2) + '..';
+    }
+  }
+
   return (
     <g
       className="equipment-node"
@@ -146,17 +166,45 @@ function EquipmentNode({ node, onClick, isSelected }) {
         filter="url(#shadow)"
       />
 
-      {/* Equipment name only - centered, clean */}
-      <text
-        x={node.width / 2}
-        y={node.height / 2 + 5}
-        textAnchor="middle"
-        fontSize="13"
-        fontWeight="500"
-        fill={isSelected ? "#1e40af" : "#374151"}
-      >
-        {node.name}
-      </text>
+      {/* Equipment name - centered, supports two lines for long names */}
+      {lines.length === 1 ? (
+        <text
+          x={node.width / 2}
+          y={node.height / 2 + 5}
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="600"
+          fill={isSelected ? "#1e40af" : "#374151"}
+          fontFamily="Arial, Helvetica, sans-serif"
+        >
+          {lines[0]}
+        </text>
+      ) : (
+        <>
+          <text
+            x={node.width / 2}
+            y={node.height / 2 - 3}
+            textAnchor="middle"
+            fontSize="13"
+            fontWeight="600"
+            fill={isSelected ? "#1e40af" : "#374151"}
+            fontFamily="Arial, Helvetica, sans-serif"
+          >
+            {lines[0]}
+          </text>
+          <text
+            x={node.width / 2}
+            y={node.height / 2 + 14}
+            textAnchor="middle"
+            fontSize="13"
+            fontWeight="600"
+            fill={isSelected ? "#1e40af" : "#374151"}
+            fontFamily="Arial, Helvetica, sans-serif"
+          >
+            {lines[1]}
+          </text>
+        </>
+      )}
     </g>
   );
 }
@@ -186,7 +234,7 @@ function StreamLine({ edge, onClick }) {
       <StreamLabel
         x={edge.labelPosition.x}
         y={edge.labelPosition.y}
-        number={edge.displayNumber}
+        number={edge.streamNumber}
         type={edge.isRecycle ? "recycle" : "intermediate"}
       />
     </g>
@@ -224,7 +272,7 @@ function FeedArrow({ feed, onClick }) {
       <StreamLabel
         x={feed.labelPosition.x}
         y={feed.labelPosition.y}
-        number={feed.displayNumber}
+        number={feed.streamNumber}
         type="feed"
       />
     </g>
@@ -263,7 +311,7 @@ function ProductArrow({ product, onClick }) {
       <StreamLabel
         x={product.labelPosition.x}
         y={product.labelPosition.y}
-        number={product.displayNumber}
+        number={product.streamNumber}
         type="product"
       />
     </g>
@@ -271,7 +319,8 @@ function ProductArrow({ product, onClick }) {
 }
 
 /**
- * Circled Stream Number Label
+ * Inline Stream Number Label (pill-shaped, rendered ON the line)
+ * Matches the ──4── style used in FlowCanvas/React Flow
  */
 function StreamLabel({ x, y, number, type }) {
   const colors = {
@@ -283,20 +332,36 @@ function StreamLabel({ x, y, number, type }) {
 
   const color = colors[type] || colors.intermediate;
 
+  // Pill dimensions based on number of digits
+  const label = String(number);
+  const pillWidth = Math.max(24, label.length * 10 + 12);
+  const pillHeight = 20;
+
   return (
     <g className="stream-label">
-      {/* Background circle */}
-      <circle cx={x} cy={y} r={14} fill={color.bg} stroke={color.border} strokeWidth={1.5} />
+      {/* Background pill (rounded rectangle) */}
+      <rect
+        x={x - pillWidth / 2}
+        y={y - pillHeight / 2}
+        width={pillWidth}
+        height={pillHeight}
+        rx={pillHeight / 2}
+        ry={pillHeight / 2}
+        fill={color.bg}
+        stroke={color.border}
+        strokeWidth={1.5}
+      />
 
-      {/* Number text */}
+      {/* Number text - centered on the line */}
       <text
         x={x}
         y={y}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize="11"
-        fontWeight="600"
+        fontSize="12"
+        fontWeight="700"
         fill={color.text}
+        fontFamily="Arial, Helvetica, sans-serif"
       >
         {number}
       </text>
