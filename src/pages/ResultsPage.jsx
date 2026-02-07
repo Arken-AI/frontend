@@ -86,6 +86,9 @@ export default function ResultsPage() {
   // Ref for PFD container (used by DetailedReportButton for canvas capture)
   const pfdContainerRef = useRef(null);
   
+  // Ref for FlowCanvas component (exposes getFullFlowsheetPng method)
+  const flowCanvasRef = useRef(null);
+  
   // Derive equipment data from API response
   const equipmentData = useMemo(() => {
     if (!apiResponse?.data) return [];
@@ -463,6 +466,7 @@ export default function ResultsPage() {
           <DetailedReportButton
             runId={runId}
             pfdContainerRef={pfdContainerRef}
+            flowCanvasRef={flowCanvasRef}
             disabled={!apiResponse?.data}
           />
           
@@ -550,7 +554,7 @@ export default function ResultsPage() {
         {/* Middle Canvas */}
         <div className="flex-1 canvas-grid relative" ref={pfdContainerRef}>
           <ErrorBoundary fallbackMessage="Unable to load flowsheet. Please refresh the page.">
-            <FlowCanvas equipmentData={equipmentData} apiData={apiResponse?.data} />
+            <FlowCanvas ref={flowCanvasRef} equipmentData={equipmentData} apiData={apiResponse?.data} />
           </ErrorBoundary>
         </div>
 

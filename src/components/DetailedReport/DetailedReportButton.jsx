@@ -65,13 +65,15 @@ const DEFAULT_REPORT_OPTIONS = {
  *
  * @param {Object} props
  * @param {string} props.runId - Simulation run ID
- * @param {React.RefObject} props.pfdContainerRef - Ref to PFD container element for capture
+ * @param {React.RefObject} props.pfdContainerRef - Ref to PFD container element for capture (fallback)
+ * @param {React.RefObject} props.flowCanvasRef - Ref to FlowCanvas component with getFullFlowsheetPng method (preferred)
  * @param {boolean} props.disabled - Whether button is disabled
  * @param {string} props.className - Additional CSS classes
  */
 export default function DetailedReportButton({
   runId,
   pfdContainerRef,
+  flowCanvasRef,
   disabled = false,
   className = "",
 }) {
@@ -124,17 +126,25 @@ export default function DetailedReportButton({
         setIsCapturing(true);
         let pfdImageBase64 = "";
 
-        if (pfdContainerRef?.current && selectedOptions.include_pfd_image) {
+        if (selectedOptions.include_pfd_image) {
           try {
-            // Find the react-flow container within the PFD container
-            const reactFlowElement =
-              pfdContainerRef.current.querySelector(".react-flow");
-            const targetElement = reactFlowElement || pfdContainerRef.current;
+            // Prefer using FlowCanvas's getFullFlowsheetPng for full diagram capture
+            if (flowCanvasRef?.current?.getFullFlowsheetPng) {
+              const { dataUrl } = await flowCanvasRef.current.getFullFlowsheetPng();
+              // Strip the data URL prefix for backend (just the base64 content)
+              pfdImageBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+            } else if (pfdContainerRef?.current) {
+              // Fallback to generic capture (only captures visible viewport)
+              console.warn("[DetailedReportButton] FlowCanvas ref not available, using fallback capture");
+              const reactFlowElement =
+                pfdContainerRef.current.querySelector(".react-flow");
+              const targetElement = reactFlowElement || pfdContainerRef.current;
 
-            pfdImageBase64 = await capturePFDAsBase64(targetElement, {
-              scale: 2,
-              backgroundColor: "#ffffff",
-            });
+              pfdImageBase64 = await capturePFDAsBase64(targetElement, {
+                scale: 2,
+                backgroundColor: "#ffffff",
+              });
+            }
           } catch (captureError) {
             console.warn(
               "[DetailedReportButton] PFD capture failed:",
@@ -159,7 +169,7 @@ export default function DetailedReportButton({
         toast.error(err.message || "Failed to start report generation");
       }
     },
-    [runId, pfdContainerRef, startGeneration]
+    [runId, pfdContainerRef, flowCanvasRef, startGeneration]
   );
 
   /**
@@ -269,6 +279,11 @@ DetailedReportButton.propTypes = {
   runId: PropTypes.string.isRequired,
   pfdContainerRef: PropTypes.shape({
     current: PropTypes.instanceOf(Element),
+  }),
+  flowCanvasRef: PropTypes.shape({
+    current: PropTypes.shape({
+      getFullFlowsheetPng: PropTypes.func,
+    }),
   }),
   disabled: PropTypes.bool,
   className: PropTypes.string,
