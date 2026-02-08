@@ -172,7 +172,7 @@ function ChatContainer() {
     <div className="flex flex-col h-full bg-white">
       {/* SSE Error indicator */}
       {sseError && (
-        <div className="bg-yellow-50 text-yellow-700 text-sm px-4 py-2 text-center border-b border-yellow-200">
+        <div className="bg-amber-50 text-amber-600 text-xs font-medium px-4 py-2 text-center">
           Progress stream unavailable (response will still be delivered)
         </div>
       )}
@@ -236,18 +236,22 @@ function ChatContainer() {
         onCancel={handleCancelRequest}
         disabled={false}
         isProcessing={isProcessing}
-        placeholder="Ask about sugar processing calculations..."
+        placeholder="Ask about process simulations..."
       />
       
       {/* Status indicator */}
-      <div className="flex items-center justify-center gap-2 py-2 text-xs text-gray-400 border-t border-gray-100">
-        {state.isThinking && (
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-            Thinking
+      {state.isThinking && (
+        <div className="flex items-center justify-center gap-2 py-2 text-xs text-gray-400">
+          <span className="flex items-center gap-1.5">
+            <span className="flex gap-0.5">
+              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </span>
+            <span className="text-gray-400 font-medium">Thinking</span>
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -28,7 +28,7 @@ import WelcomeScreen from './WelcomeScreen';
 export default function ChatPanel({ 
   onClose,
   title = "MCP Chat",
-  placeholder = "Ask about sugar processing calculations...",
+  placeholder = "Ask about process simulations...",
   showHeader = true,
 }) {
   const { 

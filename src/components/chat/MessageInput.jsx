@@ -79,9 +79,9 @@ export default function MessageInput({
   const canSend = message.trim().length > 0 && !isDisabled && !isProcessing;
   
   return (
-    <div className={`border-t border-border-faint bg-surface ${compact ? 'p-2' : 'p-4'}`}>
-      <div className={compact ? '' : 'max-w-4xl mx-auto'}>
-        <div className="flex items-center gap-2">
+    <div className={`bg-white ${compact ? 'p-2' : 'px-4 py-3'}`}>
+      <div className={compact ? '' : 'max-w-3xl mx-auto'}>
+        <div className={`flex items-end gap-2 ${compact ? '' : 'bg-gray-50 rounded-2xl border border-gray-200 px-3 py-2 focus-within:border-blue-300 focus-within:bg-white focus-within:shadow-sm transition-all duration-200'}`}>
           {/* Textarea or Input */}
           <div className="flex-1">
             {compact ? (
@@ -92,7 +92,7 @@ export default function MessageInput({
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 disabled={disabled}
-                className="w-full h-10 px-3 text-sm rounded-lg border border-border bg-surface text-content focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:text-content-secondary placeholder:text-content-tertiary"
+                className="w-full h-10 px-3 text-sm rounded-xl border border-gray-200 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-300 focus:bg-white disabled:bg-gray-100 disabled:text-gray-400 placeholder:text-gray-400 transition-all duration-200"
               />
             ) : (
               <textarea
@@ -103,8 +103,8 @@ export default function MessageInput({
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={1}
-                className="w-full resize-none rounded-lg border border-border bg-surface text-content px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:text-content-secondary placeholder:text-content-tertiary transition-colors"
-                style={{ minHeight: '48px', maxHeight: '200px' }}
+                className="w-full resize-none bg-transparent text-gray-900 text-sm px-1 py-1 focus:outline-none disabled:text-gray-400 placeholder:text-gray-400"
+                style={{ minHeight: '36px', maxHeight: '200px' }}
               />
             )}
           </div>
@@ -113,29 +113,29 @@ export default function MessageInput({
           {isProcessing ? (
             <button
               onClick={handleCancel}
-              className={`flex-shrink-0 ${compact ? 'w-10 h-10' : 'p-3'} flex items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white shadow-sm hover:shadow transition-all duration-200`}
+              className={`flex-shrink-0 ${compact ? 'w-10 h-10' : 'w-9 h-9'} flex items-center justify-center rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all duration-200 hover:scale-105`}
               title="Stop request"
             >
-              <Square className={compact ? 'w-4 h-4 fill-current' : 'w-5 h-5 fill-current'} />
+              <Square className="w-4 h-4 fill-current" />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!canSend}
               className={`
-                flex-shrink-0 ${compact ? 'w-10 h-10' : 'p-3'} flex items-center justify-center rounded-lg
+                flex-shrink-0 ${compact ? 'w-10 h-10' : 'w-9 h-9'} flex items-center justify-center rounded-xl
                 transition-all duration-200
                 ${canSend 
-                  ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow' 
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow hover:scale-105' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }
               `}
               title={isDisabled ? 'Please wait...' : 'Send message (Enter)'}
             >
               {isSending ? (
-                <Loader2 className={compact ? 'w-4 h-4 animate-spin' : 'w-5 h-5 animate-spin'} />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Send className={compact ? 'w-4 h-4' : 'w-5 h-5'} />
+                <Send className="w-4 h-4" />
               )}
             </button>
           )}
@@ -143,13 +143,15 @@ export default function MessageInput({
         
         {/* Helper text - hide in compact mode */}
         {!compact && (
-          <p className="text-xs text-content-tertiary mt-2 text-center">
+          <p className="text-[11px] text-gray-300 mt-2 text-center">
           {isProcessing ? (
-            <span className="text-orange-500 dark:text-orange-400">Processing... Click stop button to cancel</span>
+            <span className="text-amber-500">Processing... Click stop to cancel</span>
           ) : (
             <>
-              Press <kbd className="px-1.5 py-0.5 bg-surface-secondary rounded text-content-secondary">Enter</kbd> to send, 
-              <kbd className="px-1.5 py-0.5 bg-surface-secondary rounded text-content-secondary ml-1">Shift + Enter</kbd> for new line
+              <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-mono text-[10px]">Enter</kbd>
+              <span className="mx-1">to send</span>
+              <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-mono text-[10px]">Shift + Enter</kbd>
+              <span className="ml-1">new line</span>
             </>
           )}
         </p>

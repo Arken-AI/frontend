@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatContext } from '../../context/ChatContext';
 import { checkHealth } from '../../api/client';
-import { Menu, Settings, Wifi, WifiOff, ChevronRight, Eye } from 'lucide-react';
+import { Menu, Settings, ChevronRight, Eye } from 'lucide-react';
 
 /**
  * Health Badge - Consistent with Equipment Browser badges
@@ -20,8 +20,8 @@ import { Menu, Settings, Wifi, WifiOff, ChevronRight, Eye } from 'lucide-react';
 function HealthBadge({ status, loading }) {
   if (loading) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border border-gray-300 text-gray-500 bg-gray-50">
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400">
+        <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse" />
         <span className="hidden sm:inline">Checking...</span>
       </span>
     );
@@ -31,13 +31,13 @@ function HealthBadge({ status, loading }) {
   
   return (
     <span className={`
-      inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border
+      inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors
       ${isHealthy 
-        ? 'border-green-300 text-green-600 bg-green-50' 
-        : 'border-red-300 text-red-500 bg-red-50'
+        ? 'text-emerald-600 bg-emerald-50' 
+        : 'text-red-500 bg-red-50'
       }
     `}>
-      {isHealthy ? <Wifi size={12} /> : <WifiOff size={12} />}
+      <span className={`w-1.5 h-1.5 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-red-400 animate-pulse'}`} />
       <span className="hidden sm:inline">
         {isHealthy ? 'Connected' : 'Disconnected'}
       </span>
@@ -81,30 +81,31 @@ export default function Header({
   }, []);
 
   return (
-    <header className="h-12 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0 shadow-sm">
+    <header className="h-14 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 flex items-center justify-between shrink-0 sticky top-0 z-30">
       {/* Left side */}
       <div className="flex items-center gap-3">
         {/* Mobile menu button */}
         <button
           onClick={onMenuClick}
-          className="md:hidden p-2 text-gray-500 hover:text-gray-700 
-                   hover:bg-gray-100 rounded-lg transition-colors"
+          className="md:hidden p-2 text-gray-400 hover:text-gray-600 
+                   hover:bg-gray-50 rounded-xl transition-all duration-200"
           aria-label="Toggle menu"
         >
           <Menu size={20} />
         </button>
 
         {/* App branding + breadcrumb */}
-        <div className="flex items-center gap-2">
-          <h1 className="text-base font-bold text-gray-900">
+        <div className="flex items-center gap-2.5">
+          <img src="/arken-logo.svg" alt="Arken AI" className="w-8 h-8 rounded-lg shadow-sm" />
+          <h1 className="text-sm font-bold tracking-tight text-gray-900">
             {title}
           </h1>
           
           {/* Breadcrumb separator + subtitle */}
           {subtitle && (
             <>
-              <ChevronRight size={16} className="text-gray-400" />
-              <span className="text-sm font-medium text-gray-600">
+              <ChevronRight size={14} className="text-gray-300" />
+              <span className="text-sm font-medium text-gray-500">
                 {subtitle}
               </span>
             </>
@@ -113,8 +114,8 @@ export default function Header({
           {/* Current conversation title (if no subtitle) */}
           {!subtitle && currentConversation && (
             <>
-              <ChevronRight size={16} className="text-gray-400" />
-              <span className="hidden lg:block text-sm text-gray-500 max-w-xs truncate">
+              <ChevronRight size={14} className="text-gray-300" />
+              <span className="hidden lg:block text-sm text-gray-400 max-w-xs truncate">
                 {currentConversation.title || 'Untitled'}
               </span>
             </>
@@ -128,12 +129,12 @@ export default function Header({
         {latestRunId && (
           <button
             onClick={() => navigate(`/results/${latestRunId}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium
                      text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100
-                     border border-blue-200 rounded-lg transition-colors"
+                     rounded-xl transition-all duration-200 shadow-sm"
             title="View latest simulation results"
           >
-            <Eye size={16} />
+            <Eye size={15} />
             <span className="hidden sm:inline">View Flowsheet</span>
           </button>
         )}
@@ -143,8 +144,8 @@ export default function Header({
 
         {/* Settings button */}
         <button
-          className="p-2 text-gray-500 hover:text-gray-700 
-                   hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 text-gray-400 hover:text-gray-600 
+                   hover:bg-gray-50 rounded-xl transition-all duration-200"
           aria-label="Settings"
         >
           <Settings size={18} />
