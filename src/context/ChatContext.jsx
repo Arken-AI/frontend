@@ -1,13 +1,25 @@
 /**
  * Chat Context Provider
- * 
+ *
  * Global state management for conversations and chat.
  * Provides conversation data and actions to all child components.
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { getConversations, getContext, deleteConversation as apiDeleteConversation } from '../api/client';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
+import {
+  getConversations,
+  getContext,
+  deleteConversation as apiDeleteConversation,
+} from "../api/client";
+import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useAuth } from "./AuthContext";
 
 // Create the context
 const ChatContext = createContext(null);
@@ -16,21 +28,27 @@ const ChatContext = createContext(null);
  * Chat Context Provider Component
  */
 export function ChatProvider({ children }) {
+  // Get username from auth context
+  const { username } = useAuth();
+
   // Current conversation ID (persisted in localStorage)
-  const [conversationId, setConversationId] = useLocalStorage('currentConversationId', null);
-  
+  const [conversationId, setConversationId] = useLocalStorage(
+    "currentConversationId",
+    null,
+  );
+
   // Conversation list
   const [conversations, setConversations] = useState([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [conversationsError, setConversationsError] = useState(null);
-  
+
   // Current conversation context (messages, state)
   const [currentContext, setCurrentContext] = useState(null);
   const [contextLoading, setContextLoading] = useState(false);
-  
+
   // Track latest run_id from context (for "View Flowsheet" button)
   const [latestRunId, setLatestRunId] = useState(null);
-  
+
   // Ref to track if context was loaded via loadConversation (skip useEffect fetch)
   const skipNextContextFetchRef = useRef(false);
 
@@ -40,66 +58,72 @@ export function ChatProvider({ children }) {
   const refreshConversations = useCallback(async () => {
     setConversationsLoading(true);
     setConversationsError(null);
-    
+
     try {
-      const data = await getConversations(50, 0);
+      const data = await getConversations(50, 0, username);
       setConversations(data.conversations || []);
     } catch (error) {
-      console.error('Failed to load conversations:', error);
+      console.error("Failed to load conversations:", error);
       setConversationsError(error.message);
     } finally {
       setConversationsLoading(false);
     }
-  }, []);
+  }, [username]);
 
   /**
    * Load context for a specific conversation
    */
-  const loadConversationContext = useCallback(async (convId) => {
-    if (!convId) {
-      setCurrentContext(null);
-      return;
-    }
-    
-    setContextLoading(true);
-    
-    try {
-      const context = await getContext(convId);
-      setCurrentContext(context);
-    } catch (error) {
-      console.error('Failed to load conversation context:', error);
-      // If conversation not found, clear it
-      if (error.message === 'Conversation not found') {
-        setConversationId(null);
+  const loadConversationContext = useCallback(
+    async (convId) => {
+      if (!convId) {
+        setCurrentContext(null);
+        return;
       }
-      setCurrentContext(null);
-    } finally {
-      setContextLoading(false);
-    }
-  }, [setConversationId]);
+
+      setContextLoading(true);
+
+      try {
+        const context = await getContext(convId);
+        setCurrentContext(context);
+      } catch (error) {
+        console.error("Failed to load conversation context:", error);
+        // If conversation not found, clear it
+        if (error.message === "Conversation not found") {
+          setConversationId(null);
+        }
+        setCurrentContext(null);
+      } finally {
+        setContextLoading(false);
+      }
+    },
+    [setConversationId],
+  );
 
   /**
    * Delete a conversation
    */
-  const deleteConversation = useCallback(async (convId) => {
-    try {
-      await apiDeleteConversation(convId);
-      
-      // If deleting current conversation, clear it
-      if (convId === conversationId) {
-        setConversationId(null);
-        setCurrentContext(null);
+  const deleteConversation = useCallback(
+    async (convId) => {
+      try {
+        await apiDeleteConversation(convId);
+
+        // If deleting current conversation, clear it
+        if (convId === conversationId) {
+          setConversationId(null);
+          setCurrentContext(null);
+        }
+
+        // Refresh list
+        await refreshConversations();
+
+        return true;
+      } catch (error) {
+        console.error("Failed to delete conversation:", error);
+        return false;
       }
-      
-      // Refresh list
-      await refreshConversations();
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to delete conversation:', error);
-      return false;
-    }
-  }, [conversationId, setConversationId, refreshConversations]);
+    },
+    [conversationId, setConversationId, refreshConversations],
+  );
 
   /**
    * Start a new conversation
@@ -125,37 +149,42 @@ export function ChatProvider({ children }) {
    * This loads the conversation context and sets it as active
    * Skips the automatic useEffect fetch by using a ref flag
    */
-  const loadConversation = useCallback(async (convId) => {
-    if (!convId) return;
-    
-    try {
-      const context = await getContext(convId);
-      
-      // Set context FIRST
-      setCurrentContext(context);
-      
-      // Extract latest run_id
-      const runIds = context?.run_ids || [];
-      setLatestRunId(runIds.length > 0 ? runIds[0] : null);
-      
-      // Mark that we should skip the next useEffect fetch
-      skipNextContextFetchRef.current = true;
-      
-      // Set as active conversation (triggers useEffect but it will skip)
-      setConversationId(convId);
-      
-    } catch (error) {
-      console.error('Failed to load conversation:', error);
-      throw error; // Re-throw so ResultsPage can handle redirect
-    }
-  }, [setConversationId]);
+  const loadConversation = useCallback(
+    async (convId) => {
+      if (!convId) return;
+
+      try {
+        const context = await getContext(convId);
+
+        // Set context FIRST
+        setCurrentContext(context);
+
+        // Extract latest run_id
+        const runIds = context?.run_ids || [];
+        setLatestRunId(runIds.length > 0 ? runIds[0] : null);
+
+        // Mark that we should skip the next useEffect fetch
+        skipNextContextFetchRef.current = true;
+
+        // Set as active conversation (triggers useEffect but it will skip)
+        setConversationId(convId);
+      } catch (error) {
+        console.error("Failed to load conversation:", error);
+        throw error; // Re-throw so ResultsPage can handle redirect
+      }
+    },
+    [setConversationId],
+  );
 
   /**
    * Switch to a different conversation
    */
-  const switchConversation = useCallback((convId) => {
-    setConversationId(convId);
-  }, [setConversationId]);
+  const switchConversation = useCallback(
+    (convId) => {
+      setConversationId(convId);
+    },
+    [setConversationId],
+  );
 
   // Load conversations on mount
   useEffect(() => {
@@ -165,21 +194,21 @@ export function ChatProvider({ children }) {
   // Load context when conversation changes (skip if loadConversation was just called)
   useEffect(() => {
     let isMounted = true;
-    
+
     const loadContext = async () => {
       if (!conversationId) {
         setCurrentContext(null);
         return;
       }
-      
+
       // Skip if loadConversation was just called (it already loaded the context)
       if (skipNextContextFetchRef.current) {
         skipNextContextFetchRef.current = false;
         return;
       }
-      
+
       setContextLoading(true);
-      
+
       try {
         const context = await getContext(conversationId);
         if (isMounted) {
@@ -189,10 +218,10 @@ export function ChatProvider({ children }) {
           setLatestRunId(runIds.length > 0 ? runIds[0] : null);
         }
       } catch (error) {
-        console.error('Failed to load conversation context:', error);
+        console.error("Failed to load conversation context:", error);
         if (isMounted) {
           // If conversation not found, clear it
-          if (error.message === 'Conversation not found') {
+          if (error.message === "Conversation not found") {
             setConversationId(null);
           }
           setCurrentContext(null);
@@ -204,9 +233,9 @@ export function ChatProvider({ children }) {
         }
       }
     };
-    
+
     loadContext();
-    
+
     return () => {
       isMounted = false;
     };
@@ -217,13 +246,13 @@ export function ChatProvider({ children }) {
     // Current conversation
     conversationId,
     setConversationId: switchConversation,
-    
+
     // Conversation list
     conversations,
     conversationsLoading,
     conversationsError,
     refreshConversations,
-    
+
     // Current context
     currentContext,
     contextLoading,
@@ -231,17 +260,16 @@ export function ChatProvider({ children }) {
     loadConversation,
     latestRunId,
     updateLatestRunId,
-    
+
+    // Auth
+    username,
+
     // Actions
     deleteConversation,
     createNewConversation,
   };
 
-  return (
-    <ChatContext.Provider value={value}>
-      {children}
-    </ChatContext.Provider>
-  );
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }
 
 /**
@@ -249,11 +277,11 @@ export function ChatProvider({ children }) {
  */
 export function useChatContext() {
   const context = useContext(ChatContext);
-  
+
   if (!context) {
-    throw new Error('useChatContext must be used within a ChatProvider');
+    throw new Error("useChatContext must be used within a ChatProvider");
   }
-  
+
   return context;
 }
 
