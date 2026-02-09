@@ -34,21 +34,18 @@ function ChatContainer() {
   const [state, dispatch] = useChatState();
   const previousConversationIdRef = useRef(conversationId);
   const lastSequenceRef = useRef(0);
+  const [initialSequence, setInitialSequence] = useState(0);
 
   // Update lastSequence when context loads (for existing conversations)
   useEffect(() => {
     if (currentContext && currentContext.last_event_sequence) {
       lastSequenceRef.current = currentContext.last_event_sequence;
+      setInitialSequence(currentContext.last_event_sequence);
       console.log(
         `[ChatContainer] Loaded context, last_event_sequence: ${currentContext.last_event_sequence}`,
       );
     }
   }, [currentContext]);
-
-  // Calculate the highest sequence number from loaded context
-  const getInitialSequence = useCallback(() => {
-    return lastSequenceRef.current;
-  }, []);
 
   // Handle SSE events (for tool progress updates only)
   const onSSEEvent = useCallback(
@@ -81,7 +78,7 @@ function ChatContainer() {
     onSSEEvent,
     !!conversationId && state.isThinking, // Only connect during active message processing
     null,
-    getInitialSequence(),
+    initialSequence,
   );
 
   // Send message handler - now synchronous with direct response

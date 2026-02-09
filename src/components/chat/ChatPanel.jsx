@@ -86,17 +86,15 @@ export default function ChatPanel({
   const [state, dispatch] = useChatState();
   const previousConversationIdRef = useRef(conversationId);
   const lastSequenceRef = useRef(0);
+  const [initialSequence, setInitialSequence] = useState(0);
 
   // Update lastSequence when context loads
   useEffect(() => {
     if (currentContext && currentContext.last_event_sequence) {
       lastSequenceRef.current = currentContext.last_event_sequence;
+      setInitialSequence(currentContext.last_event_sequence);
     }
   }, [currentContext]);
-
-  const getInitialSequence = useCallback(() => {
-    return lastSequenceRef.current;
-  }, []);
 
   // Handle SSE events
   const onSSEEvent = useCallback(
@@ -126,7 +124,7 @@ export default function ChatPanel({
     onSSEEvent,
     true, // Always maintain connection to show online/offline status
     null,
-    getInitialSequence(),
+    initialSequence,
   );
 
   // Send message handler
