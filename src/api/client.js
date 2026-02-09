@@ -11,22 +11,78 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
 /**
+ * Login user with username and shared password
+ * @param {Object} params - Login parameters
+ * @param {string} params.username - Username
+ * @param {string} params.password - Password
+ * @returns {Promise<Object>} { success, username, error }
+ */
+export async function loginUser({ username, password }) {
+  try {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (response.status === 401) {
+      const data = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        username: null,
+        error: data.detail || "Invalid credentials",
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        username: null,
+        error: "Unable to connect. Please try again later.",
+      };
+    }
+
+    const data = await response.json();
+    return { success: true, username: data.username, error: null };
+  } catch {
+    return {
+      success: false,
+      username: null,
+      error: "Unable to connect. Please try again later.",
+    };
+  }
+}
+
+/**
  * Send a chat message and wait for complete response
  * @param {Object} params - Message parameters
  * @param {string} params.message - User message
  * @param {string|null} params.conversation_id - Existing conversation ID or null for new
  * @returns {Promise<Object>} Response with conversation_id, message, status, run_ids, tool_executions, token_usage
  */
-export async function sendMessage({ message, conversation_id = null }) {
+export async function sendMessage({
+  message,
+  conversation_id = null,
+  username = null,
+}) {
+  const body = {
+    conversation_id,
+    message: message.trim(),
+  };
+
+  // Include username in metadata for conversation linking
+  if (username) {
+    body.metadata = { user_id: username.toLowerCase() };
+  }
+
   const response = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      conversation_id,
-      message: message.trim(),
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -45,10 +101,16 @@ export async function sendMessage({ message, conversation_id = null }) {
  * @param {number} offset - Number to skip
  * @returns {Promise<Object>} { conversations: [], total: number }
  */
-export async function getConversations(limit = 50, offset = 0) {
-  const response = await fetch(
-    `${API_BASE}/conversations?limit=${limit}&offset=${offset}`,
-  );
+export async function getConversations(
+  limit = 50,
+  offset = 0,
+  username = null,
+) {
+  let url = `${API_BASE}/conversations?limit=${limit}&offset=${offset}`;
+  if (username) {
+    url += `&username=${encodeURIComponent(username.toLowerCase())}`;
+  }
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error("Failed to fetch conversations");

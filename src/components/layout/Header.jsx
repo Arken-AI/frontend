@@ -1,6 +1,6 @@
 /**
  * Header Component
- * 
+ *
  * Top navigation bar with:
  * - App branding
  * - Page title/breadcrumb
@@ -8,11 +8,12 @@
  * - Action buttons
  */
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useChatContext } from '../../context/ChatContext';
-import { checkHealth } from '../../api/client';
-import { Menu, Settings, ChevronRight, Eye } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useChatContext } from "../../context/ChatContext";
+import { useAuth } from "../../context/AuthContext";
+import { checkHealth } from "../../api/client";
+import { Menu, Settings, ChevronRight, Eye, LogOut, User } from "lucide-react";
 
 /**
  * Health Badge - Consistent with Equipment Browser badges
@@ -26,40 +27,42 @@ function HealthBadge({ status, loading }) {
       </span>
     );
   }
-  
-  const isHealthy = status?.status === 'healthy';
-  
+
+  const isHealthy = status?.status === "healthy";
+
   return (
-    <span className={`
+    <span
+      className={`
       inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors
-      ${isHealthy 
-        ? 'text-emerald-600 bg-emerald-50' 
-        : 'text-red-500 bg-red-50'
-      }
-    `}>
-      <span className={`w-1.5 h-1.5 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-red-400 animate-pulse'}`} />
+      ${isHealthy ? "text-emerald-600 bg-emerald-50" : "text-red-500 bg-red-50"}
+    `}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${isHealthy ? "bg-emerald-500" : "bg-red-400 animate-pulse"}`}
+      />
       <span className="hidden sm:inline">
-        {isHealthy ? 'Connected' : 'Disconnected'}
+        {isHealthy ? "Connected" : "Disconnected"}
       </span>
     </span>
   );
 }
 
-export default function Header({ 
-  onMenuClick, 
-  title = 'ARKEN AI',
+export default function Header({
+  onMenuClick,
+  title = "ARKEN AI",
   subtitle,
   showBackButton = false,
-  onBackClick
+  onBackClick,
 }) {
   const navigate = useNavigate();
   const { conversationId, conversations, latestRunId } = useChatContext();
+  const { username, logout } = useAuth();
   const [health, setHealth] = useState(null);
   const [healthLoading, setHealthLoading] = useState(true);
 
   // Get current conversation info
   const currentConversation = conversations.find(
-    (c) => c.conversation_id === conversationId
+    (c) => c.conversation_id === conversationId,
   );
 
   // Check backend health on mount and periodically
@@ -69,7 +72,7 @@ export default function Header({
         const healthData = await checkHealth();
         setHealth(healthData);
       } catch (error) {
-        setHealth({ status: 'unhealthy', error: error.message });
+        setHealth({ status: "unhealthy", error: error.message });
       } finally {
         setHealthLoading(false);
       }
@@ -96,11 +99,15 @@ export default function Header({
 
         {/* App branding + breadcrumb */}
         <div className="flex items-center gap-2.5">
-          <img src="/arken-logo.svg" alt="Arken AI" className="w-8 h-8 rounded-lg shadow-sm" />
+          <img
+            src="/arken-logo.svg"
+            alt="Arken AI"
+            className="w-8 h-8 rounded-lg shadow-sm"
+          />
           <h1 className="text-sm font-bold tracking-tight text-gray-900">
             {title}
           </h1>
-          
+
           {/* Breadcrumb separator + subtitle */}
           {subtitle && (
             <>
@@ -110,13 +117,13 @@ export default function Header({
               </span>
             </>
           )}
-          
+
           {/* Current conversation title (if no subtitle) */}
           {!subtitle && currentConversation && (
             <>
               <ChevronRight size={14} className="text-gray-300" />
               <span className="hidden lg:block text-sm text-gray-400 max-w-xs truncate">
-                {currentConversation.title || 'Untitled'}
+                {currentConversation.title || "Untitled"}
               </span>
             </>
           )}
@@ -138,7 +145,7 @@ export default function Header({
             <span className="hidden sm:inline">View Flowsheet</span>
           </button>
         )}
-        
+
         {/* Health indicator */}
         <HealthBadge status={health} loading={healthLoading} />
 
@@ -150,6 +157,33 @@ export default function Header({
         >
           <Settings size={18} />
         </button>
+
+        {/* User display & logout */}
+        {username && (
+          <div className="flex items-center gap-2 ml-1 pl-2 border-l border-gray-200">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+              <User size={15} className="text-gray-400" />
+              <span
+                className="hidden sm:inline font-medium max-w-[120px] truncate"
+                title={username}
+              >
+                {username}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+              className="p-1.5 text-gray-400 hover:text-red-500 
+                       hover:bg-red-50 rounded-lg transition-all duration-200"
+              aria-label="Logout"
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
