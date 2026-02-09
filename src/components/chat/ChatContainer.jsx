@@ -269,7 +269,7 @@ function ChatContainer() {
       )}
 
       {/* Main content area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
         {showWelcome ? (
           <WelcomeScreen onSend={handleSendMessage} />
         ) : (
@@ -295,24 +295,26 @@ function ChatContainer() {
 
       {/* Status indicator */}
       {state.isThinking && (
-        <div className="flex items-center justify-center gap-2 py-2 text-xs text-gray-400">
-          <span className="flex items-center gap-1.5">
-            <span className="flex gap-0.5">
-              <span
-                className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                style={{ animationDelay: "150ms" }}
-              />
-              <span
-                className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                style={{ animationDelay: "300ms" }}
-              />
+        <div className="px-4 py-2">
+          <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 text-xs text-gray-400">
+            <span className="flex items-center gap-1.5">
+              <span className="flex gap-0.5">
+                <span
+                  className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <span
+                  className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <span
+                  className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                />
+              </span>
+              <span className="text-gray-400 font-medium">Thinking</span>
             </span>
-            <span className="text-gray-400 font-medium">Thinking</span>
-          </span>
+          </div>
         </div>
       )}
     </div>

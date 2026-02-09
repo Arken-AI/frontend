@@ -80,7 +80,7 @@ export default function MessageInput({
   
   return (
     <div className={`bg-white ${compact ? 'p-2' : 'px-4 py-3'}`}>
-      <div className={compact ? '' : 'max-w-3xl mx-auto'}>
+      <div className={compact ? '' : 'max-w-4xl mx-auto'}>
         <div className={`flex items-end gap-2 ${compact ? '' : 'bg-gray-50 rounded-2xl border border-gray-200 px-3 py-2 focus-within:border-blue-300 focus-within:bg-white focus-within:shadow-sm transition-all duration-200'}`}>
           {/* Textarea or Input */}
           <div className="flex-1">
