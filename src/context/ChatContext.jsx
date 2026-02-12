@@ -60,7 +60,7 @@ export function ChatProvider({ children }) {
     setConversationsError(null);
 
     try {
-      const data = await getConversations(50, 0, username);
+      const data = await getConversations(50, 0);
       setConversations(data.conversations || []);
     } catch (error) {
       console.error("Failed to load conversations:", error);
@@ -68,7 +68,7 @@ export function ChatProvider({ children }) {
     } finally {
       setConversationsLoading(false);
     }
-  }, [username]);
+  }, []);
 
   /**
    * Load context for a specific conversation
