@@ -3,15 +3,20 @@
  *
  * Manages equipment parameter edits, validation, and pending changes.
  * Tracks original values from simulation vs user modifications.
+ * Also tracks compound mapping for single-equipment templates.
  *
  * State Structure:
  * - originalParams: { equipmentId: { paramName: value } } - From last simulation
  * - editedParams: { equipmentId: { paramName: value } } - User modifications only
  * - validationErrors: { equipmentId: { paramName: errorMessage } }
  * - hasUnsavedChanges: boolean - Quick check if any edits exist
+ * - compoundMapping: { compound_1: "ethanol", compound_2: "water" } - Generic → real mapping
+ * - compoundMappingErrors: { compound_1: "error message" } - Validation errors for mapping
  */
 
 import { create } from "zustand";
+
+const GENERIC_COMPOUND_RE = /^compound_\d+$/i;
 
 const useEquipmentStore = create((set, get) => ({
   // State
@@ -19,6 +24,8 @@ const useEquipmentStore = create((set, get) => ({
   editedParams: {},
   validationErrors: {},
   hasUnsavedChanges: false,
+  compoundMapping: {},
+  compoundMappingErrors: {},
 
   /**
    * Initialize store with simulation response data
@@ -30,6 +37,8 @@ const useEquipmentStore = create((set, get) => ({
       editedParams: {}, // Clear edits on new simulation
       validationErrors: {},
       hasUnsavedChanges: false,
+      compoundMapping: {},
+      compoundMappingErrors: {},
     });
   },
 
@@ -155,6 +164,108 @@ const useEquipmentStore = create((set, get) => ({
   },
 
   /**
+   * Update compound mapping for a single placeholder.
+   * Validates uniqueness: no two placeholders may map to the same compound.
+   * @param {string} placeholder - Generic compound key (e.g., "compound_1")
+   * @param {string} compoundName - Real compound name (e.g., "ethanol")
+   */
+  updateCompoundMapping: (placeholder, compoundName) => {
+    set((state) => {
+      const newMapping = {
+        ...state.compoundMapping,
+        [placeholder]: compoundName,
+      };
+      const newErrors = { ...state.compoundMappingErrors };
+
+      // Clear error for this placeholder
+      delete newErrors[placeholder];
+
+      // Validate uniqueness — check for duplicates across all mappings
+      const valueCounts = {};
+      Object.entries(newMapping).forEach(([key, val]) => {
+        if (val) {
+          valueCounts[val] = valueCounts[val] || [];
+          valueCounts[val].push(key);
+        }
+      });
+
+      // Mark duplicates
+      Object.entries(valueCounts).forEach(([val, keys]) => {
+        if (keys.length > 1) {
+          keys.forEach((key) => {
+            newErrors[key] = `Duplicate: "${val}" already used`;
+          });
+        } else {
+          // Clear duplicate error if now unique
+          keys.forEach((key) => {
+            if (newErrors[key]?.startsWith("Duplicate:")) {
+              delete newErrors[key];
+            }
+          });
+        }
+      });
+
+      const hasParamEdits = Object.keys(state.editedParams).length > 0;
+      const hasMappingValues = Object.values(newMapping).some(Boolean);
+
+      return {
+        compoundMapping: newMapping,
+        compoundMappingErrors: newErrors,
+        hasUnsavedChanges: hasParamEdits || hasMappingValues,
+      };
+    });
+  },
+
+  /**
+   * Set the full compound mapping at once (e.g., from loading saved state).
+   * @param {Object} mapping - Full mapping object
+   */
+  setCompoundMapping: (mapping) => {
+    set((state) => ({
+      compoundMapping: mapping || {},
+      compoundMappingErrors: {},
+      hasUnsavedChanges:
+        Object.keys(state.editedParams).length > 0 ||
+        Object.values(mapping || {}).some(Boolean),
+    }));
+  },
+
+  /**
+   * Get compound mapping for simulation payload.
+   * Returns null if no mapping is needed or if mapping is incomplete.
+   * @returns {Object|null}
+   */
+  getCompoundMappingForPayload: () => {
+    const { compoundMapping, compoundMappingErrors } = get();
+    const mappingEntries = Object.entries(compoundMapping).filter(
+      ([_, v]) => v,
+    );
+    if (mappingEntries.length === 0) return null;
+    if (Object.keys(compoundMappingErrors).length > 0) return null;
+    return Object.fromEntries(mappingEntries);
+  },
+
+  /**
+   * Check if compounds have generic placeholders
+   * @param {string[]} compounds - Array of compound names from template
+   * @returns {boolean}
+   */
+  hasGenericCompounds: (compounds) => {
+    if (!compounds || !Array.isArray(compounds)) return false;
+    return compounds.some((c) => GENERIC_COMPOUND_RE.test(c));
+  },
+
+  /**
+   * Extract generic compound placeholders from a compounds array
+   * @param {string[]} compounds - Array of compound names
+   * @returns {string[]} - Only the generic ones (compound_1, compound_2, etc.)
+   */
+  getGenericCompounds: (compounds) => {
+    if (!compounds || !Array.isArray(compounds)) return [];
+    return compounds.filter((c) => GENERIC_COMPOUND_RE.test(c));
+  },
+
+  /**
    * Reset all edits for a specific equipment
    * @param {string} equipmentId - Equipment identifier
    */
@@ -182,6 +293,8 @@ const useEquipmentStore = create((set, get) => ({
       editedParams: {},
       validationErrors: {},
       hasUnsavedChanges: false,
+      compoundMapping: {},
+      compoundMappingErrors: {},
     });
   },
 
@@ -212,7 +325,7 @@ const useEquipmentStore = create((set, get) => ({
   hasValidationErrors: () => {
     const { validationErrors } = get();
     return Object.keys(validationErrors).some(
-      (equipmentId) => Object.keys(validationErrors[equipmentId]).length > 0
+      (equipmentId) => Object.keys(validationErrors[equipmentId]).length > 0,
     );
   },
 
