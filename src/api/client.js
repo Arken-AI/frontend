@@ -199,6 +199,32 @@ export async function getRunResults(runId) {
 }
 
 /**
+ * Get unified flowsheet merging all chained runs.
+ * Walks chain_metadata upward to find the root, then downstream_runs
+ * downward (BFS) to collect every run in the chain graph.
+ * For standalone (unchained) runs, returns the same data wrapped in flowsheet format.
+ *
+ * @param {string} runId - Unique run identifier (any run in the chain)
+ * @returns {Promise<Object>} Flowsheet response with merged data, run_map, all_run_ids
+ * @throws {Error} "Run not found" for 404, or other error messages
+ */
+export async function getRunFlowsheet(runId) {
+  const response = await fetch(`${API_BASE}/runs/${runId}/flowsheet`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Run not found");
+    }
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch flowsheet" }));
+    throw new Error(error.detail || "Failed to fetch flowsheet");
+  }
+
+  return response.json();
+}
+
+/**
  * List simulation runs with optional filters and pagination
  * @param {Object} params - Query parameters
  * @param {string|null} params.source - Filter by source: "calc_engine", "process_server", or null for both

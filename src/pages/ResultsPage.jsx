@@ -18,7 +18,7 @@ import useSelectionStore from "../store/useSelectionStore";
 import useEquipmentStore from "../stores/useEquipmentStore";
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import { ActivityBar } from "../components/layout";
-import { getRunResults } from "../api/client";
+import { getRunResults, getRunFlowsheet } from "../api/client";
 import { useChatContext } from "../context/ChatContext";
 import toast from "react-hot-toast";
 import { PFDReportModal } from "../components/PFDReport";
@@ -64,6 +64,10 @@ export default function ResultsPage() {
   const [apiResponse, setApiResponse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Flowsheet chain state
+  const [runMap, setRunMap] = useState(null); // equipment_id → run_id
+  const [allRunIds, setAllRunIds] = useState([]);
 
   // Get active panel and selection from Zustand store
   const {
@@ -154,7 +158,34 @@ export default function ResultsPage() {
         setLoading(true);
         setError(null);
 
-        const result = await getRunResults(runId);
+        // Try the unified flowsheet endpoint first (merges chained runs),
+        // falling back to single-run endpoint for older runs or if
+        // the flowsheet endpoint is unavailable.
+        let result;
+        try {
+          const flowsheet = await getRunFlowsheet(runId);
+          result = {
+            ...flowsheet,
+            data: flowsheet.data,
+            chain_metadata: flowsheet.chain_metadata,
+          };
+          // Store chain/flowsheet state
+          if (isMounted) {
+            setRunMap(flowsheet.run_map || null);
+            setAllRunIds(flowsheet.all_run_ids || []);
+          }
+        } catch (flowsheetErr) {
+          // Fallback: use single-run endpoint
+          console.warn(
+            "Flowsheet endpoint unavailable, falling back to single run:",
+            flowsheetErr.message,
+          );
+          result = await getRunResults(runId);
+          if (isMounted) {
+            setRunMap(null);
+            setAllRunIds([]);
+          }
+        }
 
         // Only update state if component is still mounted
         if (isMounted) {
