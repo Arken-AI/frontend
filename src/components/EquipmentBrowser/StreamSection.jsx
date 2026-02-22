@@ -8,7 +8,7 @@
  * For outputs: Shows calculated streams (locked)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StreamField from './StreamField';
 import CompositionTable from './CompositionTable';
@@ -35,11 +35,19 @@ export default function StreamSection({
   hasEdits = false,
   hasErrors = false,
   isCollapsible = false,
-  defaultExpanded = true
+  defaultExpanded = true,
+  isCardExpanded = false
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const isOutput = type === 'output';
   const isConfig = type === 'config';
+  
+  // Reset to default expanded state when card is expanded
+  useEffect(() => {
+    if (isCardExpanded) {
+      setIsExpanded(defaultExpanded);
+    }
+  }, [isCardExpanded, defaultExpanded]);
   
   // Count streams for display
   const streamCount = streams.length;

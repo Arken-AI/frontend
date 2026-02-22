@@ -7,7 +7,7 @@
  * Highlights when selected via Zustand store.
  */
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StreamSection from './StreamSection';
 import StreamField from './StreamField';
@@ -83,9 +83,18 @@ function EquipmentParamsSection({
   constraints = [], 
   editedValues = {}, 
   validationErrors = {}, 
-  onParameterChange 
+  onParameterChange,
+  defaultExpanded = true,
+  isCardExpanded = false
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  
+  // Reset to default expanded state when card is expanded
+  useEffect(() => {
+    if (isCardExpanded) {
+      setIsExpanded(defaultExpanded);
+    }
+  }, [isCardExpanded, defaultExpanded]);
   
   // Filter to only show editable parameters
   const editableParams = constraints.filter(c => c.editable !== false);
@@ -306,6 +315,7 @@ const EquipmentCard = forwardRef(({
               editedValues={editedValues}
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
+              isCardExpanded={isExpanded}
             />
           )}
 
@@ -319,7 +329,8 @@ const EquipmentCard = forwardRef(({
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
               isCollapsible={true}
-              defaultExpanded={false}
+              defaultExpanded={true}
+              isCardExpanded={isExpanded}
             />
           )}
 
@@ -334,6 +345,7 @@ const EquipmentCard = forwardRef(({
               onParameterChange={onParameterChange}
               isCollapsible={true}
               defaultExpanded={false}
+              isCardExpanded={isExpanded}
             />
           )}
 
