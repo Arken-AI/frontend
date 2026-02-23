@@ -72,6 +72,9 @@ export default function ResultsPage() {
   const [runMap, setRunMap] = useState(null); // equipment_id → run_id
   const [allRunIds, setAllRunIds] = useState([]);
 
+  // Increment to force re-fetch even when runId stays the same (re-simulation)
+  const [fetchCounter, setFetchCounter] = useState(0);
+
   // Get active panel and selection from Zustand store
   const {
     activePanel,
@@ -248,7 +251,7 @@ export default function ResultsPage() {
     return () => {
       isMounted = false;
     };
-  }, [runId, navigate]);
+  }, [runId, navigate, fetchCounter]);
 
   // Ensure sidebar opens when active panel changes (e.g., from Warnings "View Equipment")
   useEffect(() => {
@@ -643,16 +646,19 @@ export default function ResultsPage() {
       resetAll();
       toast.success("Simulation complete — loading new results…");
 
-      // --- Fix 2: carry both messages through navigation state.
-      // After the new ResultsPage calls loadConversation() (which overwrites
-      // currentContext), it reads location.state.pendingMessages and
-      // re-applies them on top of the fresh backend snapshot. ---
-      navigate(`/results/${newRunId}`, {
-        replace: false,
-        state: {
-          pendingMessages: [userMessage, assistantMessage],
-        },
-      });
+      if (newRunId !== runId) {
+        // Different run ID — navigate to it (triggers fetchResults via runId change)
+        navigate(`/results/${newRunId}`, {
+          replace: false,
+          state: {
+            pendingMessages: [userMessage, assistantMessage],
+          },
+        });
+      } else {
+        // Same run ID (e.g. backend reused the ID) — force re-fetch
+        // by bumping fetchCounter since runId didn't change.
+        setFetchCounter((c) => c + 1);
+      }
     } catch (err) {
       toast.dismiss(loadingToast);
       toast.error(err.message || "Simulation failed. Please try again.");
