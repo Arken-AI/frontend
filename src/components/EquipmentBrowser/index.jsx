@@ -88,16 +88,39 @@ export default function EquipmentBrowser({
   /**
    * Handle parameter change from equipment card
    * @param {string} equipmentId - Equipment identifier
-   * @param {string} paramName - Parameter name
+   * @param {string} paramName - Parameter name (may be "streamId_fieldName" for stream edits)
    * @param {number|string} value - New value
    * @param {boolean} isValid - Whether value passes validation
    */
   const handleParameterChange = (equipmentId, paramName, value, isValid) => {
-    // Get constraints for validation (from equipment data)
     const equipment = equipmentList.find((eq) => eq.id === equipmentId);
     if (!equipment) return;
 
-    // Find constraint for this parameter
+    // Detect composite stream key: "streamId_fieldName" (e.g. "column_feed_temperature_K")
+    // Feed stream IDs are available on equipment.inputs[].streamId
+    const feedStreamIds = (equipment.inputs || [])
+      .filter((s) => s.editable)
+      .map((s) => s.streamId);
+
+    // Check if paramName starts with any known feed stream ID
+    const matchedStreamId = feedStreamIds.find(
+      (sid) => paramName === `${sid}_temperature_K` ||
+               paramName === `${sid}_pressure_Pa` ||
+               paramName === `${sid}_flow_rate`,
+    );
+
+    if (matchedStreamId) {
+      // Stream property edit — store under the stream ID, not the equipment ID
+      const fieldName = paramName.slice(matchedStreamId.length + 1); // strip "streamId_"
+      const constraint = {}; // stream field constraints are numeric
+      const error = validateParameter(matchedStreamId, fieldName, value, constraint);
+      if (!error) {
+        updateParameter(matchedStreamId, fieldName, value);
+      }
+      return;
+    }
+
+    // Equipment parameter edit — original path
     const constraint = equipment.constraints?.find((c) => c.key === paramName);
 
     // String parameters (dropdowns) - skip numeric validation, update directly
@@ -115,7 +138,6 @@ export default function EquipmentBrowser({
       : {};
     const error = validateParameter(equipmentId, paramName, value, constraints);
 
-    // Update parameter value in store (only if valid)
     if (!error) {
       updateParameter(equipmentId, paramName, value);
     }
@@ -164,6 +186,7 @@ export default function EquipmentBrowser({
             onToggle={() => handleToggle(equipment.id)}
             onClick={() => handleCardClick(equipment.id)}
             editedValues={editedParams[equipment.id] || {}}
+            allEditedParams={editedParams}
             validationErrors={validationErrors[equipment.id] || {}}
             onParameterChange={(paramName, value, isValid) =>
               handleParameterChange(equipment.id, paramName, value, isValid)

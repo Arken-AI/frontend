@@ -7,7 +7,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import FlowCanvas from "../components/FlowCanvas";
 import ChatPanel from "../components/chat/ChatPanel";
 import {
@@ -18,8 +18,9 @@ import useSelectionStore from "../store/useSelectionStore";
 import useEquipmentStore from "../stores/useEquipmentStore";
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import { ActivityBar } from "../components/layout";
-import { getRunResults, getRunFlowsheet } from "../api/client";
+import { getRunResults, getRunFlowsheet, sendMessage } from "../api/client";
 import { useChatContext } from "../context/ChatContext";
+import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { PFDReportModal } from "../components/PFDReport";
 import { DetailedReportButton } from "../components/DetailedReport";
@@ -58,7 +59,9 @@ const CHAT_COLLAPSE_THRESHOLD = 200;
 export default function ResultsPage() {
   const { runId } = useParams();
   const navigate = useNavigate();
-  const { loadConversation } = useChatContext();
+  const location = useLocation();
+  const { loadConversation, appendMessagesToContext } = useChatContext();
+  const { username } = useAuth();
 
   // API response state for simulation results
   const [apiResponse, setApiResponse] = useState(null);
@@ -209,6 +212,16 @@ export default function ResultsPage() {
             try {
               loadedConversationRef.current = result.conversation_id;
               await loadConversation(result.conversation_id);
+
+              // After loadConversation overwrites currentContext, re-apply any
+              // messages that were passed through navigation state (from re-simulation).
+              // This beats the overwrite race because we run immediately after the fetch.
+              const pending = location.state?.pendingMessages;
+              if (pending && pending.length > 0) {
+                appendMessagesToContext(pending);
+                // Clear nav state so a hard-refresh doesn't re-inject them
+                navigate(location.pathname, { replace: true, state: {} });
+              }
             } catch (convError) {
               console.error("Failed to load conversation:", convError);
               // Continue even if conversation fails to load
@@ -552,9 +565,100 @@ export default function ResultsPage() {
       Object.keys(feedStreamEdits).length,
     );
 
-    // TODO: Phase 1 — build chat message text and call sendMessage()
-    // TODO: Phase 5 — navigate to new run_id, call resetAll()
-    toast.success("Simulation payload ready (Phase 1 pending)");
+    // ---------------------------------------------------------------
+    // Phase 1: Build the chat message and call sendMessage()
+    // ---------------------------------------------------------------
+
+    // Human-readable summary for the message text
+    const editSummaryParts = [];
+    Object.entries(equipmentParamEdits).forEach(([equipId, params]) => {
+      const paramStr = Object.entries(params)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ");
+      editSummaryParts.push(`${equipId}: ${paramStr}`);
+    });
+    Object.entries(feedStreamEdits).forEach(([streamId, props]) => {
+      const propStr = Object.entries(props)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ");
+      editSummaryParts.push(`feed stream ${streamId}: ${propStr}`);
+    });
+
+    const messageText =
+      `Parameter update — please re-simulate.\n` +
+      `Changes: ${editSummaryParts.join(" | ") || "(see metadata)"}\n` +
+      `Process: ${apiResponse?.process_id || "unknown"}`;
+
+    setIsSimulating(true);
+    const loadingToast = toast.loading("Simulating…");
+
+    // --- Fix 1: inject user message IMMEDIATELY so it appears in the
+    // chat panel before the (potentially long) backend call starts. ---
+    const userMessage = {
+      role: "user",
+      content: messageText,
+      timestamp: new Date().toISOString(),
+    };
+    appendMessagesToContext([userMessage]);
+
+    try {
+      const response = await sendMessage({
+        message: messageText,
+        conversation_id: conversationId,
+        username,
+        extra_metadata: {
+          re_simulation: true,
+          ...simulationPayload,
+        },
+      });
+
+      toast.dismiss(loadingToast);
+
+      // Extract new run_id from response
+      const newRunId = response.run_ids?.[0];
+
+      if (!newRunId) {
+        toast.error(
+          response.message ||
+            "Simulation completed but no run ID returned. Check chat for details.",
+        );
+        return;
+      }
+
+      // Build the assistant message now that we have the response
+      const assistantMessage = {
+        role: "assistant",
+        content: response.message || "",
+        timestamp: new Date().toISOString(),
+        run_ids: response.run_ids,
+        tool_executions: response.tool_executions,
+      };
+
+      // Inject assistant reply into current page's chat panel too
+      appendMessagesToContext([assistantMessage]);
+
+      // Clear edits — new results are now the baseline
+      resetAll();
+      toast.success("Simulation complete — loading new results…");
+
+      // --- Fix 2: carry both messages through navigation state.
+      // After the new ResultsPage calls loadConversation() (which overwrites
+      // currentContext), it reads location.state.pendingMessages and
+      // re-applies them on top of the fresh backend snapshot. ---
+      navigate(`/results/${newRunId}`, {
+        replace: false,
+        state: {
+          pendingMessages: [userMessage, assistantMessage],
+        },
+      });
+      setIsRightChatOpen(true);
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      toast.error(err.message || "Simulation failed. Please try again.");
+      console.error("[Simulate] sendMessage error:", err);
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
   // Warn user before leaving page with unsaved changes or active simulation
@@ -595,7 +699,7 @@ export default function ResultsPage() {
           {hasUnsavedChanges && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 border border-orange-300 text-orange-600 bg-orange-50 rounded-full text-xs font-medium">
               <span>⚠</span>
-              <span>{getEditedCount()} modified</span>
+              <span>{getEditedCount()} param{getEditedCount() !== 1 ? 's' : ''} modified</span>
             </div>
           )}
         </div>

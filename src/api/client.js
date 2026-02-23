@@ -60,21 +60,28 @@ export async function loginUser({ username, password }) {
  * @param {Object} params - Message parameters
  * @param {string} params.message - User message
  * @param {string|null} params.conversation_id - Existing conversation ID or null for new
+ * @param {string|null} params.username - Username for user_id metadata
+ * @param {Object|null} params.extra_metadata - Additional metadata merged alongside user_id
  * @returns {Promise<Object>} Response with conversation_id, message, status, run_ids, tool_executions, token_usage
  */
 export async function sendMessage({
   message,
   conversation_id = null,
   username = null,
+  extra_metadata = null,
 }) {
   const body = {
     conversation_id,
     message: message.trim(),
   };
 
-  // Include username in metadata for conversation linking
-  if (username) {
-    body.metadata = { user_id: username.toLowerCase() };
+  // Merge user_id and any extra_metadata (e.g. re_simulation payload)
+  const metadataBase = username ? { user_id: username.toLowerCase() } : {};
+  const merged = extra_metadata
+    ? { ...metadataBase, ...extra_metadata }
+    : metadataBase;
+  if (Object.keys(merged).length > 0) {
+    body.metadata = merged;
   }
 
   const response = await fetch(`${API_BASE}/chat`, {

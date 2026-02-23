@@ -330,11 +330,14 @@ const useEquipmentStore = create((set, get) => ({
   },
 
   /**
-   * Get count of edited equipment
+   * Get count of edited parameters (across all equipment and streams)
    * @returns {number}
    */
   getEditedCount: () => {
-    return Object.keys(get().editedParams).length;
+    return Object.values(get().editedParams).reduce(
+      (sum, params) => sum + Object.keys(params).length,
+      0,
+    );
   },
 
   /**

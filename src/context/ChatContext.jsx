@@ -145,6 +145,22 @@ export function ChatProvider({ children }) {
   }, []);
 
   /**
+   * Append messages directly into currentContext without a backend re-fetch.
+   * Used by ResultsPage after re-simulation to show the exchange instantly
+   * before the new page's loadConversation() fires.
+   */
+  const appendMessagesToContext = useCallback((newMessages) => {
+    setCurrentContext((prev) => {
+      if (!prev) return prev;
+      const existing = prev.messages || [];
+      return {
+        ...prev,
+        messages: [...existing, ...newMessages],
+      };
+    });
+  }, []);
+
+  /**
    * Load a conversation by ID (used when navigating to ResultsPage)
    * This loads the conversation context and sets it as active
    * Skips the automatic useEffect fetch by using a ref flag
@@ -260,6 +276,7 @@ export function ChatProvider({ children }) {
     loadConversation,
     latestRunId,
     updateLatestRunId,
+    appendMessagesToContext,
 
     // Auth
     username,

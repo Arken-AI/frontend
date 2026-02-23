@@ -240,6 +240,7 @@ const EquipmentCard = forwardRef(({
   onToggle, 
   onClick,
   editedValues = {},
+  allEditedParams = {},
   validationErrors = {},
   onParameterChange
 }, ref) => {
@@ -258,10 +259,22 @@ const EquipmentCard = forwardRef(({
     metadata
   } = equipment;
   
-  // Check if this equipment has any edits
-  const hasEdits = Object.keys(editedValues).length > 0;
+  // Check if this equipment has any edits (params OR any of its feed streams)
+  const feedStreamIds = (inputs || []).filter((s) => s.editable).map((s) => s.streamId);
+  const hasStreamEdits = feedStreamIds.some((sid) => allEditedParams[sid] && Object.keys(allEditedParams[sid]).length > 0);
+  const hasEdits = Object.keys(editedValues).length > 0 || hasStreamEdits;
   const hasErrors = Object.keys(validationErrors).length > 0;
   const warningCount = warnings?.length || 0;
+
+  // Build merged editedValues for StreamSection:
+  // equipment params keyed as-is, stream props keyed as "streamId_fieldName"
+  const mergedEditedValues = { ...editedValues };
+  feedStreamIds.forEach((sid) => {
+    const streamEdits = allEditedParams[sid] || {};
+    Object.entries(streamEdits).forEach(([field, val]) => {
+      mergedEditedValues[`${sid}_${field}`] = val;
+    });
+  });
 
   return (
     <div 
@@ -325,7 +338,7 @@ const EquipmentCard = forwardRef(({
               title="INPUTS" 
               streams={inputs} 
               type="input"
-              editedValues={editedValues}
+              editedValues={mergedEditedValues}
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
               isCollapsible={true}
