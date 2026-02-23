@@ -86,6 +86,7 @@ export default function ResultsPage() {
     resetAll,
     getCompoundMappingForPayload,
     compoundMappingErrors,
+    editedParams,
   } = useEquipmentStore();
 
   // Left sidebar state
@@ -98,6 +99,9 @@ export default function ResultsPage() {
 
   // PFD Report modal state
   const [isPFDReportOpen, setIsPFDReportOpen] = useState(false);
+
+  // Re-simulation in-flight lock
+  const [isSimulating, setIsSimulating] = useState(false);
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
@@ -433,6 +437,10 @@ export default function ResultsPage() {
 
   // Handle discard changes
   const handleDiscardChanges = () => {
+    if (isSimulating) {
+      toast.error("Cannot discard while simulation is running");
+      return;
+    }
     if (
       window.confirm(
         "Are you sure you want to discard all changes? This cannot be undone.",
@@ -445,6 +453,11 @@ export default function ResultsPage() {
 
   // Handle back to chat with unsaved changes check
   const handleBackToChat = (e) => {
+    if (isSimulating) {
+      e.preventDefault();
+      toast.error("Cannot navigate away while simulation is running");
+      return;
+    }
     if (hasUnsavedChanges) {
       e.preventDefault();
       if (
@@ -459,37 +472,95 @@ export default function ResultsPage() {
   };
 
   // Handle simulate button click
-  const handleSimulate = () => {
+  const handleSimulate = async () => {
+    // --- Guard 1: validation errors ---
     if (hasValidationErrors()) {
       toast.error("Please fix validation errors before simulating");
       return;
     }
 
-    // Check compound mapping errors for single-equipment templates
+    // --- Guard 2: compound mapping errors (single-equipment templates) ---
     if (Object.keys(compoundMappingErrors).length > 0) {
       toast.error("Please fix compound mapping errors before simulating");
       return;
     }
 
+    // --- Guard 3: nothing edited ---
     if (!hasUnsavedChanges) {
       toast.error("No changes to simulate");
       return;
     }
 
-    // Build payload including compound_mapping if applicable
-    const compoundMapping = getCompoundMappingForPayload();
-    if (compoundMapping) {
-      console.log("[Simulate] Including compound_mapping:", compoundMapping);
+    // --- Guard 4: no conversation context to re-simulate into ---
+    const conversationId = apiResponse?.conversation_id;
+    if (!conversationId) {
+      toast.error(
+        "This run has no linked conversation. Open a new chat to re-simulate.",
+      );
+      return;
     }
 
-    // TODO: Phase 4 - Call simulation API with edited parameters
-    toast.success("Simulation started (API integration pending)");
+    // --- Guard 5: already simulating ---
+    if (isSimulating) return;
+
+    // ---------------------------------------------------------------
+    // Phase 0: Classify edited params into feed-stream edits vs
+    // equipment-parameter edits so the backend knows which MCP tool
+    // argument to populate.
+    //
+    // editedParams shape: { equipmentId: { paramName: value } }
+    // Feed streams live in apiResponse.data.input.feed_streams and
+    // are identified by stream_id.
+    // ---------------------------------------------------------------
+    const feedStreamIds = new Set(
+      (apiResponse?.data?.input?.feed_streams || []).map((f) => f.stream_id),
+    );
+
+    const feedStreamEdits = {};   // { stream_id: { prop: value } }
+    const equipmentParamEdits = {}; // { equip_id: { param: value } }
+
+    Object.entries(editedParams).forEach(([id, params]) => {
+      if (feedStreamIds.has(id)) {
+        // This id is a feed stream — every key is a stream property
+        feedStreamEdits[id] = { ...params };
+      } else {
+        // This id is an equipment node — every key is a process parameter
+        equipmentParamEdits[id] = { ...params };
+      }
+    });
+
+    // Include compound mapping if present (single-equipment templates)
+    const compoundMapping = getCompoundMappingForPayload();
+
+    // Collect all context the backend needs to build the MCP tool call
+    const simulationPayload = {
+      conversation_id: conversationId,
+      process_id: apiResponse?.process_id || null,
+      source: apiResponse?.source || null,         // "calc_engine" | "process_server"
+      template_type: apiResponse?.template_type || null, // "single_equipment" | "process"
+      parent_run_id: runId,
+      equipment_param_edits: equipmentParamEdits,  // { equip_id: { param: val } }
+      feed_stream_edits: feedStreamEdits,          // { stream_id: { prop: val } }
+      ...(compoundMapping ? { compound_mapping: compoundMapping } : {}),
+    };
+
+    console.log("[Simulate] Payload classified:", simulationPayload);
+    console.log(
+      "[Simulate] Equipment edits:",
+      Object.keys(equipmentParamEdits).length,
+      "| Feed stream edits:",
+      Object.keys(feedStreamEdits).length,
+    );
+
+    // TODO: Phase 1 — build chat message text and call sendMessage()
+    // TODO: Phase 5 — navigate to new run_id, call resetAll()
+    toast.success("Simulation payload ready (Phase 1 pending)");
   };
 
-  // Warn user before leaving page with unsaved changes
+  // Warn user before leaving page with unsaved changes or active simulation
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (hasUnsavedChanges) {
+      if (hasUnsavedChanges || isSimulating) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -497,7 +568,7 @@ export default function ResultsPage() {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  }, [hasUnsavedChanges, isSimulating]);
 
   // Get current section config
   const currentSection = SIDEBAR_SECTIONS.find((s) => s.id === activePanel);
@@ -534,21 +605,35 @@ export default function ResultsPage() {
           {/* Simulate Button */}
           <button
             onClick={handleSimulate}
-            disabled={!hasUnsavedChanges || hasValidationErrors()}
-            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            disabled={!hasUnsavedChanges || hasValidationErrors() || isSimulating}
+            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5"
             title={
-              hasValidationErrors()
-                ? "Fix validation errors first"
-                : !hasUnsavedChanges
-                  ? "No changes to simulate"
-                  : "Run simulation with edited parameters"
+              isSimulating
+                ? "Simulation in progress..."
+                : hasValidationErrors()
+                  ? "Fix validation errors first"
+                  : !hasUnsavedChanges
+                    ? "No changes to simulate"
+                    : "Run simulation with edited parameters"
             }
           >
-            {hasUnsavedChanges ? "Run Simulation" : "Simulate"}
+            {isSimulating ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Simulating…
+              </>
+            ) : hasUnsavedChanges ? (
+              "Run Simulation"
+            ) : (
+              "Simulate"
+            )}
           </button>
 
-          {/* Discard Changes Button */}
-          {hasUnsavedChanges && (
+          {/* Discard Changes Button — hidden while simulating */}
+          {hasUnsavedChanges && !isSimulating && (
             <button
               onClick={handleDiscardChanges}
               className="px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-red-300"
