@@ -37,6 +37,7 @@ export default function ChatPanel({
   title = "MCP Chat",
   placeholder = "Ask about process simulations...",
   showHeader = true,
+  externalProcessing = false,
 }) {
   const {
     conversationId,
@@ -233,8 +234,8 @@ export default function ChatPanel({
     dispatch({ type: "RESET" });
   }, [createNewConversation, dispatch]);
 
-  const showWelcome = state.messages.length === 0 && !state.isThinking;
-  const isProcessing = state.isThinking;
+  const showWelcome = state.messages.length === 0 && !state.isThinking && !externalProcessing;
+  const isProcessing = state.isThinking || externalProcessing;
 
   // Get conversation title from context
   const conversationTitle =
@@ -416,9 +417,9 @@ export default function ChatPanel({
       <MessageInput
         onSend={handleSendMessage}
         onCancel={handleCancelRequest}
-        disabled={false}
+        disabled={externalProcessing}
         isProcessing={isProcessing}
-        placeholder={placeholder}
+        placeholder={externalProcessing ? "Simulation in progress…" : placeholder}
         compact
       />
     </div>

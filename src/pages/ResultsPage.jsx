@@ -203,6 +203,7 @@ export default function ResultsPage() {
           }
 
           setApiResponse(result);
+          resetAll(); // Phase 6: clear any stale edits when new results load
 
           // Load conversation if conversation_id exists and not already loaded
           if (
@@ -590,6 +591,7 @@ export default function ResultsPage() {
       `Process: ${apiResponse?.process_id || "unknown"}`;
 
     setIsSimulating(true);
+    setIsRightChatOpen(true); // Phase 5d: open now so SSE tool events stream in real time
     const loadingToast = toast.loading("Simulating…");
 
     // --- Fix 1: inject user message IMMEDIATELY so it appears in the
@@ -651,7 +653,6 @@ export default function ResultsPage() {
           pendingMessages: [userMessage, assistantMessage],
         },
       });
-      setIsRightChatOpen(true);
     } catch (err) {
       toast.dismiss(loadingToast);
       toast.error(err.message || "Simulation failed. Please try again.");
@@ -937,6 +938,7 @@ export default function ResultsPage() {
               <ChatPanel
                 onClose={() => setIsRightChatOpen(false)}
                 placeholder="Ask about this simulation..."
+                externalProcessing={isSimulating}
               />
             </ErrorBoundary>
           </div>
