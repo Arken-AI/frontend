@@ -208,6 +208,20 @@ export default function ResultsPage() {
           setApiResponse(result);
           resetAll(); // Phase 6: clear any stale edits when new results load
 
+          // Restore compound mapping from the persisted run so
+          // re-simulation payloads always include it for single-equipment
+          // templates with generic compounds.
+          // NOTE: setCompoundMapping would set hasUnsavedChanges=true since the
+          // mapping has values. We set the mapping directly without triggering
+          // the "unsaved" flag because this is the saved baseline, not a user edit.
+          if (result.compound_mapping && typeof result.compound_mapping === 'object') {
+            useEquipmentStore.setState({
+              compoundMapping: result.compound_mapping,
+              compoundMappingErrors: {},
+              // hasUnsavedChanges stays false — this is baseline, not an edit
+            });
+          }
+
           // Load conversation if conversation_id exists and not already loaded
           if (
             result.conversation_id &&
@@ -464,6 +478,14 @@ export default function ResultsPage() {
       )
     ) {
       resetAll();
+      // Restore compound mapping baseline — resetAll() wipes it but the
+      // run's mapping is still the correct baseline for the next edit cycle.
+      if (apiResponse?.compound_mapping && typeof apiResponse.compound_mapping === 'object') {
+        useEquipmentStore.setState({
+          compoundMapping: apiResponse.compound_mapping,
+          compoundMappingErrors: {},
+        });
+      }
       toast.success("All changes discarded");
     }
   };
