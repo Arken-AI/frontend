@@ -45,23 +45,40 @@ export default function MessageList({
       className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin"
     >
       <div className="max-w-4xl mx-auto">
-        {/* Render all messages WITHOUT tool executions */}
+        {/* Render all messages with their inline tool executions */}
         {messages.map((message, index) => (
           <div key={index}>
             {/* User message */}
             {message.role === 'user' && <MessageBubble message={message} />}
-            
-            {/* Assistant message - no tool cards shown */}
+
+            {/* Assistant message — tool cards shown inline above the bubble */}
             {message.role === 'assistant' && (
-              <MessageBubble message={message} />
+              <div>
+                {message.toolExecutions?.length > 0 && (
+                  <div className="space-y-2 mb-2">
+                    {message.toolExecutions.map((tool, i) => (
+                      <ToolExecutionCard
+                        key={i}
+                        toolName={tool.tool_name || tool.name}
+                        status={tool.status}
+                        duration={tool.duration_ms || tool.duration}
+                        summary={tool.summary}
+                        error={tool.error}
+                        arguments={tool.arguments}
+                      />
+                    ))}
+                  </div>
+                )}
+                <MessageBubble message={message} />
+              </div>
             )}
           </div>
         ))}
         
-        {/* Only show current/active tools during processing */}
-        {(isThinking || toolExecutions.length > 0 || activeTool || runProgress) && (
+        {/* Live processing indicators — only shown while a request is in-flight */}
+        {(isThinking || activeTool || runProgress || toolExecutions.length > 0) && (
           <div className="space-y-4">
-            {/* Currently executing tools (not yet in messages) */}
+            {/* Live tool executions (SSE-driven, not yet attached to a message) */}
             {toolExecutions.length > 0 && (
               <div className="space-y-2">
                 {toolExecutions.map((tool, index) => (

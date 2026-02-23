@@ -89,13 +89,42 @@ export default function ChatPanel({
   const lastSequenceRef = useRef(0);
   const [initialSequence, setInitialSequence] = useState(0);
 
+  // Step 4: Don't connect SSE until we know the correct after_sequence.
+  // For new conversations (no conversationId yet) we're ready immediately;
+  // for existing ones we wait until currentContext provides last_event_sequence.
+  const [sseReady, setSseReady] = useState(!conversationId);
+
   // Update lastSequence when context loads
   useEffect(() => {
-    if (currentContext && currentContext.last_event_sequence) {
+    if (currentContext && currentContext.last_event_sequence !== undefined) {
       lastSequenceRef.current = currentContext.last_event_sequence;
       setInitialSequence(currentContext.last_event_sequence);
+      setSseReady(true);
+    } else if (currentContext) {
+      // Context loaded but no events yet (brand-new conversation) — ready at seq 0
+      setSseReady(true);
     }
   }, [currentContext]);
+
+  // When the user switches to a different existing conversation, pause SSE
+  // until its context loads with the correct last_event_sequence.
+  // When conversationId goes from null → new (first message), DON'T pause —
+  // we're at sequence 0 and need SSE connected to catch live tool events.
+  useEffect(() => {
+    const previousId = previousConversationIdRef.current;
+    if (conversationId && previousId && conversationId !== previousId) {
+      // User switched conversations — pause until context loads
+      setSseReady(false);
+      setInitialSequence(0);
+      lastSequenceRef.current = 0;
+    } else if (!conversationId) {
+      // No conversation — ready at seq 0 for the next new one
+      setSseReady(true);
+      setInitialSequence(0);
+      lastSequenceRef.current = 0;
+    }
+    // null → new id: keep sseReady as-is (true), sequence stays at 0
+  }, [conversationId]);
 
   // Handle SSE events
   const onSSEEvent = useCallback(
@@ -119,19 +148,40 @@ export default function ChatPanel({
     [dispatch],
   );
 
-  // SSE connection - always try to connect to show proper status
+  // SSE connection — deferred until context loads so we use the correct after_sequence
   const { isConnected, error: sseError } = useSSE(
     conversationId,
     onSSEEvent,
-    true, // Always maintain connection to show online/offline status
+    sseReady,
     null,
     initialSequence,
   );
+
+  // Generate a conversation ID client-side so SSE can connect BEFORE
+  // the POST fires. The backend already accepts a client-provided ID:
+  //   conversation_id = request.conversation_id or f"conv_{uuid4()...}"
+  const generateConversationId = () => {
+    const hex = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `conv_${hex}`;
+  };
 
   // Send message handler
   const handleSendMessage = useCallback(
     async (content) => {
       if (!content.trim() || state.isThinking) return;
+
+      // Option B: If no conversationId yet, generate one client-side so
+      // useSSE can connect to the stream BEFORE the POST leaves the browser.
+      let activeConversationId = conversationId;
+      if (!activeConversationId) {
+        activeConversationId = generateConversationId();
+        setSseReady(true);
+        setInitialSequence(0);
+        lastSequenceRef.current = 0;
+        setConversationId(activeConversationId);
+      }
 
       const userMessage = {
         role: "user",
@@ -145,20 +195,14 @@ export default function ChatPanel({
       try {
         const response = await sendMessage({
           message: content.trim(),
-          conversation_id: conversationId,
+          conversation_id: activeConversationId,
           username,
         });
 
-        if (
-          response.conversation_id &&
-          response.conversation_id !== conversationId
-        ) {
-          setConversationId(response.conversation_id);
-        }
-
-        dispatch({ type: "SET_THINKING", payload: false });
-
         if (response.status === "completed" && response.message) {
+          // ADD_MESSAGE fires first while toolExecutions[] still has the live
+          // SSE cards, so they get adopted onto the message. SET_THINKING false
+          // (and its activeTool/runProgress cleanup) fires after.
           dispatch({
             type: "ADD_MESSAGE",
             payload: {
@@ -170,16 +214,20 @@ export default function ChatPanel({
               token_usage: response.token_usage,
             },
           });
+          dispatch({ type: "SET_THINKING", payload: false });
 
           // Update latest run ID for "View Flowsheet" button
           if (response.run_ids && response.run_ids.length > 0) {
             updateLatestRunId(response.run_ids);
           }
         } else if (response.status === "error") {
+          dispatch({ type: "SET_THINKING", payload: false });
           dispatch({
             type: "SET_ERROR",
             payload: response.message || "An error occurred",
           });
+        } else {
+          dispatch({ type: "SET_THINKING", payload: false });
         }
 
         await refreshConversations();

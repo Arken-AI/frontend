@@ -53,6 +53,7 @@ function chatReducer(state, action) {
         ...state,
         isThinking: false,
         thinkingStartTime: null,
+        activeTool: null, // Safety: clear orphan spinner if tool_end was missed
       };
 
     case ACTIONS.TOOL_START:
@@ -108,7 +109,26 @@ function chatReducer(state, action) {
         activeTool: null,
       };
 
-    case ACTIONS.ADD_MESSAGE:
+    case ACTIONS.ADD_MESSAGE: {
+      const incomingToolExecs = action.payload.tool_executions || [];
+      // If the new assistant message has no tool_executions from the API response,
+      // adopt the current live SSE executions so they stay attached to the message.
+      const toolExecsForMessage =
+        incomingToolExecs.length > 0
+          ? incomingToolExecs.map((t) => ({
+              tool_name: t.tool_name || t.name,
+              status: t.status,
+              duration_ms: t.duration_ms || t.duration,
+              summary: t.summary,
+              error: t.error,
+            }))
+          : state.toolExecutions.map((t) => ({
+              tool_name: t.name,
+              status: t.status,
+              duration_ms: t.duration,
+              summary: t.summary,
+              error: t.error,
+            }));
       return {
         ...state,
         messages: [
@@ -119,11 +139,15 @@ function chatReducer(state, action) {
             timestamp: action.payload.timestamp || new Date().toISOString(),
             metadata: action.payload.metadata,
             run_ids: action.payload.run_ids,
-            tool_executions: action.payload.tool_executions,
+            // Normalised array used by MessageList for inline rendering
+            toolExecutions: toolExecsForMessage,
           },
         ],
+        // Clear the global live list — ownership moves to the message
+        toolExecutions: [],
         error: null,
       };
+    }
 
     case ACTIONS.ADD_USER_MESSAGE:
       return {
@@ -148,7 +172,11 @@ function chatReducer(state, action) {
         timestamp: msg.timestamp || new Date().toISOString(),
         metadata: msg.metadata,
         // Tool executions are stored per-message for historical display
-        toolExecutions: msg.toolExecutions || msg.tool_executions || [],
+        toolExecutions:
+          msg.toolExecutions ||
+          msg.tool_executions ||
+          msg.metadata?.tool_executions ||
+          [],
       }));
 
       return {
@@ -180,8 +208,9 @@ function chatReducer(state, action) {
         ...state,
         isThinking: action.payload,
         thinkingStartTime: action.payload ? Date.now() : null,
-        // Clear transient UI elements when thinking stops
-        toolExecutions: action.payload ? state.toolExecutions : [],
+        // Only clear activeTool and runProgress when thinking stops.
+        // toolExecutions is intentionally kept alive so ADD_MESSAGE can adopt
+        // the live SSE cards onto the message before clearing them.
         activeTool: action.payload ? state.activeTool : null,
         runProgress: action.payload ? state.runProgress : null,
       };
