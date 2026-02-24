@@ -65,7 +65,6 @@ export default class SSEClient {
 
         // -- Connection opened ------------------------------------------------
         es.onopen = () => {
-          console.log("[SSEClient] Connected:", url);
           resolve();
         };
 
@@ -75,19 +74,12 @@ export default class SSEClient {
             if (this._closed) return;
             try {
               const event = JSON.parse(e.data);
-              console.log(
-                `[SSEClient] ← ${eventType} seq=${event.sequence}`,
-                event,
-              );
               this._onEvent(event);
 
               // thinking_end is the last event the backend emits for a turn.
               // Resolve the `completed` promise so the caller knows all events
               // have been dispatched and it's safe to hide the live block.
               if (eventType === "thinking_end") {
-                console.log(
-                  "[SSEClient] thinking_end received — stream logically complete",
-                );
                 this._resolveCompleted();
               }
             } catch (err) {
@@ -104,7 +96,6 @@ export default class SSEClient {
 
           // Server closed gracefully (e.g. after thinking_end)
           if (state === EventSource.CLOSED) {
-            console.log("[SSEClient] Stream closed by server");
             this._resolveCompleted(); // resolve in case thinking_end was missed
             this._cleanup();
             return;

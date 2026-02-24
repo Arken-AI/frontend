@@ -150,11 +150,9 @@ export default function ChatPanel({
       // Open SSE BEFORE the POST to catch fast tool_start/tool_end events.
       // Start after the last sequence we saw so old events are never replayed.
       const sseUrl = getStreamUrl(activeConversationId, lastSequenceRef.current);
-      console.log("[ChatPanel] Opening SSE before POST:", sseUrl);
       const sseClient = new SSEClient(sseUrl, onSSEEvent);
       sseClientRef.current = sseClient;
       await sseClient.ready;
-      console.log("[ChatPanel] SSE ready, firing POST now");
 
       try {
         const response = await sendMessage({
@@ -163,18 +161,10 @@ export default function ChatPanel({
           username,
         });
 
-        console.log("[ChatPanel] HTTP response received:", {
-          status: response.status,
-          toolCount: response.tool_executions?.length,
-          hasMessage: !!response.message,
-        });
-
         // Wait for SSE stream to finish delivering all tool events before
         // dispatching ADD_MESSAGE (which adopts them) and SET_THINKING(false)
         // (which hides the live block). See sseClient.js for details.
-        console.log("[ChatPanel] Waiting for SSE stream to complete...");
         await sseClient.waitForCompletion();
-        console.log("[ChatPanel] SSE stream complete, dispatching response");
 
         if (response.status === "completed" && response.message) {
           // ADD_MESSAGE fires first while toolExecutions[] still has the live
@@ -192,7 +182,6 @@ export default function ChatPanel({
             },
           });
           dispatch({ type: "SET_THINKING", payload: false });
-          console.log("[ChatPanel] SET_THINKING(false) dispatched");
 
           // Update latest run ID for "View Flowsheet" button
           if (response.run_ids && response.run_ids.length > 0) {

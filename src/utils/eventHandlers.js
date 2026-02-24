@@ -12,17 +12,12 @@ import { ACTIONS } from "../hooks/useChatState";
  * @param {function} dispatch - Dispatch function from useChatState
  */
 export function handleSSEEvent(event, dispatch) {
-  console.log("[Event]", event.event_type, event);
-
   switch (event.event_type) {
     case "thinking_start":
       // Do NOT dispatch THINKING_START from SSE — the HTTP flow controls
       // isThinking via SET_THINKING(true) BEFORE the SSE connection opens.
       // Dispatching it here would be redundant (harmless) but we skip it
       // to keep the lifecycle clear: HTTP owns isThinking, SSE owns tools.
-      console.log(
-        "[Event] thinking_start received (no dispatch — HTTP owns lifecycle)",
-      );
       break;
 
     case "thinking_end":
@@ -31,9 +26,6 @@ export function handleSSEEvent(event, dispatch) {
       // to disappear before tools are adopted onto the message.
       // The SSEClient resolves its `completed` promise on thinking_end instead,
       // and the HTTP flow dispatches SET_THINKING(false) after ADD_MESSAGE.
-      console.log(
-        "[Event] thinking_end received (no dispatch — HTTP owns lifecycle)",
-      );
       break;
 
     case "tool_start":

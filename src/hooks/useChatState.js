@@ -41,7 +41,6 @@ export const ACTIONS = {
 function chatReducer(state, action) {
   switch (action.type) {
     case ACTIONS.THINKING_START:
-      console.log("[Reducer] THINKING_START");
       return {
         ...state,
         isThinking: true,
@@ -50,7 +49,6 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.THINKING_END:
-      console.log("[Reducer] THINKING_END (from SSE)");
       return {
         ...state,
         isThinking: false,
@@ -59,7 +57,6 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.TOOL_START:
-      console.log("[Reducer] TOOL_START:", action.payload.tool_name);
       return {
         ...state,
         activeTool: {
@@ -71,12 +68,6 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.TOOL_END:
-      console.log(
-        "[Reducer] TOOL_END:",
-        action.payload.tool_name,
-        action.payload.status,
-        `toolExecutions count: ${state.toolExecutions.length + 1}`,
-      );
       return {
         ...state,
         activeTool: null,
@@ -126,13 +117,6 @@ function chatReducer(state, action) {
       // Build a lookup from the live SSE tool executions so we can merge
       // fields that the HTTP response doesn't carry (e.g. arguments).
       const sseByIndex = state.toolExecutions; // array in execution order
-      console.log(
-        "[Reducer] ADD_MESSAGE:",
-        action.payload.role,
-        `httpTools=${incomingToolExecs.length}`,
-        `sseTools=${sseByIndex.length}`,
-        `isThinking=${state.isThinking}`,
-      );
 
       let toolExecsForMessage;
       if (incomingToolExecs.length > 0) {
@@ -227,9 +211,6 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.RESET_RESPONSE:
-      console.log(
-        "[Reducer] RESET_RESPONSE (clearing live state for new turn)",
-      );
       return {
         ...state,
         activeTool: null,
@@ -239,12 +220,6 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.SET_THINKING:
-      console.log(
-        "[Reducer] SET_THINKING:",
-        action.payload,
-        `toolExecutions=${state.toolExecutions.length}`,
-        `activeTool=${state.activeTool?.name || "null"}`,
-      );
       return {
         ...state,
         isThinking: action.payload,

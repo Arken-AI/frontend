@@ -120,11 +120,9 @@ function ChatContainer() {
       // any tool_start / tool_end events emitted by fast tool calls.
       // Start after the last sequence we saw so old events are never replayed.
       const sseUrl = getStreamUrl(activeConversationId, lastSequenceRef.current);
-      console.log("[ChatContainer] Opening SSE before POST:", sseUrl);
       const sseClient = new SSEClient(sseUrl, onSSEEvent);
       sseClientRef.current = sseClient;
       await sseClient.ready; // wait for TCP open (or timeout) before POST
-      console.log("[ChatContainer] SSE ready, firing POST now");
 
       try {
         // Send message to backend - waits for complete response
@@ -132,12 +130,6 @@ function ChatContainer() {
           message: content.trim(),
           conversation_id: activeConversationId,
           username,
-        });
-
-        console.log("[ChatContainer] HTTP response received:", {
-          status: response.status,
-          toolCount: response.tool_executions?.length,
-          hasMessage: !!response.message,
         });
 
         // ── Wait for SSE stream to finish ──────────────────────────────
@@ -154,9 +146,7 @@ function ChatContainer() {
         // This ensures all tool_start/tool_end dispatches have happened
         // BEFORE we fire ADD_MESSAGE (which adopts them onto the message)
         // and SET_THINKING(false) (which hides the live block).
-        console.log("[ChatContainer] Waiting for SSE stream to complete...");
         await sseClient.waitForCompletion();
-        console.log("[ChatContainer] SSE stream complete, dispatching response");
 
         // Update conversation ID if backend returned a different one (shouldn't
         // happen since we pre-generated it, but guard anyway)
@@ -200,7 +190,6 @@ function ChatContainer() {
         // Stop thinking AFTER ADD_MESSAGE so the reducer can adopt the live
         // SSE toolExecutions (with arguments) onto the message before clearing.
         dispatch({ type: "SET_THINKING", payload: false });
-        console.log("[ChatContainer] SET_THINKING(false) dispatched");
 
         sseClient.close();
         sseClientRef.current = null;
@@ -240,7 +229,6 @@ function ChatContainer() {
     }
 
     if (conversationId !== previousId && previousId !== null) {
-      console.log("[ChatContainer] Switching conversations, resetting state");
       dispatch({ type: "RESET" });
       lastSequenceRef.current = 0;
     }
@@ -265,7 +253,6 @@ function ChatContainer() {
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
-    console.log("Request cancelled by user");
     sseClientRef.current?.close();
     sseClientRef.current = null;
     dispatch({ type: "CANCEL_REQUEST" });
