@@ -193,10 +193,15 @@ export function ChatProvider({ children }) {
   );
 
   /**
-   * Switch to a different conversation
+   * Switch to a different conversation.
+   * Pass skipContextFetch=true when the conversation doesn't exist on the
+   * backend yet (e.g. pre-generated ID for a new conversation).
    */
   const switchConversation = useCallback(
-    (convId) => {
+    (convId, { skipContextFetch = false } = {}) => {
+      if (skipContextFetch) {
+        skipNextContextFetchRef.current = true;
+      }
       setConversationId(convId);
     },
     [setConversationId],
@@ -218,6 +223,7 @@ export function ChatProvider({ children }) {
       }
 
       // Skip if loadConversation was just called (it already loaded the context)
+      // OR if this is a brand-new pre-generated ID (conv_ prefix, not yet on backend)
       if (skipNextContextFetchRef.current) {
         skipNextContextFetchRef.current = false;
         return;

@@ -76,7 +76,7 @@ export default function MessageList({
         ))}
         
         {/* Live processing indicators — only shown while a request is in-flight */}
-        {(isThinking || activeTool || runProgress || toolExecutions.length > 0) && (
+        {isThinking && (
           <div className="space-y-4">
             {/* Live tool executions (SSE-driven, not yet attached to a message) */}
             {toolExecutions.length > 0 && (

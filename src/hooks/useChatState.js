@@ -41,6 +41,7 @@ export const ACTIONS = {
 function chatReducer(state, action) {
   switch (action.type) {
     case ACTIONS.THINKING_START:
+      console.log("[Reducer] THINKING_START");
       return {
         ...state,
         isThinking: true,
@@ -49,6 +50,7 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.THINKING_END:
+      console.log("[Reducer] THINKING_END (from SSE)");
       return {
         ...state,
         isThinking: false,
@@ -57,6 +59,7 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.TOOL_START:
+      console.log("[Reducer] TOOL_START:", action.payload.tool_name);
       return {
         ...state,
         activeTool: {
@@ -68,6 +71,12 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.TOOL_END:
+      console.log(
+        "[Reducer] TOOL_END:",
+        action.payload.tool_name,
+        action.payload.status,
+        `toolExecutions count: ${state.toolExecutions.length + 1}`,
+      );
       return {
         ...state,
         activeTool: null,
@@ -79,6 +88,9 @@ function chatReducer(state, action) {
             duration: action.payload.duration_ms,
             summary: action.payload.summary,
             error: action.payload.error_message,
+            // Carry over arguments from the activeTool (set by TOOL_START)
+            // so they survive into the message's toolExecutions array.
+            args: state.activeTool?.args || null,
             timestamp: Date.now(),
           },
         ],
@@ -111,24 +123,44 @@ function chatReducer(state, action) {
 
     case ACTIONS.ADD_MESSAGE: {
       const incomingToolExecs = action.payload.tool_executions || [];
-      // If the new assistant message has no tool_executions from the API response,
-      // adopt the current live SSE executions so they stay attached to the message.
-      const toolExecsForMessage =
-        incomingToolExecs.length > 0
-          ? incomingToolExecs.map((t) => ({
-              tool_name: t.tool_name || t.name,
-              status: t.status,
-              duration_ms: t.duration_ms || t.duration,
-              summary: t.summary,
-              error: t.error,
-            }))
-          : state.toolExecutions.map((t) => ({
-              tool_name: t.name,
-              status: t.status,
-              duration_ms: t.duration,
-              summary: t.summary,
-              error: t.error,
-            }));
+      // Build a lookup from the live SSE tool executions so we can merge
+      // fields that the HTTP response doesn't carry (e.g. arguments).
+      const sseByIndex = state.toolExecutions; // array in execution order
+      console.log(
+        "[Reducer] ADD_MESSAGE:",
+        action.payload.role,
+        `httpTools=${incomingToolExecs.length}`,
+        `sseTools=${sseByIndex.length}`,
+        `isThinking=${state.isThinking}`,
+      );
+
+      let toolExecsForMessage;
+      if (incomingToolExecs.length > 0) {
+        // HTTP response has tool_executions — use them as base but enrich
+        // with any extra fields from the SSE-captured data.
+        toolExecsForMessage = incomingToolExecs.map((t, i) => {
+          const sseTool = sseByIndex[i]; // match by position
+          return {
+            tool_name: t.tool_name || t.name,
+            status: t.status,
+            duration_ms: t.duration_ms || t.duration,
+            summary: t.summary || t.result_summary,
+            error: t.error,
+            // Merge arguments from SSE if the HTTP response didn't include them
+            arguments: t.arguments || (sseTool ? sseTool.args : undefined),
+          };
+        });
+      } else {
+        // No HTTP tool_executions — adopt the live SSE cards entirely.
+        toolExecsForMessage = sseByIndex.map((t) => ({
+          tool_name: t.name,
+          status: t.status,
+          duration_ms: t.duration,
+          summary: t.summary,
+          error: t.error,
+          arguments: t.args,
+        }));
+      }
       return {
         ...state,
         messages: [
@@ -195,6 +227,9 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.RESET_RESPONSE:
+      console.log(
+        "[Reducer] RESET_RESPONSE (clearing live state for new turn)",
+      );
       return {
         ...state,
         activeTool: null,
@@ -204,6 +239,12 @@ function chatReducer(state, action) {
       };
 
     case ACTIONS.SET_THINKING:
+      console.log(
+        "[Reducer] SET_THINKING:",
+        action.payload,
+        `toolExecutions=${state.toolExecutions.length}`,
+        `activeTool=${state.activeTool?.name || "null"}`,
+      );
       return {
         ...state,
         isThinking: action.payload,

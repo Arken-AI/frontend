@@ -2,24 +2,35 @@
  * ChatContainer Component
  *
  * Main container orchestrating the full chat interface.
- * Handles message sending and optional SSE for tool progress updates.
+ * Handles message sending with an imperative SSEClient that opens BEFORE
+ * the HTTP POST fires, guaranteeing real-time tool progress updates even
+ * for fast (<100 ms) tool calls.
  *
- * Architecture (Simplified):
- * - Messages are sent via POST /chat and response is returned directly
- * - SSE is optional - only used to show real-time tool progress (tool_start, tool_end)
- * - No fallback timers needed - response is guaranteed via HTTP
+ * Architecture:
+ * - Messages are sent via POST /chat; the full response is returned directly.
+ * - SSEClient (imperative class, not a hook) is created in handleSendMessage
+ *   before the POST so tool_start / tool_end events are never missed.
+ * - No fallback timers needed — response is guaranteed via HTTP.
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { useChatContext } from "../../context/ChatContext";
 import { useChatState } from "../../hooks/useChatState";
-import { useSSE } from "../../hooks/useSSE";
 import { handleSSEEvent } from "../../utils/eventHandlers";
-import { sendMessage } from "../../api/client";
+import { sendMessage, getStreamUrl } from "../../api/client";
+import SSEClient from "../../utils/sseClient";
 
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import WelcomeScreen from "./WelcomeScreen";
+
+/** Generate a conversation ID with the same format as the backend. */
+function generateConversationId() {
+  const hex = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `conv_${hex}`;
+}
 
 function ChatContainer() {
   const {
@@ -27,34 +38,34 @@ function ChatContainer() {
     setConversationId,
     refreshConversations,
     currentContext,
-    contextLoading,
     updateLatestRunId,
     username,
   } = useChatContext();
   const [state, dispatch] = useChatState();
   const previousConversationIdRef = useRef(conversationId);
-  const lastSequenceRef = useRef(0);
-  const [initialSequence, setInitialSequence] = useState(0);
 
-  // Update lastSequence when context loads (for existing conversations)
-  useEffect(() => {
-    if (currentContext && currentContext.last_event_sequence) {
-      lastSequenceRef.current = currentContext.last_event_sequence;
-      setInitialSequence(currentContext.last_event_sequence);
-      console.log(
-        `[ChatContainer] Loaded context, last_event_sequence: ${currentContext.last_event_sequence}`,
-      );
-    }
-  }, [currentContext]);
+  // Flag to signal that the conversationId change was initiated by
+  // handleSendMessage (pre-generating an ID for a new conversation).
+  // This prevents the conversation-switch reset effect from wiping state.
+  const newConvFromSendRef = useRef(false);
+
+  // Holds the active SSEClient instance for the current in-flight request.
+  // Stored in a ref so it's accessible from the cancel handler.
+  const sseClientRef = useRef(null);
+
+  // Tracks the highest event sequence number seen so far for this conversation.
+  // Passed to each new SSEClient so the stream resumes after the last seen
+  // event and never replays events from previous turns.
+  const lastSequenceRef = useRef(0);
 
   // Handle SSE events (for tool progress updates only)
   const onSSEEvent = useCallback(
     (event) => {
-      if (event.sequence && event.sequence > lastSequenceRef.current) {
+      // Always advance the sequence cursor so the next SSEClient opens
+      // with ?after_sequence=N and never replays already-seen events.
+      if (event.sequence) {
         lastSequenceRef.current = event.sequence;
       }
-      // Only handle tool progress events from SSE
-      // message_final is now handled via HTTP response
       if (
         [
           "thinking_start",
@@ -71,20 +82,14 @@ function ChatContainer() {
     [dispatch],
   );
 
-  // SSE connection for tool progress updates (only when actively thinking)
-  // This prevents unnecessary long-lived connections when just viewing history
-  const { isConnected, error: sseError } = useSSE(
-    conversationId,
-    onSSEEvent,
-    !!conversationId && state.isThinking, // Only connect during active message processing
-    null,
-    initialSequence,
-  );
-
   // Send message handler - now synchronous with direct response
   const handleSendMessage = useCallback(
     async (content) => {
       if (!content.trim() || state.isThinking) return;
+
+      // Clear any leftover tool state from the previous turn FIRST,
+      // before the user message is added and before SSE events start arriving.
+      dispatch({ type: "RESET_RESPONSE" });
 
       // Add user message immediately
       const userMessage = {
@@ -94,30 +99,78 @@ function ChatContainer() {
       };
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
 
-      // Reset state for new response
-      dispatch({ type: "RESET_RESPONSE" });
+      // For new conversations, pre-generate the conversation_id and set it
+      // NOW — before isThinking becomes true — so the SSE hook can connect
+      // immediately and receive tool_start/tool_end events in real time.
+      // The same ID is passed to the backend so both sides are in sync.
+      const activeConversationId = conversationId || generateConversationId();
+      if (!conversationId) {
+        // Mark that this conversationId change is from sending a new message,
+        // NOT a user switching conversations — so the reset effect skips.
+        newConvFromSendRef.current = true;
+        // Skip the context fetch — this conversation doesn't exist on the
+        // backend yet, fetching it would trigger a "not found" error that
+        // resets conversationId back to null.
+        setConversationId(activeConversationId, { skipContextFetch: true });
+      }
+
       dispatch({ type: "SET_THINKING", payload: true });
+
+      // Open the SSE connection BEFORE firing the POST so we don't miss
+      // any tool_start / tool_end events emitted by fast tool calls.
+      // Start after the last sequence we saw so old events are never replayed.
+      const sseUrl = getStreamUrl(activeConversationId, lastSequenceRef.current);
+      console.log("[ChatContainer] Opening SSE before POST:", sseUrl);
+      const sseClient = new SSEClient(sseUrl, onSSEEvent);
+      sseClientRef.current = sseClient;
+      await sseClient.ready; // wait for TCP open (or timeout) before POST
+      console.log("[ChatContainer] SSE ready, firing POST now");
 
       try {
         // Send message to backend - waits for complete response
         const response = await sendMessage({
           message: content.trim(),
-          conversation_id: conversationId,
+          conversation_id: activeConversationId,
           username,
         });
 
-        // Update conversation ID if new
+        console.log("[ChatContainer] HTTP response received:", {
+          status: response.status,
+          toolCount: response.tool_executions?.length,
+          hasMessage: !!response.message,
+        });
+
+        // ── Wait for SSE stream to finish ──────────────────────────────
+        // The backend emits tool_start/tool_end/thinking_end to Redis
+        // BEFORE the HTTP response returns. But the SSE endpoint polls
+        // Redis every 100ms, so there's a race: the HTTP response can
+        // arrive before the SSE poll picks up the events.
+        //
+        // waitForCompletion() resolves when:
+        //   a) SSEClient receives thinking_end, OR
+        //   b) The server closes the stream, OR
+        //   c) A 10s safety timeout fires (never blocks forever).
+        //
+        // This ensures all tool_start/tool_end dispatches have happened
+        // BEFORE we fire ADD_MESSAGE (which adopts them onto the message)
+        // and SET_THINKING(false) (which hides the live block).
+        console.log("[ChatContainer] Waiting for SSE stream to complete...");
+        await sseClient.waitForCompletion();
+        console.log("[ChatContainer] SSE stream complete, dispatching response");
+
+        // Update conversation ID if backend returned a different one (shouldn't
+        // happen since we pre-generated it, but guard anyway)
         if (
           response.conversation_id &&
-          response.conversation_id !== conversationId
+          response.conversation_id !== activeConversationId
         ) {
           setConversationId(response.conversation_id);
         }
 
-        // Stop thinking state
-        dispatch({ type: "SET_THINKING", payload: false });
-
-        // Handle response
+        // Handle response AFTER SSE stream is complete so that
+        // state.toolExecutions (populated by SSE tool_end events, including
+        // `arguments`) is fully populated when ADD_MESSAGE runs. The reducer
+        // adopts the live SSE cards onto the message.
         if (response.status === "completed" && response.message) {
           dispatch({
             type: "ADD_MESSAGE",
@@ -144,9 +197,19 @@ function ChatContainer() {
           });
         }
 
+        // Stop thinking AFTER ADD_MESSAGE so the reducer can adopt the live
+        // SSE toolExecutions (with arguments) onto the message before clearing.
+        dispatch({ type: "SET_THINKING", payload: false });
+        console.log("[ChatContainer] SET_THINKING(false) dispatched");
+
+        sseClient.close();
+        sseClientRef.current = null;
+
         await refreshConversations();
       } catch (error) {
         console.error("Error sending message:", error);
+        sseClientRef.current?.close();
+        sseClientRef.current = null;
         dispatch({
           type: "SET_ERROR",
           payload: error.message || "Failed to send message",
@@ -157,15 +220,24 @@ function ChatContainer() {
     [
       conversationId,
       dispatch,
+      onSSEEvent,
       refreshConversations,
       setConversationId,
       updateLatestRunId,
     ],
   );
 
-  // Reset state when conversation changes
+  // Reset state when conversation changes (user switching conversations).
+  // Skip when the change was initiated by handleSendMessage creating a new ID.
   useEffect(() => {
     const previousId = previousConversationIdRef.current;
+
+    if (newConvFromSendRef.current) {
+      // This change came from handleSendMessage — don't reset.
+      newConvFromSendRef.current = false;
+      previousConversationIdRef.current = conversationId;
+      return;
+    }
 
     if (conversationId !== previousId && previousId !== null) {
       console.log("[ChatContainer] Switching conversations, resetting state");
@@ -183,12 +255,19 @@ function ChatContainer() {
         type: "LOAD_MESSAGES",
         payload: { messages: currentContext.messages },
       });
+      // Seed the sequence cursor so the next SSEClient skips all historical
+      // events already stored in Redis for this conversation.
+      if (currentContext.last_event_sequence) {
+        lastSequenceRef.current = currentContext.last_event_sequence;
+      }
     }
   }, [currentContext, dispatch]);
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
     console.log("Request cancelled by user");
+    sseClientRef.current?.close();
+    sseClientRef.current = null;
     dispatch({ type: "CANCEL_REQUEST" });
   }, [dispatch]);
 
@@ -200,13 +279,6 @@ function ChatContainer() {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* SSE Error indicator */}
-      {sseError && (
-        <div className="bg-amber-50 text-amber-600 text-xs font-medium px-4 py-2 text-center">
-          Progress stream unavailable (response will still be delivered)
-        </div>
-      )}
-
       {/* Error display */}
       {state.error && (
         <div

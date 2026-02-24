@@ -13,7 +13,7 @@
  * - Continues existing conversation from ChatContext
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import {
   X,
   Plus,
@@ -24,9 +24,9 @@ import {
 } from "lucide-react";
 import { useChatContext } from "../../context/ChatContext";
 import { useChatState } from "../../hooks/useChatState";
-import { useSSE } from "../../hooks/useSSE";
 import { handleSSEEvent } from "../../utils/eventHandlers";
-import { sendMessage } from "../../api/client";
+import { sendMessage, getStreamUrl } from "../../api/client";
+import SSEClient from "../../utils/sseClient";
 
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
@@ -86,50 +86,21 @@ export default function ChatPanel({
 
   const [state, dispatch] = useChatState();
   const previousConversationIdRef = useRef(conversationId);
+
+  // Holds the active SSEClient for the current in-flight request.
+  const sseClientRef = useRef(null);
+
+  // Tracks the highest event sequence number seen for this conversation.
+  // Passed to each new SSEClient so the stream resumes after the last seen
+  // event and never replays events from previous turns.
   const lastSequenceRef = useRef(0);
-  const [initialSequence, setInitialSequence] = useState(0);
 
-  // Step 4: Don't connect SSE until we know the correct after_sequence.
-  // For new conversations (no conversationId yet) we're ready immediately;
-  // for existing ones we wait until currentContext provides last_event_sequence.
-  const [sseReady, setSseReady] = useState(!conversationId);
-
-  // Update lastSequence when context loads
-  useEffect(() => {
-    if (currentContext && currentContext.last_event_sequence !== undefined) {
-      lastSequenceRef.current = currentContext.last_event_sequence;
-      setInitialSequence(currentContext.last_event_sequence);
-      setSseReady(true);
-    } else if (currentContext) {
-      // Context loaded but no events yet (brand-new conversation) — ready at seq 0
-      setSseReady(true);
-    }
-  }, [currentContext]);
-
-  // When the user switches to a different existing conversation, pause SSE
-  // until its context loads with the correct last_event_sequence.
-  // When conversationId goes from null → new (first message), DON'T pause —
-  // we're at sequence 0 and need SSE connected to catch live tool events.
-  useEffect(() => {
-    const previousId = previousConversationIdRef.current;
-    if (conversationId && previousId && conversationId !== previousId) {
-      // User switched conversations — pause until context loads
-      setSseReady(false);
-      setInitialSequence(0);
-      lastSequenceRef.current = 0;
-    } else if (!conversationId) {
-      // No conversation — ready at seq 0 for the next new one
-      setSseReady(true);
-      setInitialSequence(0);
-      lastSequenceRef.current = 0;
-    }
-    // null → new id: keep sseReady as-is (true), sequence stays at 0
-  }, [conversationId]);
-
-  // Handle SSE events
+  // Handle SSE events (tool progress only)
   const onSSEEvent = useCallback(
     (event) => {
-      if (event.sequence && event.sequence > lastSequenceRef.current) {
+      // Always advance the sequence cursor so the next SSEClient opens
+      // with ?after_sequence=N and never replays already-seen events.
+      if (event.sequence) {
         lastSequenceRef.current = event.sequence;
       }
       if (
@@ -148,40 +119,25 @@ export default function ChatPanel({
     [dispatch],
   );
 
-  // SSE connection — deferred until context loads so we use the correct after_sequence
-  const { isConnected, error: sseError } = useSSE(
-    conversationId,
-    onSSEEvent,
-    sseReady,
-    null,
-    initialSequence,
-  );
-
-  // Generate a conversation ID client-side so SSE can connect BEFORE
-  // the POST fires. The backend already accepts a client-provided ID:
-  //   conversation_id = request.conversation_id or f"conv_{uuid4()...}"
-  const generateConversationId = () => {
-    const hex = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return `conv_${hex}`;
-  };
-
   // Send message handler
   const handleSendMessage = useCallback(
     async (content) => {
       if (!content.trim() || state.isThinking) return;
 
-      // Option B: If no conversationId yet, generate one client-side so
-      // useSSE can connect to the stream BEFORE the POST leaves the browser.
+      // For new conversations, pre-generate the ID before isThinking so
+      // SSEClient can open the stream before the POST fires.
       let activeConversationId = conversationId;
       if (!activeConversationId) {
-        activeConversationId = generateConversationId();
-        setSseReady(true);
-        setInitialSequence(0);
-        lastSequenceRef.current = 0;
-        setConversationId(activeConversationId);
+        const hex = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        activeConversationId = `conv_${hex}`;
+        setConversationId(activeConversationId, { skipContextFetch: true });
       }
+
+      // Clear any leftover tool state from the previous turn FIRST,
+      // before the user message is added and before SSE events start arriving.
+      dispatch({ type: "RESET_RESPONSE" });
 
       const userMessage = {
         role: "user",
@@ -189,8 +145,16 @@ export default function ChatPanel({
         timestamp: new Date().toISOString(),
       };
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
-      dispatch({ type: "RESET_RESPONSE" });
       dispatch({ type: "SET_THINKING", payload: true });
+
+      // Open SSE BEFORE the POST to catch fast tool_start/tool_end events.
+      // Start after the last sequence we saw so old events are never replayed.
+      const sseUrl = getStreamUrl(activeConversationId, lastSequenceRef.current);
+      console.log("[ChatPanel] Opening SSE before POST:", sseUrl);
+      const sseClient = new SSEClient(sseUrl, onSSEEvent);
+      sseClientRef.current = sseClient;
+      await sseClient.ready;
+      console.log("[ChatPanel] SSE ready, firing POST now");
 
       try {
         const response = await sendMessage({
@@ -198,6 +162,19 @@ export default function ChatPanel({
           conversation_id: activeConversationId,
           username,
         });
+
+        console.log("[ChatPanel] HTTP response received:", {
+          status: response.status,
+          toolCount: response.tool_executions?.length,
+          hasMessage: !!response.message,
+        });
+
+        // Wait for SSE stream to finish delivering all tool events before
+        // dispatching ADD_MESSAGE (which adopts them) and SET_THINKING(false)
+        // (which hides the live block). See sseClient.js for details.
+        console.log("[ChatPanel] Waiting for SSE stream to complete...");
+        await sseClient.waitForCompletion();
+        console.log("[ChatPanel] SSE stream complete, dispatching response");
 
         if (response.status === "completed" && response.message) {
           // ADD_MESSAGE fires first while toolExecutions[] still has the live
@@ -215,6 +192,7 @@ export default function ChatPanel({
             },
           });
           dispatch({ type: "SET_THINKING", payload: false });
+          console.log("[ChatPanel] SET_THINKING(false) dispatched");
 
           // Update latest run ID for "View Flowsheet" button
           if (response.run_ids && response.run_ids.length > 0) {
@@ -230,9 +208,14 @@ export default function ChatPanel({
           dispatch({ type: "SET_THINKING", payload: false });
         }
 
+        sseClient.close();
+        sseClientRef.current = null;
+
         await refreshConversations();
       } catch (error) {
         console.error("Error sending message:", error);
+        sseClientRef.current?.close();
+        sseClientRef.current = null;
         dispatch({
           type: "SET_ERROR",
           payload: error.message || "Failed to send message",
@@ -243,6 +226,7 @@ export default function ChatPanel({
     [
       conversationId,
       dispatch,
+      onSSEEvent,
       refreshConversations,
       setConversationId,
       updateLatestRunId,
@@ -268,11 +252,18 @@ export default function ChatPanel({
         type: "LOAD_MESSAGES",
         payload: { messages: currentContext.messages },
       });
+      // Seed the sequence cursor so the next SSEClient skips all historical
+      // events already stored in Redis for this conversation.
+      if (currentContext.last_event_sequence) {
+        lastSequenceRef.current = currentContext.last_event_sequence;
+      }
     }
   }, [currentContext, dispatch]);
 
   // Cancel handler
   const handleCancelRequest = useCallback(() => {
+    sseClientRef.current?.close();
+    sseClientRef.current = null;
     dispatch({ type: "CANCEL_REQUEST" });
   }, [dispatch]);
 
@@ -312,17 +303,17 @@ export default function ChatPanel({
             {/* Connection Status */}
             <div
               className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-                isConnected
+                state.isThinking
                   ? "bg-green-50 text-green-700"
                   : "bg-gray-100 text-gray-500"
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  isConnected ? "bg-green-500" : "bg-gray-400"
+                  state.isThinking ? "bg-green-500" : "bg-gray-400"
                 }`}
               />
-              {isConnected ? "Connected" : "Offline"}
+              {state.isThinking ? "Connected" : "Offline"}
             </div>
 
             {/* Conversation History Dropdown */}
@@ -416,13 +407,6 @@ export default function ChatPanel({
               </button>
             )}
           </div>
-        </div>
-      )}
-
-      {/* SSE Error indicator */}
-      {sseError && (
-        <div className="bg-yellow-50 text-yellow-700 text-xs px-3 py-1.5 text-center border-b border-yellow-200">
-          Progress stream unavailable
         </div>
       )}
 
