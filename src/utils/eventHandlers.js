@@ -12,18 +12,20 @@ import { ACTIONS } from "../hooks/useChatState";
  * @param {function} dispatch - Dispatch function from useChatState
  */
 export function handleSSEEvent(event, dispatch) {
-  console.log("[Event]", event.event_type, event);
-
   switch (event.event_type) {
     case "thinking_start":
-      dispatch({ type: ACTIONS.THINKING_START });
+      // Do NOT dispatch THINKING_START from SSE — the HTTP flow controls
+      // isThinking via SET_THINKING(true) BEFORE the SSE connection opens.
+      // Dispatching it here would be redundant (harmless) but we skip it
+      // to keep the lifecycle clear: HTTP owns isThinking, SSE owns tools.
       break;
 
     case "thinking_end":
-      dispatch({
-        type: ACTIONS.THINKING_END,
-        payload: { duration_ms: event.duration_ms },
-      });
+      // Do NOT dispatch THINKING_END from SSE — this would set isThinking=false
+      // BEFORE the HTTP flow has dispatched ADD_MESSAGE, causing the live block
+      // to disappear before tools are adopted onto the message.
+      // The SSEClient resolves its `completed` promise on thinking_end instead,
+      // and the HTTP flow dispatches SET_THINKING(false) after ADD_MESSAGE.
       break;
 
     case "tool_start":
@@ -98,25 +100,4 @@ export function handleSSEEvent(event, dispatch) {
     default:
       console.warn("[Event] Unknown event type:", event.event_type);
   }
-}
-
-/**
- * Create event handlers object for useSSE hook
- * @param {function} dispatch - Dispatch function from useChatState
- * @returns {Object} - Object with event type handlers
- */
-export function createEventHandlers(dispatch) {
-  return {
-    onMessage: (event) => handleSSEEvent(event, dispatch),
-    onError: (error) => {
-      console.error("[SSE] Error:", error);
-      // Don't dispatch error - SSE is optional, response comes via HTTP
-    },
-    onOpen: () => {
-      console.log("[SSE] Connection opened");
-    },
-    onClose: () => {
-      console.log("[SSE] Connection closed");
-    },
-  };
 }

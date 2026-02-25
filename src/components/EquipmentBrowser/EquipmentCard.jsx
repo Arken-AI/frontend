@@ -7,7 +7,7 @@
  * Highlights when selected via Zustand store.
  */
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StreamSection from './StreamSection';
 import StreamField from './StreamField';
@@ -83,9 +83,18 @@ function EquipmentParamsSection({
   constraints = [], 
   editedValues = {}, 
   validationErrors = {}, 
-  onParameterChange 
+  onParameterChange,
+  defaultExpanded = true,
+  isCardExpanded = false
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  
+  // Reset to default expanded state when card is expanded
+  useEffect(() => {
+    if (isCardExpanded) {
+      setIsExpanded(defaultExpanded);
+    }
+  }, [isCardExpanded, defaultExpanded]);
   
   // Filter to only show editable parameters
   const editableParams = constraints.filter(c => c.editable !== false);
@@ -231,6 +240,7 @@ const EquipmentCard = forwardRef(({
   onToggle, 
   onClick,
   editedValues = {},
+  allEditedParams = {},
   validationErrors = {},
   onParameterChange
 }, ref) => {
@@ -249,10 +259,22 @@ const EquipmentCard = forwardRef(({
     metadata
   } = equipment;
   
-  // Check if this equipment has any edits
-  const hasEdits = Object.keys(editedValues).length > 0;
+  // Check if this equipment has any edits (params OR any of its feed streams)
+  const feedStreamIds = (inputs || []).filter((s) => s.editable).map((s) => s.streamId);
+  const hasStreamEdits = feedStreamIds.some((sid) => allEditedParams[sid] && Object.keys(allEditedParams[sid]).length > 0);
+  const hasEdits = Object.keys(editedValues).length > 0 || hasStreamEdits;
   const hasErrors = Object.keys(validationErrors).length > 0;
   const warningCount = warnings?.length || 0;
+
+  // Build merged editedValues for StreamSection:
+  // equipment params keyed as-is, stream props keyed as "streamId_fieldName"
+  const mergedEditedValues = { ...editedValues };
+  feedStreamIds.forEach((sid) => {
+    const streamEdits = allEditedParams[sid] || {};
+    Object.entries(streamEdits).forEach(([field, val]) => {
+      mergedEditedValues[`${sid}_${field}`] = val;
+    });
+  });
 
   return (
     <div 
@@ -306,6 +328,7 @@ const EquipmentCard = forwardRef(({
               editedValues={editedValues}
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
+              isCardExpanded={isExpanded}
             />
           )}
 
@@ -315,11 +338,12 @@ const EquipmentCard = forwardRef(({
               title="INPUTS" 
               streams={inputs} 
               type="input"
-              editedValues={editedValues}
+              editedValues={mergedEditedValues}
               validationErrors={validationErrors}
               onParameterChange={onParameterChange}
               isCollapsible={true}
-              defaultExpanded={false}
+              defaultExpanded={true}
+              isCardExpanded={isExpanded}
             />
           )}
 
@@ -334,6 +358,7 @@ const EquipmentCard = forwardRef(({
               onParameterChange={onParameterChange}
               isCollapsible={true}
               defaultExpanded={false}
+              isCardExpanded={isExpanded}
             />
           )}
 

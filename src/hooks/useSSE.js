@@ -22,7 +22,7 @@ export function useSSE(
   onEvent,
   enabled = true,
   customStreamUrl = null,
-  initialSequence = 0
+  initialSequence = 0,
 ) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastSequence, setLastSequence] = useState(initialSequence);
@@ -30,19 +30,22 @@ export function useSSE(
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
-  const enabledRef = useRef(enabled); // Track enabled state in ref
+  const enabledRef = useRef(enabled);
 
-  // Maximum reconnect attempts
+  // Step 2: Use a ref so connect() and reconnect always read the latest
+  // sequence instead of a stale closure value.
+  const lastSequenceRef = useRef(initialSequence);
+
   const MAX_RECONNECT_ATTEMPTS = 5;
-  const RECONNECT_DELAY = 2000; // 2 seconds
+  const RECONNECT_DELAY = 2000;
 
-  // Update enabled ref when it changes
+  // Keep refs in sync with props
   useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
 
-  // Reset lastSequence when conversationId changes
   useEffect(() => {
+    lastSequenceRef.current = initialSequence;
     setLastSequence(initialSequence);
   }, [conversationId, initialSequence]);
 
@@ -55,33 +58,25 @@ export function useSSE(
     }
 
     try {
-      const url = customStreamUrl || getStreamUrl(conversationId, lastSequence);
+      // Step 2: Read sequence from ref (always current)
+      const url =
+        customStreamUrl ||
+        getStreamUrl(conversationId, lastSequenceRef.current);
       const eventSource = new EventSource(url);
 
       eventSource.onopen = () => {
         console.log("[SSE] Connected to stream:", conversationId);
         setIsConnected(true);
         setError(null);
-        reconnectAttemptsRef.current = 0; // Reset on successful connection
+        reconnectAttemptsRef.current = 0;
       };
 
-      eventSource.onmessage = (e) => {
-        try {
-          const event = JSON.parse(e.data);
+      // Step 3: No onmessage handler — all backend events use named types
+      // (event: tool_start, etc.) so onmessage never fires for them.
+      // Keepalive lines (":keepalive") are SSE comments and are silently
+      // ignored by the browser, so no handler is needed.
 
-          // Update last sequence
-          if (event.sequence) {
-            setLastSequence(event.sequence);
-          }
-
-          // Call event handler
-          onEvent(event);
-        } catch (err) {
-          console.error("[SSE] Failed to parse event:", err);
-        }
-      };
-
-      // Listen for specific event types
+      // Named event listeners for each event type
       const eventTypes = [
         "thinking_start",
         "thinking_end",
@@ -96,8 +91,9 @@ export function useSSE(
           try {
             const event = JSON.parse(e.data);
 
-            // Update last sequence
+            // Step 2: Update both ref and state
             if (event.sequence) {
+              lastSequenceRef.current = event.sequence;
               setLastSequence(event.sequence);
             }
 
@@ -109,11 +105,9 @@ export function useSSE(
       });
 
       eventSource.onerror = (err) => {
-        // Check the readyState to see if stream closed naturally
         const readyState = eventSource.readyState;
 
-        // If readyState is CLOSED (2), the server closed the connection
-        // This is normal when all events are sent, so don't treat it as an error
+        // Server closed the connection gracefully (e.g. after thinking_end)
         if (readyState === EventSource.CLOSED) {
           console.log("[SSE] Stream completed successfully");
           setIsConnected(false);
@@ -121,18 +115,16 @@ export function useSSE(
           return;
         }
 
-        // For other errors, log them
         console.error("[SSE] Connection error:", err);
         setIsConnected(false);
         eventSource.close();
 
-        // Don't reconnect if streaming is disabled
         if (!enabledRef.current) {
           console.log("[SSE] Stream ended - not reconnecting (disabled)");
           return;
         }
 
-        // Auto-reconnect with exponential backoff
+        // Auto-reconnect with linear backoff
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttemptsRef.current += 1;
           const delay = RECONNECT_DELAY * reconnectAttemptsRef.current;
@@ -140,14 +132,14 @@ export function useSSE(
           setError(`Connection lost. Reconnecting in ${delay / 1000}s...`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
-            // Double-check enabled state before reconnecting
             if (!enabledRef.current) {
               console.log("[SSE] Cancelling reconnect - streaming disabled");
               return;
             }
             console.log(
-              `[SSE] Reconnecting (attempt ${reconnectAttemptsRef.current})...`
+              `[SSE] Reconnecting (attempt ${reconnectAttemptsRef.current})...`,
             );
+            // Step 2: connect() will read lastSequenceRef.current — always fresh
             connect();
           }, delay);
         } else {
@@ -163,7 +155,7 @@ export function useSSE(
     }
   };
 
-  // Manual reconnect function
+  // Manual reconnect
   const reconnect = () => {
     reconnectAttemptsRef.current = 0;
     setError(null);
@@ -171,16 +163,11 @@ export function useSSE(
   };
 
   useEffect(() => {
-    let isActive = true; // Track if effect is still active
-
     if (enabled && conversationId) {
       connect();
     }
 
-    // Cleanup
     return () => {
-      isActive = false; // Mark as inactive
-
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -189,8 +176,6 @@ export function useSSE(
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-
-      // Reset state
       setIsConnected(false);
       setError(null);
     };

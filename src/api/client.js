@@ -60,21 +60,28 @@ export async function loginUser({ username, password }) {
  * @param {Object} params - Message parameters
  * @param {string} params.message - User message
  * @param {string|null} params.conversation_id - Existing conversation ID or null for new
+ * @param {string|null} params.username - Username for user_id metadata
+ * @param {Object|null} params.extra_metadata - Additional metadata merged alongside user_id
  * @returns {Promise<Object>} Response with conversation_id, message, status, run_ids, tool_executions, token_usage
  */
 export async function sendMessage({
   message,
   conversation_id = null,
   username = null,
+  extra_metadata = null,
 }) {
   const body = {
     conversation_id,
     message: message.trim(),
   };
 
-  // Include username in metadata for conversation linking
-  if (username) {
-    body.metadata = { user_id: username.toLowerCase() };
+  // Merge user_id and any extra_metadata (e.g. re_simulation payload)
+  const metadataBase = username ? { user_id: username.toLowerCase() } : {};
+  const merged = extra_metadata
+    ? { ...metadataBase, ...extra_metadata }
+    : metadataBase;
+  if (Object.keys(merged).length > 0) {
+    body.metadata = merged;
   }
 
   const response = await fetch(`${API_BASE}/chat`, {
@@ -193,6 +200,32 @@ export async function getRunResults(runId) {
       .json()
       .catch(() => ({ detail: "Failed to fetch run results" }));
     throw new Error(error.detail || "Failed to fetch run results");
+  }
+
+  return response.json();
+}
+
+/**
+ * Get unified flowsheet merging all chained runs.
+ * Walks chain_metadata upward to find the root, then downstream_runs
+ * downward (BFS) to collect every run in the chain graph.
+ * For standalone (unchained) runs, returns the same data wrapped in flowsheet format.
+ *
+ * @param {string} runId - Unique run identifier (any run in the chain)
+ * @returns {Promise<Object>} Flowsheet response with merged data, run_map, all_run_ids
+ * @throws {Error} "Run not found" for 404, or other error messages
+ */
+export async function getRunFlowsheet(runId) {
+  const response = await fetch(`${API_BASE}/runs/${runId}/flowsheet`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Run not found");
+    }
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch flowsheet" }));
+    throw new Error(error.detail || "Failed to fetch flowsheet");
   }
 
   return response.json();

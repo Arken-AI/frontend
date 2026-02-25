@@ -53,6 +53,7 @@ function chatReducer(state, action) {
         ...state,
         isThinking: false,
         thinkingStartTime: null,
+        activeTool: null, // Safety: clear orphan spinner if tool_end was missed
       };
 
     case ACTIONS.TOOL_START:
@@ -78,6 +79,9 @@ function chatReducer(state, action) {
             duration: action.payload.duration_ms,
             summary: action.payload.summary,
             error: action.payload.error_message,
+            // Carry over arguments from the activeTool (set by TOOL_START)
+            // so they survive into the message's toolExecutions array.
+            args: state.activeTool?.args || null,
             timestamp: Date.now(),
           },
         ],
@@ -108,7 +112,39 @@ function chatReducer(state, action) {
         activeTool: null,
       };
 
-    case ACTIONS.ADD_MESSAGE:
+    case ACTIONS.ADD_MESSAGE: {
+      const incomingToolExecs = action.payload.tool_executions || [];
+      // Build a lookup from the live SSE tool executions so we can merge
+      // fields that the HTTP response doesn't carry (e.g. arguments).
+      const sseByIndex = state.toolExecutions; // array in execution order
+
+      let toolExecsForMessage;
+      if (incomingToolExecs.length > 0) {
+        // HTTP response has tool_executions — use them as base but enrich
+        // with any extra fields from the SSE-captured data.
+        toolExecsForMessage = incomingToolExecs.map((t, i) => {
+          const sseTool = sseByIndex[i]; // match by position
+          return {
+            tool_name: t.tool_name || t.name,
+            status: t.status,
+            duration_ms: t.duration_ms || t.duration,
+            summary: t.summary || t.result_summary,
+            error: t.error,
+            // Merge arguments from SSE if the HTTP response didn't include them
+            arguments: t.arguments || (sseTool ? sseTool.args : undefined),
+          };
+        });
+      } else {
+        // No HTTP tool_executions — adopt the live SSE cards entirely.
+        toolExecsForMessage = sseByIndex.map((t) => ({
+          tool_name: t.name,
+          status: t.status,
+          duration_ms: t.duration,
+          summary: t.summary,
+          error: t.error,
+          arguments: t.args,
+        }));
+      }
       return {
         ...state,
         messages: [
@@ -119,11 +155,15 @@ function chatReducer(state, action) {
             timestamp: action.payload.timestamp || new Date().toISOString(),
             metadata: action.payload.metadata,
             run_ids: action.payload.run_ids,
-            tool_executions: action.payload.tool_executions,
+            // Normalised array used by MessageList for inline rendering
+            toolExecutions: toolExecsForMessage,
           },
         ],
+        // Clear the global live list — ownership moves to the message
+        toolExecutions: [],
         error: null,
       };
+    }
 
     case ACTIONS.ADD_USER_MESSAGE:
       return {
@@ -148,7 +188,11 @@ function chatReducer(state, action) {
         timestamp: msg.timestamp || new Date().toISOString(),
         metadata: msg.metadata,
         // Tool executions are stored per-message for historical display
-        toolExecutions: msg.toolExecutions || msg.tool_executions || [],
+        toolExecutions:
+          msg.toolExecutions ||
+          msg.tool_executions ||
+          msg.metadata?.tool_executions ||
+          [],
       }));
 
       return {
@@ -180,8 +224,9 @@ function chatReducer(state, action) {
         ...state,
         isThinking: action.payload,
         thinkingStartTime: action.payload ? Date.now() : null,
-        // Clear transient UI elements when thinking stops
-        toolExecutions: action.payload ? state.toolExecutions : [],
+        // Only clear activeTool and runProgress when thinking stops.
+        // toolExecutions is intentionally kept alive so ADD_MESSAGE can adopt
+        // the live SSE cards onto the message before clearing them.
         activeTool: action.payload ? state.activeTool : null,
         runProgress: action.payload ? state.runProgress : null,
       };

@@ -60,7 +60,7 @@ export function ChatProvider({ children }) {
     setConversationsError(null);
 
     try {
-      const data = await getConversations(50, 0, username);
+      const data = await getConversations(50, 0);
       setConversations(data.conversations || []);
     } catch (error) {
       console.error("Failed to load conversations:", error);
@@ -68,7 +68,7 @@ export function ChatProvider({ children }) {
     } finally {
       setConversationsLoading(false);
     }
-  }, [username]);
+  }, []);
 
   /**
    * Load context for a specific conversation
@@ -145,6 +145,22 @@ export function ChatProvider({ children }) {
   }, []);
 
   /**
+   * Append messages directly into currentContext without a backend re-fetch.
+   * Used by ResultsPage after re-simulation to show the exchange instantly
+   * before the new page's loadConversation() fires.
+   */
+  const appendMessagesToContext = useCallback((newMessages) => {
+    setCurrentContext((prev) => {
+      if (!prev) return prev;
+      const existing = prev.messages || [];
+      return {
+        ...prev,
+        messages: [...existing, ...newMessages],
+      };
+    });
+  }, []);
+
+  /**
    * Load a conversation by ID (used when navigating to ResultsPage)
    * This loads the conversation context and sets it as active
    * Skips the automatic useEffect fetch by using a ref flag
@@ -177,10 +193,15 @@ export function ChatProvider({ children }) {
   );
 
   /**
-   * Switch to a different conversation
+   * Switch to a different conversation.
+   * Pass skipContextFetch=true when the conversation doesn't exist on the
+   * backend yet (e.g. pre-generated ID for a new conversation).
    */
   const switchConversation = useCallback(
-    (convId) => {
+    (convId, { skipContextFetch = false } = {}) => {
+      if (skipContextFetch) {
+        skipNextContextFetchRef.current = true;
+      }
       setConversationId(convId);
     },
     [setConversationId],
@@ -202,6 +223,7 @@ export function ChatProvider({ children }) {
       }
 
       // Skip if loadConversation was just called (it already loaded the context)
+      // OR if this is a brand-new pre-generated ID (conv_ prefix, not yet on backend)
       if (skipNextContextFetchRef.current) {
         skipNextContextFetchRef.current = false;
         return;
@@ -260,6 +282,7 @@ export function ChatProvider({ children }) {
     loadConversation,
     latestRunId,
     updateLatestRunId,
+    appendMessagesToContext,
 
     // Auth
     username,
