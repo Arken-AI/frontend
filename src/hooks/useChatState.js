@@ -82,6 +82,8 @@ function chatReducer(state, action) {
             // Carry over arguments from the activeTool (set by TOOL_START)
             // so they survive into the message's toolExecutions array.
             args: state.activeTool?.args || null,
+            // Full tool result from SSE
+            result: action.payload.result || null,
             timestamp: Date.now(),
           },
         ],
@@ -128,10 +130,15 @@ function chatReducer(state, action) {
             tool_name: t.tool_name || t.name,
             status: t.status,
             duration_ms: t.duration_ms || t.duration,
-            summary: t.summary || t.result_summary,
+            summary:
+              t.summary ||
+              t.result_summary ||
+              (sseTool ? sseTool.summary : undefined),
             error: t.error,
             // Merge arguments from SSE if the HTTP response didn't include them
             arguments: t.arguments || (sseTool ? sseTool.args : undefined),
+            // Full tool result: prefer HTTP (authoritative), fallback to SSE
+            result: t.result || (sseTool ? sseTool.result : undefined),
           };
         });
       } else {
@@ -143,6 +150,7 @@ function chatReducer(state, action) {
           summary: t.summary,
           error: t.error,
           arguments: t.args,
+          result: t.result || undefined,
         }));
       }
       return {
