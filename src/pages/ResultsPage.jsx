@@ -645,10 +645,32 @@ export default function ResultsPage() {
       const newRunId = response.run_ids?.[0];
 
       if (!newRunId) {
-        toast.error(
-          response.message ||
-            "Simulation completed but no run ID returned. Check chat for details.",
+        // Check if any tool returned not_converged
+        const notConverged = response.tool_executions?.some(
+          (t) => t.result?.status === "not_converged",
         );
+        if (notConverged) {
+          toast.error(
+            "Results not updated — simulation did not converge. Check chat for details.",
+            { duration: 5000 },
+          );
+        } else {
+          toast.error(
+            response.message ||
+              "Simulation completed but no run ID returned. Check chat for details.",
+          );
+        }
+
+        // Still inject assistant reply so the user can read the explanation in chat
+        const assistantMsg = {
+          role: "assistant",
+          content: response.message || "",
+          timestamp: new Date().toISOString(),
+          run_ids: response.run_ids,
+          tool_executions: response.tool_executions,
+        };
+        appendMessagesToContext([assistantMsg]);
+        setIsRightChatOpen(true);
         return;
       }
 
