@@ -59,7 +59,7 @@ export default function ResultsPage() {
   const { runId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { loadConversation, appendMessagesToContext } = useChatContext();
+  const { loadConversation, appendMessagesToContext, latestRunId } = useChatContext();
 
   // API response state for simulation results
   const [apiResponse, setApiResponse] = useState(null);
@@ -267,6 +267,13 @@ export default function ResultsPage() {
       isMounted = false;
     };
   }, [runId, navigate, fetchCounter]);
+
+  // When a chat message produces a new run_id, navigate to it
+  useEffect(() => {
+    if (latestRunId && latestRunId !== runId && !isSimulating) {
+      navigate(`/results/${latestRunId}`, { replace: false });
+    }
+  }, [latestRunId]);
 
   // Ensure sidebar opens when active panel changes (e.g., from Warnings "View Equipment")
   useEffect(() => {

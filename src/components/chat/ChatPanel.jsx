@@ -50,6 +50,9 @@ const ChatPanel = forwardRef(function ChatPanel({
     username,
   } = useChatContext();
 
+  // Backend connection status
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+
   // Dropdown state for conversation history
   const [showConversationList, setShowConversationList] = useState(false);
   const dropdownRef = useRef(null);
@@ -68,6 +71,22 @@ const ChatPanel = forwardRef(function ChatPanel({
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showConversationList]);
+
+  // Poll backend health endpoint
+  useEffect(() => {
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+    const checkHealth = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/health`, { method: "GET" });
+        setIsBackendConnected(res.ok);
+      } catch {
+        setIsBackendConnected(false);
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Toggle conversation list dropdown
   const handleToggleHistory = useCallback(() => {
@@ -373,17 +392,17 @@ const ChatPanel = forwardRef(function ChatPanel({
             {/* Connection Status */}
             <div
               className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-                state.isThinking
+                isBackendConnected
                   ? "bg-green-50 text-green-700"
                   : "bg-gray-100 text-gray-500"
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  state.isThinking ? "bg-green-500" : "bg-gray-400"
+                  isBackendConnected ? "bg-green-500" : "bg-gray-400"
                 }`}
               />
-              {state.isThinking ? "Connected" : "Offline"}
+              {isBackendConnected ? "Connected" : "Offline"}
             </div>
 
             {/* Conversation History Dropdown */}
