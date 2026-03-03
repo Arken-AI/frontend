@@ -18,9 +18,8 @@ import useSelectionStore from "../store/useSelectionStore";
 import useEquipmentStore from "../stores/useEquipmentStore";
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import { ActivityBar } from "../components/layout";
-import { getRunResults, getRunFlowsheet, sendMessage } from "../api/client";
+import { getRunResults, getRunFlowsheet } from "../api/client";
 import { useChatContext } from "../context/ChatContext";
-import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { PFDReportModal } from "../components/PFDReport";
 import { DetailedReportButton } from "../components/DetailedReport";
@@ -61,7 +60,6 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { loadConversation, appendMessagesToContext } = useChatContext();
-  const { username } = useAuth();
 
   // API response state for simulation results
   const [apiResponse, setApiResponse] = useState(null);
@@ -123,6 +121,9 @@ export default function ResultsPage() {
 
   // Ref for FlowCanvas component (exposes getFullFlowsheetPng method)
   const flowCanvasRef = useRef(null);
+
+  // Ref for ChatPanel imperative API (sendSimulationMessage)
+  const chatPanelRef = useRef(null);
 
   // Derive equipment data from API response
   const equipmentData = useMemo(() => {
@@ -231,13 +232,13 @@ export default function ResultsPage() {
               loadedConversationRef.current = result.conversation_id;
               await loadConversation(result.conversation_id);
 
-              // After loadConversation overwrites currentContext, re-apply any
-              // messages that were passed through navigation state (from re-simulation).
-              // This beats the overwrite race because we run immediately after the fetch.
+              // Legacy: re-simulation now streams via ChatPanel's SSE pipeline
+              // and no longer passes pendingMessages in navigation state.
+              // Retained for backward compatibility with any other navigation
+              // source that may still use this pattern.
               const pending = location.state?.pendingMessages;
               if (pending && pending.length > 0) {
                 appendMessagesToContext(pending);
-                // Clear nav state so a hard-refresh doesn't re-inject them
                 navigate(location.pathname, { replace: true, state: {} });
               }
             } catch (convError) {
@@ -615,29 +616,23 @@ export default function ResultsPage() {
       `Changes: ${editSummaryParts.join(" | ") || "(see metadata)"}\n` +
       `Process: ${apiResponse?.process_id || "unknown"}`;
 
+    // Guard: ChatPanel ref must be available
+    if (!chatPanelRef.current) {
+      toast.error("Chat panel not ready. Please try again.");
+      return;
+    }
+
     setIsSimulating(true);
-    setIsRightChatOpen(true); // Phase 5d: open now so SSE tool events stream in real time
+    setIsRightChatOpen(true); // Open chat so SSE tool events stream in real time
     const loadingToast = toast.loading("Simulating…");
 
-    // --- Fix 1: inject user message IMMEDIATELY so it appears in the
-    // chat panel before the (potentially long) backend call starts. ---
-    const userMessage = {
-      role: "user",
-      content: messageText,
-      timestamp: new Date().toISOString(),
-    };
-    appendMessagesToContext([userMessage]);
-
     try {
-      const response = await sendMessage({
-        message: messageText,
-        conversation_id: conversationId,
-        username,
-        extra_metadata: {
-          re_simulation: true,
-          ...simulationPayload,
-        },
-      });
+      // Delegate to ChatPanel's imperative API — this drives ADD_MESSAGE,
+      // SET_THINKING, SSE streaming, and waitForCompletion internally.
+      const response = await chatPanelRef.current.sendSimulationMessage(
+        messageText,
+        { re_simulation: true, ...simulationPayload },
+      );
 
       toast.dismiss(loadingToast);
 
@@ -660,31 +655,9 @@ export default function ResultsPage() {
               "Simulation completed but no run ID returned. Check chat for details.",
           );
         }
-
-        // Still inject assistant reply so the user can read the explanation in chat
-        const assistantMsg = {
-          role: "assistant",
-          content: response.message || "",
-          timestamp: new Date().toISOString(),
-          run_ids: response.run_ids,
-          tool_executions: response.tool_executions,
-        };
-        appendMessagesToContext([assistantMsg]);
         setIsRightChatOpen(true);
         return;
       }
-
-      // Build the assistant message now that we have the response
-      const assistantMessage = {
-        role: "assistant",
-        content: response.message || "",
-        timestamp: new Date().toISOString(),
-        run_ids: response.run_ids,
-        tool_executions: response.tool_executions,
-      };
-
-      // Inject assistant reply into current page's chat panel too
-      appendMessagesToContext([assistantMessage]);
 
       // Clear edits — new results are now the baseline
       resetAll();
@@ -692,15 +665,9 @@ export default function ResultsPage() {
 
       if (newRunId !== runId) {
         // Different run ID — navigate to it (triggers fetchResults via runId change)
-        navigate(`/results/${newRunId}`, {
-          replace: false,
-          state: {
-            pendingMessages: [userMessage, assistantMessage],
-          },
-        });
+        navigate(`/results/${newRunId}`, { replace: false });
       } else {
         // Same run ID (e.g. backend reused the ID) — force re-fetch
-        // by bumping fetchCounter since runId didn't change.
         setFetchCounter((c) => c + 1);
       }
     } catch (err) {
@@ -986,9 +953,9 @@ export default function ResultsPage() {
           >
             <ErrorBoundary fallbackMessage="Chat is temporarily unavailable.">
               <ChatPanel
+                ref={chatPanelRef}
                 onClose={() => setIsRightChatOpen(false)}
                 placeholder="Ask about this simulation..."
-                externalProcessing={isSimulating}
               />
             </ErrorBoundary>
           </div>
