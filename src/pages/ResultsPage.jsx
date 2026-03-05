@@ -898,6 +898,7 @@ export default function ResultsPage() {
                   warningsData={warningsData}
                   templateType={templateType}
                   compounds={compounds}
+                  conversationId={apiResponse?.conversation_id}
                 />
               </ErrorBoundary>
             </div>
@@ -987,6 +988,7 @@ export default function ResultsPage() {
 import EquipmentBrowser from "../components/EquipmentBrowser";
 import WarningsPanel from "../components/WarningsPanel";
 import { DetailsPanel } from "../components/DetailsPanel";
+import RunHistory from "../components/RunHistory";
 
 function SidebarContent({
   section,
@@ -994,6 +996,7 @@ function SidebarContent({
   warningsData,
   templateType = null,
   compounds = [],
+  conversationId = null,
 }) {
   // Get selected equipment from store
   const { selectedEquipmentId } = useSelectionStore();
@@ -1063,19 +1066,7 @@ function SidebarContent({
       return <WarningsPanel warningsData={warningsData} />;
 
     case "history":
-      return (
-        <>
-          <p className="text-sm text-content-secondary">
-            Recent simulation runs
-          </p>
-          <div className="mt-4 space-y-2">
-            <div className="p-2 border border-border rounded bg-surface-secondary flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              <span className="text-sm text-content">Current run</span>
-            </div>
-          </div>
-        </>
-      );
+      return <RunHistory conversationId={conversationId} />;
 
     default:
       return null;
