@@ -232,6 +232,17 @@ export async function getRunFlowsheet(runId) {
 }
 
 /**
+ * Get run IDs for a conversation (for Run History sidebar)
+ * Uses the existing context endpoint which returns run_ids (newest first).
+ * @param {string} conversationId - Conversation ID
+ * @returns {Promise<string[]>} Array of run IDs, newest first
+ */
+export async function getConversationRunIds(conversationId) {
+  const context = await getContext(conversationId);
+  return context.run_ids || [];
+}
+
+/**
  * List simulation runs with optional filters and pagination
  * @param {Object} params - Query parameters
  * @param {string|null} params.source - Filter by source: "calc_engine", "process_server", or null for both

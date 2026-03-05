@@ -49,6 +49,7 @@ export function handleSSEEvent(event, dispatch) {
           summary: event.summary,
           error_message: event.error_message,
           result_id: event.result_id,
+          result: event.result || null,
         },
       });
       break;

@@ -16,6 +16,7 @@ export default function ToolExecutionCard({
   summary = null,
   error = null,
   arguments: args = null,
+  result = null,
   estimatedDuration = null,
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -84,7 +85,7 @@ export default function ToolExecutionCard({
       {/* Expanded content */}
       {expanded && (
         <div className="px-3 pb-3 border-t border-gray-200/50">
-          {/* Arguments */}
+          {/* Arguments — shown in all states */}
           {args && Object.keys(args).length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-medium text-gray-500 mb-1">Arguments:</p>
@@ -94,8 +95,18 @@ export default function ToolExecutionCard({
             </div>
           )}
           
-          {/* Summary */}
-          {summary && (
+          {/* Full result output — shown after completion */}
+          {status !== 'running' && result && Object.keys(result).length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-gray-500 mb-1">Result:</p>
+              <pre className="text-xs bg-white/70 p-2 rounded overflow-x-auto max-h-80 overflow-y-auto">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </div>
+          )}
+          
+          {/* Fallback: show summary text if no full result available */}
+          {status !== 'running' && !result && summary && (
             <div className="mt-2">
               <p className="text-xs font-medium text-gray-500 mb-1">Result:</p>
               <p className="text-sm text-gray-700">{summary}</p>

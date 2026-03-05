@@ -13,7 +13,7 @@
  * - Continues existing conversation from ChatContext
  */
 
-import { useCallback, useRef, useEffect, useState } from "react";
+import { useCallback, useRef, useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import {
   X,
   Plus,
@@ -32,13 +32,12 @@ import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import WelcomeScreen from "./WelcomeScreen";
 
-export default function ChatPanel({
+const ChatPanel = forwardRef(function ChatPanel({
   onClose,
   title = "MCP Chat",
   placeholder = "Ask about process simulations...",
   showHeader = true,
-  externalProcessing = false,
-}) {
+}, ref) {
   const {
     conversationId,
     setConversationId,
@@ -50,6 +49,9 @@ export default function ChatPanel({
     updateLatestRunId,
     username,
   } = useChatContext();
+
+  // Backend connection status
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Dropdown state for conversation history
   const [showConversationList, setShowConversationList] = useState(false);
@@ -69,6 +71,22 @@ export default function ChatPanel({
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showConversationList]);
+
+  // Poll backend health endpoint
+  useEffect(() => {
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+    const checkHealth = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/health`, { method: "GET" });
+        setIsBackendConnected(res.ok);
+      } catch {
+        setIsBackendConnected(false);
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Toggle conversation list dropdown
   const handleToggleHistory = useCallback(() => {
@@ -118,6 +136,88 @@ export default function ChatPanel({
     },
     [dispatch],
   );
+
+  // Expose imperative API for ResultsPage re-simulation flow.
+  // Allows the parent to send a message through ChatPanel's own SSE pipeline
+  // so live tool_start/tool_end events appear in the chat panel.
+  useImperativeHandle(ref, () => ({
+    async sendSimulationMessage(messageText, extraMetadata = {}) {
+      if (state.isThinking) {
+        throw new Error("A request is already in progress");
+      }
+      if (!conversationId) {
+        throw new Error("No active conversation — cannot send simulation message");
+      }
+
+      // Clear any stale tool state from a previous error path where
+      // ADD_MESSAGE never fired to adopt toolExecutions.
+      dispatch({ type: "RESET_RESPONSE" });
+
+      const userMessage = {
+        role: "user",
+        content: messageText.trim(),
+        timestamp: new Date().toISOString(),
+      };
+      dispatch({ type: "ADD_MESSAGE", payload: userMessage });
+      dispatch({ type: "SET_THINKING", payload: true });
+
+      // Open SSE BEFORE the POST so fast tool events are captured.
+      const sseUrl = getStreamUrl(conversationId, lastSequenceRef.current);
+      const sseClient = new SSEClient(sseUrl, onSSEEvent);
+      sseClientRef.current = sseClient;
+      await sseClient.ready;
+
+      try {
+        const response = await sendMessage({
+          message: messageText.trim(),
+          conversation_id: conversationId,
+          username,
+          extra_metadata: extraMetadata,
+        });
+
+        await sseClient.waitForCompletion();
+
+        if (response.status === "completed" && response.message) {
+          dispatch({
+            type: "ADD_MESSAGE",
+            payload: {
+              role: "assistant",
+              content: response.message,
+              timestamp: new Date().toISOString(),
+              run_ids: response.run_ids,
+              tool_executions: response.tool_executions,
+              token_usage: response.token_usage,
+            },
+          });
+
+          if (response.run_ids && response.run_ids.length > 0) {
+            updateLatestRunId(response.run_ids);
+          }
+        } else if (response.status === "error") {
+          dispatch({
+            type: "SET_ERROR",
+            payload: response.message || "An error occurred",
+          });
+        }
+
+        dispatch({ type: "SET_THINKING", payload: false });
+        sseClient.close();
+        sseClientRef.current = null;
+
+        await refreshConversations();
+        return response;
+      } catch (error) {
+        sseClientRef.current?.close();
+        sseClientRef.current = null;
+        dispatch({
+          type: "SET_ERROR",
+          payload: error.message || "Failed to send message",
+        });
+        dispatch({ type: "SET_THINKING", payload: false });
+        throw error;
+      }
+    },
+  }), [state.isThinking, conversationId, username, onSSEEvent, dispatch, refreshConversations, updateLatestRunId]);
 
   // Send message handler
   const handleSendMessage = useCallback(
@@ -262,8 +362,8 @@ export default function ChatPanel({
     dispatch({ type: "RESET" });
   }, [createNewConversation, dispatch]);
 
-  const showWelcome = state.messages.length === 0 && !state.isThinking && !externalProcessing;
-  const isProcessing = state.isThinking || externalProcessing;
+  const showWelcome = state.messages.length === 0 && !state.isThinking;
+  const isProcessing = state.isThinking;
 
   // Get conversation title from context
   const conversationTitle =
@@ -292,17 +392,17 @@ export default function ChatPanel({
             {/* Connection Status */}
             <div
               className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-                state.isThinking
+                isBackendConnected
                   ? "bg-green-50 text-green-700"
                   : "bg-gray-100 text-gray-500"
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  state.isThinking ? "bg-green-500" : "bg-gray-400"
+                  isBackendConnected ? "bg-green-500" : "bg-gray-400"
                 }`}
               />
-              {state.isThinking ? "Connected" : "Offline"}
+              {isBackendConnected ? "Connected" : "Offline"}
             </div>
 
             {/* Conversation History Dropdown */}
@@ -438,11 +538,12 @@ export default function ChatPanel({
       <MessageInput
         onSend={handleSendMessage}
         onCancel={handleCancelRequest}
-        disabled={externalProcessing}
         isProcessing={isProcessing}
-        placeholder={externalProcessing ? "Simulation in progress…" : placeholder}
+        placeholder={placeholder}
         compact
       />
     </div>
   );
-}
+});
+
+export default ChatPanel;

@@ -65,6 +65,7 @@ export default function MessageList({
                         summary={tool.summary}
                         error={tool.error}
                         arguments={tool.arguments}
+                        result={tool.result}
                       />
                     ))}
                   </div>
@@ -89,7 +90,8 @@ export default function MessageList({
                     duration={tool.duration}
                     summary={tool.summary}
                     error={tool.error}
-                    arguments={tool.arguments}
+                    arguments={tool.args}
+                    result={tool.result}
                   />
                 ))}
               </div>
