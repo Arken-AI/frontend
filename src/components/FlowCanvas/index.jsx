@@ -315,6 +315,18 @@ const FlowCanvasInner = forwardRef(function FlowCanvasInner({
           width: `${imageWidth}px`,
           height: `${imageHeight}px`,
         },
+        // Exclude UI overlays (controls, minimap, panels) from the export
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          const cls = node.className || '';
+          const clsStr = typeof cls === 'string' ? cls : cls.baseVal || '';
+          return !(
+            clsStr.includes('react-flow__controls') ||
+            clsStr.includes('react-flow__minimap') ||
+            clsStr.includes('react-flow__panel') ||
+            clsStr.includes('react-flow__attribution')
+          );
+        },
       });
       
       return { dataUrl, width: imageWidth, height: imageHeight };
