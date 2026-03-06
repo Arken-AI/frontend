@@ -136,9 +136,10 @@ export default function DetailedReportButton({
             } else if (pfdContainerRef?.current) {
               // Fallback to generic capture (only captures visible viewport)
               console.warn("[DetailedReportButton] FlowCanvas ref not available, using fallback capture");
-              const reactFlowElement =
-                pfdContainerRef.current.querySelector(".react-flow");
-              const targetElement = reactFlowElement || pfdContainerRef.current;
+              // Target the viewport element to exclude controls/minimap
+              const viewportElement =
+                pfdContainerRef.current.querySelector(".react-flow__viewport");
+              const targetElement = viewportElement || pfdContainerRef.current;
 
               pfdImageBase64 = await capturePFDAsBase64(targetElement, {
                 scale: 2,
