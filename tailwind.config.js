@@ -57,6 +57,7 @@ export default {
         "slide-out": "slideOut 150ms ease-in",
         "pulse-slow": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         skeleton: "skeleton 1.5s ease-in-out infinite",
+        "step-in": "stepIn 300ms cubic-bezier(0.16, 1, 0.3, 1)",
       },
       keyframes: {
         fadeIn: {
@@ -78,6 +79,10 @@ export default {
         skeleton: {
           "0%": { backgroundPosition: "200% 0" },
           "100%": { backgroundPosition: "-200% 0" },
+        },
+        stepIn: {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
       transitionDuration: {

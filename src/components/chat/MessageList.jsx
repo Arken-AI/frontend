@@ -1,11 +1,11 @@
 /**
  * MessageList Component
- * 
+ *
  * Scrollable container that displays all messages and inline events.
  * Features:
  * - Auto-scroll to bottom on new messages
- * - Renders messages, thinking indicator, tool cards
- * - Welcome screen when empty
+ * - Renders interleaved agent steps (text + tool cards) in real-time
+ * - Backward-compatible fallback for messages without agentSteps
  */
 
 import { useRef, useEffect } from 'react';
@@ -28,21 +28,21 @@ export default function MessageList({
 }) {
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
-  
+
   // Auto-scroll to bottom when content changes
   useEffect(() => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isThinking, activeTool, toolExecutions, agentSteps]);
-  
+
   // Show welcome screen if no messages
   if (messages.length === 0 && !isThinking) {
     return <WelcomeScreen onSuggestionClick={onSuggestionClick} />;
   }
-  
+
   return (
-    <div 
+    <div
       ref={scrollRef}
       className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin"
     >
@@ -57,7 +57,8 @@ export default function MessageList({
             {message.role === 'assistant' && (
               <div>
                 {message.agentSteps?.length > 0 ? (
-                  <div className="space-y-2 mb-2">
+                  /* New: interleaved steps display */
+                  <div className="space-y-1.5 mb-3">
                     {message.agentSteps.map((step, i) => {
                       if (step.type === 'text' && !step.isFinal)
                         return <AgentTextBlock key={i} content={step.content} />;
@@ -78,7 +79,8 @@ export default function MessageList({
                     })}
                   </div>
                 ) : message.toolExecutions?.length > 0 ? (
-                  <div className="space-y-2 mb-2">
+                  /* Fallback: flat tool cards for old conversations */
+                  <div className="space-y-1.5 mb-3">
                     {message.toolExecutions.map((tool, i) => (
                       <ToolExecutionCard
                         key={i}
@@ -98,10 +100,10 @@ export default function MessageList({
             )}
           </div>
         ))}
-        
-        {/* Live processing indicators — only shown while a request is in-flight */}
+
+        {/* Live processing — ordered step-by-step display */}
         {isThinking && agentSteps.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-1.5 mt-1">
             {agentSteps.map((step, index) => {
               if (step.type === 'text')
                 return <AgentTextBlock key={index} content={step.content} />;
@@ -130,7 +132,8 @@ export default function MessageList({
                 );
               return null;
             })}
-            {/* Run progress bar — show inside steps when active */}
+
+            {/* Run progress bar inside steps */}
             {runProgress && (
               <RunProgressBar
                 stage={runProgress.stage}
@@ -140,17 +143,21 @@ export default function MessageList({
                 totalBlocks={runProgress.totalBlocks}
               />
             )}
-            {/* Show thinking indicator after steps when waiting for next LLM response */}
+
+            {/* Inline thinking indicator between iterations */}
             {!activeTool && !runProgress && (
               <ThinkingIndicator startTime={thinkingStartTime} />
             )}
           </div>
         )}
-        {/* Thinking indicator only when no steps yet (waiting for first event) */}
+
+        {/* Initial thinking indicator (no steps yet) */}
         {isThinking && agentSteps.length === 0 && (
-          <ThinkingIndicator startTime={thinkingStartTime} />
+          <div className="mt-1">
+            <ThinkingIndicator startTime={thinkingStartTime} />
+          </div>
         )}
-        
+
         {/* Scroll anchor */}
         <div ref={bottomRef} />
       </div>

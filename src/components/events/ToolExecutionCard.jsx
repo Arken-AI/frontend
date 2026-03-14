@@ -1,17 +1,18 @@
 /**
  * ToolExecutionCard Component
- * 
- * Displays tool execution status with collapsible details.
- * States: running, success, error
+ *
+ * Compact, Claude Code-inspired tool execution display.
+ * Collapsed: single clean row with icon, name, status, duration.
+ * Expanded: shows arguments and results.
  */
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Wrench, Check, X, Loader2 } from 'lucide-react';
-import { formatDuration, getStatusColor } from '../../utils/formatters';
+import { ChevronDown, Check, X, Loader2, Zap } from 'lucide-react';
+import { formatDuration } from '../../utils/formatters';
 
 export default function ToolExecutionCard({
   toolName,
-  status = 'running', // 'running' | 'success' | 'error'
+  status = 'running',
   duration = null,
   summary = null,
   error = null,
@@ -20,112 +21,113 @@ export default function ToolExecutionCard({
   estimatedDuration = null,
 }) {
   const [expanded, setExpanded] = useState(false);
-  
-  const statusConfig = {
-    running: {
-      icon: <Loader2 className="w-4 h-4 animate-spin" />,
-      bg: 'bg-blue-50',
-      border: 'border-blue-200',
-      text: 'text-blue-700',
-      label: 'Running...',
-    },
-    success: {
-      icon: <Check className="w-4 h-4" />,
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      text: 'text-green-700',
-      label: 'Success',
-    },
-    error: {
-      icon: <X className="w-4 h-4" />,
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-700',
-      label: 'Error',
-    },
-  };
-  
-  const config = statusConfig[status] || statusConfig.running;
-  
-  // Format tool name for display (with safety check)
+
+  // Format tool name for display
   const displayName = toolName
-    ? toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    ? toolName.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
     : 'Unknown Tool';
-  
+
+  const isRunning = status === 'running';
+  const isError = status === 'error';
+
   return (
-    <div className={`rounded-lg border ${config.border} ${config.bg} overflow-hidden`}>
-      {/* Header - always visible */}
+    <div className="animate-step-in">
+      {/* Compact header row */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-white/50 transition-colors"
+        className={`
+          w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left
+          transition-all duration-150 group
+          ${isRunning
+            ? 'bg-gray-50 border border-gray-200'
+            : isError
+              ? 'bg-red-50/60 border border-red-200/80 hover:bg-red-50'
+              : 'bg-gray-50/80 border border-gray-200/80 hover:bg-gray-100/80'
+          }
+        `}
       >
-        <div className="flex items-center gap-3">
-          <Wrench className={`w-4 h-4 ${config.text}`} />
-          <span className={`font-medium ${config.text}`}>{displayName}</span>
-          
-          {/* Status badge */}
-          <span className={`flex items-center gap-1 text-xs ${config.text}`}>
-            {config.icon}
-            {status !== 'running' && duration && (
-              <span className="ml-1">{formatDuration(duration)}</span>
-            )}
-          </span>
-        </div>
-        
-        {/* Expand/collapse icon */}
-        <div className={`${config.text}`}>
-          {expanded ? (
-            <ChevronUp className="w-4 h-4" />
+        {/* Status icon */}
+        <span className="flex-shrink-0">
+          {isRunning ? (
+            <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+          ) : isError ? (
+            <X className="w-3.5 h-3.5 text-red-500" />
           ) : (
-            <ChevronDown className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5 text-emerald-500" />
           )}
-        </div>
+        </span>
+
+        {/* Tool name */}
+        <span className={`
+          text-[13px] font-medium truncate
+          ${isRunning ? 'text-gray-600' : isError ? 'text-red-700' : 'text-gray-700'}
+        `}>
+          {displayName}
+        </span>
+
+        {/* Duration / Running indicator */}
+        <span className="flex items-center gap-1 ml-auto flex-shrink-0">
+          {isRunning ? (
+            <span className="text-xs text-gray-400">
+              {estimatedDuration ? `~${formatDuration(estimatedDuration)}` : 'Running'}
+            </span>
+          ) : duration != null ? (
+            <span className="text-xs text-gray-400 tabular-nums">
+              {formatDuration(duration)}
+            </span>
+          ) : null}
+
+          {/* Expand chevron */}
+          <ChevronDown className={`
+            w-3.5 h-3.5 text-gray-400 transition-transform duration-200
+            ${expanded ? 'rotate-180' : ''}
+            ${!isRunning ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}
+          `} />
+        </span>
       </button>
-      
-      {/* Expanded content */}
-      {expanded && (
-        <div className="px-3 pb-3 border-t border-gray-200/50">
-          {/* Arguments — shown in all states */}
+
+      {/* Expandable detail panel */}
+      {expanded && !isRunning && (
+        <div className="mt-1 ml-6 mr-1 animate-fade-in">
+          {/* Arguments */}
           {args && Object.keys(args).length > 0 && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-gray-500 mb-1">Arguments:</p>
-              <pre className="text-xs bg-white/70 p-2 rounded overflow-x-auto">
+            <div className="mb-2">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">
+                Input
+              </p>
+              <pre className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-md p-2 overflow-x-auto leading-relaxed">
                 {JSON.stringify(args, null, 2)}
               </pre>
             </div>
           )}
-          
-          {/* Full result output — shown after completion */}
-          {status !== 'running' && result && Object.keys(result).length > 0 && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-gray-500 mb-1">Result:</p>
-              <pre className="text-xs bg-white/70 p-2 rounded overflow-x-auto max-h-80 overflow-y-auto">
+
+          {/* Result */}
+          {result && Object.keys(result).length > 0 && (
+            <div className="mb-2">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">
+                Output
+              </p>
+              <pre className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-md p-2 overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
                 {JSON.stringify(result, null, 2)}
               </pre>
             </div>
           )}
-          
-          {/* Fallback: show summary text if no full result available */}
-          {status !== 'running' && !result && summary && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-gray-500 mb-1">Result:</p>
-              <p className="text-sm text-gray-700">{summary}</p>
-            </div>
+
+          {/* Summary fallback */}
+          {!result && summary && (
+            <p className="text-xs text-gray-500 mb-2">{summary}</p>
           )}
-          
-          {/* Error message */}
+
+          {/* Error */}
           {error && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-red-500 mb-1">Error:</p>
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mb-2">
+              <p className="text-[11px] font-medium text-red-400 uppercase tracking-wider mb-1">
+                Error
+              </p>
+              <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md p-2">
+                {error}
+              </p>
             </div>
-          )}
-          
-          {/* Estimated duration for running tools */}
-          {status === 'running' && estimatedDuration && (
-            <p className="text-xs text-gray-500 mt-2">
-              Estimated: ~{formatDuration(estimatedDuration)}
-            </p>
           )}
         </div>
       )}

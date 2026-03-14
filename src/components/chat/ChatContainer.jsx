@@ -336,6 +336,7 @@ function ChatContainer() {
           <MessageList
             messages={state.messages}
             isThinking={state.isThinking}
+            thinkingStartTime={state.thinkingStartTime}
             activeTool={state.activeTool}
             toolExecutions={state.toolExecutions}
             runProgress={state.runProgress}
@@ -354,26 +355,16 @@ function ChatContainer() {
         placeholder="Ask about process simulations..."
       />
 
-      {/* Status indicator */}
-      {state.isThinking && (
-        <div className="px-4 py-2">
+      {/* Status indicator — only show when no agent steps are visible yet */}
+      {state.isThinking && state.agentSteps.length === 0 && (
+        <div className="px-4 py-1.5">
           <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 text-xs text-gray-400">
             <span className="flex items-center gap-1.5">
-              <span className="flex gap-0.5">
-                <span
-                  className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "0ms" }}
-                />
-                <span
-                  className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "150ms" }}
-                />
-                <span
-                  className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "300ms" }}
-                />
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
               </span>
-              <span className="text-gray-400 font-medium">Thinking</span>
+              <span className="text-gray-400 text-xs">Processing</span>
             </span>
           </div>
         </div>
