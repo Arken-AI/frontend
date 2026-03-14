@@ -26,6 +26,7 @@ const EVENT_TYPES = [
   "tool_end",
   "run_progress",
   "app_error",
+  "agent_text",
 ];
 
 /** Maximum time (ms) to wait for EventSource.onopen before proceeding. */
@@ -35,7 +36,7 @@ const CONNECT_TIMEOUT_MS = 3000;
  * Maximum time (ms) to wait for the SSE stream to complete (thinking_end)
  * after the HTTP response has arrived. Safety net so we never hang forever.
  */
-const STREAM_COMPLETE_TIMEOUT_MS = 10000;
+const STREAM_COMPLETE_TIMEOUT_MS = 30000;
 
 export default class SSEClient {
   /**

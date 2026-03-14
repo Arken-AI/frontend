@@ -15,6 +15,7 @@ const initialState = {
   activeTool: null, // Currently executing tool { name, args, startTime }
   toolExecutions: [], // Completed tool executions
   runProgress: null, // Current simulation progress { stage, percentage, etc }
+  agentSteps: [], // Ordered list of { type: "text"|"tool"|"tool_running", ... }
   error: null, // Current error message
 };
 
@@ -35,6 +36,7 @@ export const ACTIONS = {
   SET_ERROR: "SET_ERROR",
   CLEAR_ERROR: "CLEAR_ERROR",
   CANCEL_REQUEST: "CANCEL_REQUEST",
+  AGENT_TEXT: "AGENT_TEXT",
 };
 
 // Reducer function
@@ -65,9 +67,35 @@ function chatReducer(state, action) {
           startTime: Date.now(),
           estimatedDuration: action.payload.estimated_duration_ms,
         },
+        agentSteps: [
+          ...state.agentSteps,
+          {
+            type: "tool_running",
+            name: action.payload.tool_name,
+            args: action.payload.arguments,
+            estimatedDuration: action.payload.estimated_duration_ms,
+          },
+        ],
       };
 
-    case ACTIONS.TOOL_END:
+    case ACTIONS.TOOL_END: {
+      // Find last tool_running step in agentSteps and upgrade to completed tool
+      const updatedAgentSteps = [...state.agentSteps];
+      for (let i = updatedAgentSteps.length - 1; i >= 0; i--) {
+        if (updatedAgentSteps[i].type === "tool_running") {
+          updatedAgentSteps[i] = {
+            type: "tool",
+            name: action.payload.tool_name,
+            status: action.payload.status,
+            duration: action.payload.duration_ms,
+            summary: action.payload.summary,
+            error: action.payload.error_message,
+            args: state.activeTool?.args || null,
+            result: action.payload.result || null,
+          };
+          break;
+        }
+      }
       return {
         ...state,
         activeTool: null,
@@ -79,15 +107,14 @@ function chatReducer(state, action) {
             duration: action.payload.duration_ms,
             summary: action.payload.summary,
             error: action.payload.error_message,
-            // Carry over arguments from the activeTool (set by TOOL_START)
-            // so they survive into the message's toolExecutions array.
             args: state.activeTool?.args || null,
-            // Full tool result from SSE
             result: action.payload.result || null,
             timestamp: Date.now(),
           },
         ],
+        agentSteps: updatedAgentSteps,
       };
+    }
 
     case ACTIONS.RUN_PROGRESS:
       return {
@@ -99,6 +126,15 @@ function chatReducer(state, action) {
           currentBlock: action.payload.current_block,
           totalBlocks: action.payload.total_blocks,
         },
+      };
+
+    case ACTIONS.AGENT_TEXT:
+      return {
+        ...state,
+        agentSteps: [
+          ...state.agentSteps,
+          { type: "text", content: action.payload.content, iteration: action.payload.iteration },
+        ],
       };
 
     case ACTIONS.APP_ERROR:
@@ -153,6 +189,31 @@ function chatReducer(state, action) {
           result: t.result || undefined,
         }));
       }
+
+      // Enrich agentSteps tool entries with authoritative HTTP data
+      let enrichedSteps = [...state.agentSteps];
+      if (incomingToolExecs.length > 0) {
+        let toolIndex = 0;
+        enrichedSteps = enrichedSteps.map((step) => {
+          if ((step.type === "tool" || step.type === "tool_running") && incomingToolExecs[toolIndex]) {
+            const httpTool = incomingToolExecs[toolIndex];
+            toolIndex++;
+            return {
+              ...step,
+              type: "tool",
+              result: httpTool.result,
+              summary: httpTool.summary || httpTool.result_summary,
+              args: httpTool.arguments || step.args,
+            };
+          }
+          return step;
+        });
+      }
+      // Append final response text as the last step
+      if (action.payload.role === "assistant" && action.payload.content) {
+        enrichedSteps.push({ type: "text", content: action.payload.content, isFinal: true });
+      }
+
       return {
         ...state,
         messages: [
@@ -165,10 +226,13 @@ function chatReducer(state, action) {
             run_ids: action.payload.run_ids,
             // Normalised array used by MessageList for inline rendering
             toolExecutions: toolExecsForMessage,
+            // Ordered interleaved steps (text + tools)
+            agentSteps: enrichedSteps.length > 1 ? enrichedSteps : undefined,
           },
         ],
-        // Clear the global live list — ownership moves to the message
+        // Clear the global live lists — ownership moves to the message
         toolExecutions: [],
+        agentSteps: [],
         error: null,
       };
     }
@@ -201,6 +265,12 @@ function chatReducer(state, action) {
           msg.tool_executions ||
           msg.metadata?.tool_executions ||
           [],
+        // Agent steps for interleaved display (historical)
+        agentSteps: (msg.metadata?.agent_steps || []).map((step) =>
+          step.type === "tool"
+            ? { ...step, toolName: step.tool_name, durationMs: step.duration_ms, isFinal: step.is_final }
+            : { ...step, isFinal: step.is_final }
+        ),
       }));
 
       return {
@@ -210,6 +280,7 @@ function chatReducer(state, action) {
         isThinking: false,
         activeTool: null,
         toolExecutions: [],
+        agentSteps: [],
         runProgress: null,
       };
 
@@ -223,6 +294,7 @@ function chatReducer(state, action) {
         ...state,
         activeTool: null,
         toolExecutions: [], // Clear tool executions when starting new response
+        agentSteps: [],
         runProgress: null,
         error: null,
       };
@@ -237,6 +309,9 @@ function chatReducer(state, action) {
         // the live SSE cards onto the message before clearing them.
         activeTool: action.payload ? state.activeTool : null,
         runProgress: action.payload ? state.runProgress : null,
+        // Safety net: clear agentSteps when thinking stops in case ADD_MESSAGE
+        // didn't fire (error path). Normal flow: ADD_MESSAGE clears first.
+        agentSteps: action.payload ? state.agentSteps : [],
       };
 
     case ACTIONS.SET_ERROR:
@@ -261,6 +336,7 @@ function chatReducer(state, action) {
         ...state,
         isThinking: false,
         activeTool: null,
+        agentSteps: [],
         runProgress: null,
       };
 

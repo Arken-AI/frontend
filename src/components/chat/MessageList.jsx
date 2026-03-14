@@ -14,6 +14,7 @@ import WelcomeScreen from './WelcomeScreen';
 import ThinkingIndicator from '../events/ThinkingIndicator';
 import ToolExecutionCard from '../events/ToolExecutionCard';
 import RunProgressBar from '../events/RunProgressBar';
+import AgentTextBlock from '../events/AgentTextBlock';
 
 export default function MessageList({
   messages = [],
@@ -22,6 +23,7 @@ export default function MessageList({
   activeTool = null,
   toolExecutions = [],
   runProgress = null,
+  agentSteps = [],
   onSuggestionClick,
 }) {
   const scrollRef = useRef(null);
@@ -32,7 +34,7 @@ export default function MessageList({
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isThinking, activeTool, toolExecutions]);
+  }, [messages, isThinking, activeTool, toolExecutions, agentSteps]);
   
   // Show welcome screen if no messages
   if (messages.length === 0 && !isThinking) {
@@ -51,10 +53,31 @@ export default function MessageList({
             {/* User message */}
             {message.role === 'user' && <MessageBubble message={message} />}
 
-            {/* Assistant message — tool cards shown inline above the bubble */}
+            {/* Assistant message — interleaved steps or fallback tool cards */}
             {message.role === 'assistant' && (
               <div>
-                {message.toolExecutions?.length > 0 && (
+                {message.agentSteps?.length > 0 ? (
+                  <div className="space-y-2 mb-2">
+                    {message.agentSteps.map((step, i) => {
+                      if (step.type === 'text' && !step.isFinal)
+                        return <AgentTextBlock key={i} content={step.content} />;
+                      if (step.type === 'tool')
+                        return (
+                          <ToolExecutionCard
+                            key={i}
+                            toolName={step.toolName || step.tool_name || step.name}
+                            status={step.status}
+                            duration={step.durationMs || step.duration_ms || step.duration}
+                            summary={step.summary}
+                            error={step.error}
+                            arguments={step.arguments || step.args}
+                            result={step.result}
+                          />
+                        );
+                      return null;
+                    })}
+                  </div>
+                ) : message.toolExecutions?.length > 0 ? (
                   <div className="space-y-2 mb-2">
                     {message.toolExecutions.map((tool, i) => (
                       <ToolExecutionCard
@@ -69,7 +92,7 @@ export default function MessageList({
                       />
                     ))}
                   </div>
-                )}
+                ) : null}
                 <MessageBubble message={message} />
               </div>
             )}
@@ -77,37 +100,37 @@ export default function MessageList({
         ))}
         
         {/* Live processing indicators — only shown while a request is in-flight */}
-        {isThinking && (
-          <div className="space-y-4">
-            {/* Live tool executions (SSE-driven, not yet attached to a message) */}
-            {toolExecutions.length > 0 && (
-              <div className="space-y-2">
-                {toolExecutions.map((tool, index) => (
+        {isThinking && agentSteps.length > 0 && (
+          <div className="space-y-3">
+            {agentSteps.map((step, index) => {
+              if (step.type === 'text')
+                return <AgentTextBlock key={index} content={step.content} />;
+              if (step.type === 'tool_running')
+                return (
                   <ToolExecutionCard
                     key={index}
-                    toolName={tool.name}
-                    status={tool.status}
-                    duration={tool.duration}
-                    summary={tool.summary}
-                    error={tool.error}
-                    arguments={tool.args}
-                    result={tool.result}
+                    toolName={step.name}
+                    status="running"
+                    arguments={step.args}
+                    estimatedDuration={step.estimatedDuration}
                   />
-                ))}
-              </div>
-            )}
-            
-            {/* Active tool execution */}
-            {activeTool && (
-              <ToolExecutionCard
-                toolName={activeTool.name}
-                status="running"
-                arguments={activeTool.args}
-                estimatedDuration={activeTool.estimatedDuration}
-              />
-            )}
-            
-            {/* Run progress bar */}
+                );
+              if (step.type === 'tool')
+                return (
+                  <ToolExecutionCard
+                    key={index}
+                    toolName={step.name}
+                    status={step.status}
+                    duration={step.duration}
+                    summary={step.summary}
+                    error={step.error}
+                    arguments={step.args}
+                    result={step.result}
+                  />
+                );
+              return null;
+            })}
+            {/* Run progress bar — show inside steps when active */}
             {runProgress && (
               <RunProgressBar
                 stage={runProgress.stage}
@@ -117,12 +140,15 @@ export default function MessageList({
                 totalBlocks={runProgress.totalBlocks}
               />
             )}
-            
-            {/* Thinking indicator */}
-            {isThinking && !activeTool && (
+            {/* Show thinking indicator after steps when waiting for next LLM response */}
+            {!activeTool && !runProgress && (
               <ThinkingIndicator startTime={thinkingStartTime} />
             )}
           </div>
+        )}
+        {/* Thinking indicator only when no steps yet (waiting for first event) */}
+        {isThinking && agentSteps.length === 0 && (
+          <ThinkingIndicator startTime={thinkingStartTime} />
         )}
         
         {/* Scroll anchor */}

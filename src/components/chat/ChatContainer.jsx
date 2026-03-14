@@ -74,6 +74,7 @@ function ChatContainer() {
           "tool_end",
           "run_progress",
           "app_error",
+          "agent_text",
         ].includes(event.event_type)
       ) {
         handleSSEEvent(event, dispatch);
@@ -338,6 +339,7 @@ function ChatContainer() {
             activeTool={state.activeTool}
             toolExecutions={state.toolExecutions}
             runProgress={state.runProgress}
+            agentSteps={state.agentSteps}
             error={state.error}
           />
         )}

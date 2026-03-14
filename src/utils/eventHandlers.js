@@ -79,6 +79,13 @@ export function handleSSEEvent(event, dispatch) {
       });
       break;
 
+    case "agent_text":
+      dispatch({
+        type: ACTIONS.AGENT_TEXT,
+        payload: { content: event.content, iteration: event.iteration },
+      });
+      break;
+
     // Handle stream timeout gracefully
     case "stream_timeout":
       console.warn("[Event] Stream timeout:", event.message);
