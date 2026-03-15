@@ -206,6 +206,19 @@ function chatReducer(state, action) {
               args: httpTool.arguments || step.args,
             };
           }
+          // If positional match exhausted, try name-based fallback
+          if ((step.type === "tool" || step.type === "tool_running") && toolIndex >= incomingToolExecs.length) {
+            const byName = incomingToolExecs.find((t) => (t.tool_name || t.name) === step.name);
+            if (byName) {
+              return {
+                ...step,
+                type: "tool",
+                result: byName.result,
+                summary: byName.summary || byName.result_summary,
+                args: byName.arguments || step.args,
+              };
+            }
+          }
           return step;
         });
       }
@@ -254,24 +267,44 @@ function chatReducer(state, action) {
     case ACTIONS.LOAD_MESSAGES:
       // Step 4.2: Load historical messages with proper formatting
       // Convert backend message format to frontend format
-      const loadedMessages = action.payload.messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp || new Date().toISOString(),
-        metadata: msg.metadata,
-        // Tool executions are stored per-message for historical display
-        toolExecutions:
+      const loadedMessages = action.payload.messages.map((msg) => {
+        const toolExecs =
           msg.toolExecutions ||
           msg.tool_executions ||
           msg.metadata?.tool_executions ||
-          [],
-        // Agent steps for interleaved display (historical)
-        agentSteps: (msg.metadata?.agent_steps || []).map((step) =>
+          [];
+        let mappedAgentSteps = (msg.metadata?.agent_steps || []).map((step) =>
           step.type === "tool"
             ? { ...step, toolName: step.tool_name, durationMs: step.duration_ms, isFinal: step.is_final }
             : { ...step, isFinal: step.is_final }
-        ),
-      }));
+        );
+        // Backfill missing arguments/result from toolExecutions (old data compat)
+        if (mappedAgentSteps.length > 0 && toolExecs.length > 0) {
+          let toolIdx = 0;
+          mappedAgentSteps = mappedAgentSteps.map((step) => {
+            if (step.type === "tool" && toolExecs[toolIdx]) {
+              const te = toolExecs[toolIdx];
+              toolIdx++;
+              return {
+                ...step,
+                arguments: step.arguments || te.arguments,
+                args: step.args || te.arguments,
+                result: step.result || te.result,
+                summary: step.summary || te.summary || te.result_summary,
+              };
+            }
+            return step;
+          });
+        }
+        return {
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          metadata: msg.metadata,
+          toolExecutions: toolExecs,
+          agentSteps: mappedAgentSteps,
+        };
+      });
 
       return {
         ...state,

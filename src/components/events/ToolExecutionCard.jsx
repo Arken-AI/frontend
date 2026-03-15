@@ -29,6 +29,7 @@ export default function ToolExecutionCard({
 
   const isRunning = status === 'running';
   const isError = status === 'error';
+  const hasExpandableContent = !isRunning && (args || result || summary || error);
 
   return (
     <div className="animate-step-in">
@@ -81,7 +82,7 @@ export default function ToolExecutionCard({
           <ChevronDown className={`
             w-3.5 h-3.5 text-gray-400 transition-transform duration-200
             ${expanded ? 'rotate-180' : ''}
-            ${!isRunning ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}
+            ${hasExpandableContent ? 'opacity-60' : 'opacity-0'}
           `} />
         </span>
       </button>
@@ -89,8 +90,8 @@ export default function ToolExecutionCard({
       {/* Expandable detail panel */}
       {expanded && !isRunning && (
         <div className="mt-1 ml-6 mr-1 animate-fade-in">
-          {/* Arguments */}
-          {args && Object.keys(args).length > 0 && (
+          {/* Arguments — object */}
+          {args && typeof args === 'object' && Object.keys(args).length > 0 && (
             <div className="mb-2">
               <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">
                 Input
@@ -101,14 +102,38 @@ export default function ToolExecutionCard({
             </div>
           )}
 
-          {/* Result */}
-          {result && Object.keys(result).length > 0 && (
+          {/* Arguments — string fallback */}
+          {args && typeof args === 'string' && (
+            <div className="mb-2">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">
+                Input
+              </p>
+              <pre className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-md p-2 overflow-x-auto leading-relaxed">
+                {args}
+              </pre>
+            </div>
+          )}
+
+          {/* Result — object */}
+          {result && typeof result === 'object' && Object.keys(result).length > 0 && (
             <div className="mb-2">
               <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">
                 Output
               </p>
               <pre className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-md p-2 overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
                 {JSON.stringify(result, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Result — string fallback */}
+          {result && typeof result === 'string' && (
+            <div className="mb-2">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-1">
+                Output
+              </p>
+              <pre className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-md p-2 overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
+                {result}
               </pre>
             </div>
           )}
@@ -128,6 +153,11 @@ export default function ToolExecutionCard({
                 {error}
               </p>
             </div>
+          )}
+
+          {/* Empty state */}
+          {!args && !result && !summary && !error && (
+            <p className="text-xs text-gray-400 italic mb-2">No details available</p>
           )}
         </div>
       )}
