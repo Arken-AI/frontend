@@ -12,11 +12,12 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Square, Paperclip, X, Image as ImageIcon } from 'lucide-react';
+import { Send, Loader2, Square, Paperclip, X, Image as ImageIcon, FileText } from 'lucide-react';
 
 // Maximum total size across all attachments (20 MB)
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 const MAX_ATTACHMENTS = 5;
 
 /**
@@ -30,11 +31,12 @@ function fileToAttachment(file) {
     reader.onload = () => {
       const dataUrl = reader.result; // "data:<mime>;base64,<data>"
       const base64 = dataUrl.split(',')[1];
+      const isImage = IMAGE_TYPES.includes(file.type);
       resolve({
         media_type: file.type,
         data: base64,
         filename: file.name,
-        preview: dataUrl,          // full data-URI for <img> preview
+        preview: isImage ? dataUrl : null, // No image preview for PDFs
         size: file.size,
       });
     };
@@ -44,8 +46,8 @@ function fileToAttachment(file) {
 }
 
 /** Truncate filename for chip display */
-function truncateFilename(name, maxLen = 18) {
-  if (!name || name.length <= maxLen) return name || 'image';
+function truncateFilename(name, maxLen = 22) {
+  if (!name || name.length <= maxLen) return name || 'file';
   const ext = name.lastIndexOf('.') > 0 ? name.slice(name.lastIndexOf('.')) : '';
   const stem = name.slice(0, maxLen - ext.length - 1);
   return `${stem}…${ext}`;
@@ -121,15 +123,15 @@ export default function MessageInput({
   const handlePaste = useCallback((e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
-    const imageFiles = [];
+    const files = [];
     for (const item of items) {
       if (item.kind === 'file' && ALLOWED_TYPES.includes(item.type)) {
-        imageFiles.push(item.getAsFile());
+        files.push(item.getAsFile());
       }
     }
-    if (imageFiles.length > 0) {
+    if (files.length > 0) {
       e.preventDefault();
-      addFiles(imageFiles);
+      addFiles(files);
     }
   }, [addFiles]);
 
@@ -174,7 +176,7 @@ export default function MessageInput({
     setIsSending(true);
     
     try {
-      await onSend(trimmedMessage || 'Analyze the attached image(s)', currentAttachments);
+      await onSend(trimmedMessage || 'Analyze the attached file(s)', currentAttachments);
     } catch (err) {
       console.error('Failed to send message:', err);
       // Restore on error
@@ -238,8 +240,8 @@ export default function MessageInput({
       {dragActive && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-50/80 border-2 border-dashed border-blue-400 rounded-xl pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-blue-600">
-            <ImageIcon className="w-8 h-8" />
-            <span className="text-sm font-medium">Drop images here</span>
+            <Paperclip className="w-8 h-8" />
+            <span className="text-sm font-medium">Drop files here</span>
           </div>
         </div>
       )}
@@ -265,12 +267,18 @@ export default function MessageInput({
                   key={idx}
                   className="group flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-md bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-gray-300 transition-colors"
                 >
-                  {/* Tiny thumbnail */}
-                  <img
-                    src={att.preview}
-                    alt=""
-                    className="w-5 h-5 rounded object-cover flex-shrink-0"
-                  />
+                  {/* Tiny thumbnail or file type icon */}
+                  {att.preview ? (
+                    <img
+                      src={att.preview}
+                      alt=""
+                      className="w-5 h-5 rounded object-cover flex-shrink-0"
+                    />
+                  ) : att.media_type === 'application/pdf' ? (
+                    <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  ) : (
+                    <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  )}
                   {/* Filename */}
                   <span className="text-xs text-gray-600 select-none whitespace-nowrap">
                     {truncateFilename(att.filename)}
@@ -299,14 +307,14 @@ export default function MessageInput({
                   ? 'text-gray-300 cursor-not-allowed'
                   : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
               }`}
-              title={attachments.length >= MAX_ATTACHMENTS ? `Max ${MAX_ATTACHMENTS} images` : 'Attach image'}
+              title={attachments.length >= MAX_ATTACHMENTS ? `Max ${MAX_ATTACHMENTS} files` : 'Attach image or PDF'}
             >
               <Paperclip className="w-[18px] h-[18px]" />
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept={ALLOWED_TYPES.join(',')}
+              accept={[...ALLOWED_TYPES, '.pdf'].join(',')}
               multiple
               className="hidden"
               onChange={(e) => {
@@ -370,7 +378,7 @@ export default function MessageInput({
               <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-mono text-[10px]">Shift + Enter</kbd>
               <span className="ml-1">new line</span>
               <span className="mx-1">·</span>
-              <span className="text-gray-400">Paste or drop images</span>
+              <span className="text-gray-400">Paste or drop images & PDFs</span>
             </>
           )}
         </p>

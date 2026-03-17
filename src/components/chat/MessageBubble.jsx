@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { Copy, Check, AlertCircle, XCircle, Loader2 } from 'lucide-react';
+import { Copy, Check, AlertCircle, XCircle, Loader2, FileText } from 'lucide-react';
 import MarkdownRenderer from '../markdown/MarkdownRenderer';
 
 // Status indicator component
@@ -72,10 +72,24 @@ export default function MessageBubble({ message }) {
             {/* Image attachments inside the bubble */}
             {hasAttachments && (
               <div className={`flex flex-wrap gap-1.5 ${hasText ? 'p-1.5 pb-0' : ''}`}>
-                {userAttachments.map((att, idx) => (
-                  <div key={idx}>
-                    {att.preview || att.data ? (
+                {userAttachments.map((att, idx) => {
+                  const isPdf = att.media_type === 'application/pdf';
+                  const hasImageData = !isPdf && (att.preview || att.data);
+
+                  if (isPdf) {
+                    // PDF chip — icon + filename
+                    return (
+                      <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-blue-400/60 rounded-xl text-white/90">
+                        <FileText className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm truncate max-w-[200px]">{att.filename || 'Document.pdf'}</span>
+                      </div>
+                    );
+                  }
+
+                  if (hasImageData) {
+                    return (
                       <img
+                        key={idx}
                         src={att.preview || `data:${att.media_type};base64,${att.data}`}
                         alt={att.filename || 'attachment'}
                         className="max-w-[240px] max-h-[180px] min-w-[100px] object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
@@ -84,16 +98,19 @@ export default function MessageBubble({ message }) {
                           window.open(src, '_blank');
                         }}
                       />
-                    ) : (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-400/60 rounded-lg text-white/90 text-xs">
-                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="truncate max-w-[140px]">{att.filename || 'Image attached'}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  }
+
+                  // Fallback chip for metadata-only attachments (from history)
+                  return (
+                    <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-400/60 rounded-lg text-white/90 text-xs">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="truncate max-w-[140px]">{att.filename || 'File attached'}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
             {/* Text content */}
