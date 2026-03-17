@@ -16,8 +16,9 @@ import { Send, Loader2, Square, Paperclip, X, Image as ImageIcon, FileText } fro
 
 // Maximum total size across all attachments (20 MB)
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf'];
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const DOC_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const MAX_ATTACHMENTS = 5;
 
 /**
@@ -276,6 +277,8 @@ export default function MessageInput({
                     />
                   ) : att.media_type === 'application/pdf' ? (
                     <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  ) : DOC_TYPES.includes(att.media_type) ? (
+                    <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
                   ) : (
                     <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   )}
@@ -307,14 +310,14 @@ export default function MessageInput({
                   ? 'text-gray-300 cursor-not-allowed'
                   : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
               }`}
-              title={attachments.length >= MAX_ATTACHMENTS ? `Max ${MAX_ATTACHMENTS} files` : 'Attach image or PDF'}
+              title={attachments.length >= MAX_ATTACHMENTS ? `Max ${MAX_ATTACHMENTS} files` : 'Attach image, PDF, or Word doc'}
             >
               <Paperclip className="w-[18px] h-[18px]" />
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept={[...ALLOWED_TYPES, '.pdf'].join(',')}
+              accept={[...ALLOWED_TYPES, '.pdf', '.docx'].join(',')}
               multiple
               className="hidden"
               onChange={(e) => {
@@ -378,7 +381,7 @@ export default function MessageInput({
               <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-mono text-[10px]">Shift + Enter</kbd>
               <span className="ml-1">new line</span>
               <span className="mx-1">·</span>
-              <span className="text-gray-400">Paste or drop images & PDFs</span>
+              <span className="text-gray-400">Paste or drop images, PDFs & Word docs</span>
             </>
           )}
         </p>

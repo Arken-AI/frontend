@@ -74,7 +74,8 @@ export default function MessageBubble({ message }) {
               <div className={`flex flex-wrap gap-1.5 ${hasText ? 'p-1.5 pb-0' : ''}`}>
                 {userAttachments.map((att, idx) => {
                   const isPdf = att.media_type === 'application/pdf';
-                  const hasImageData = !isPdf && (att.preview || att.data);
+                  const isDocx = att.media_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                  const hasImageData = !isPdf && !isDocx && (att.preview || att.data);
 
                   if (isPdf) {
                     // PDF chip — icon + filename
@@ -82,6 +83,16 @@ export default function MessageBubble({ message }) {
                       <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-blue-400/60 rounded-xl text-white/90">
                         <FileText className="w-5 h-5 flex-shrink-0" />
                         <span className="text-sm truncate max-w-[200px]">{att.filename || 'Document.pdf'}</span>
+                      </div>
+                    );
+                  }
+
+                  if (isDocx) {
+                    // DOCX chip — icon + filename
+                    return (
+                      <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-blue-400/60 rounded-xl text-white/90">
+                        <FileText className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm truncate max-w-[200px]">{att.filename || 'Document.docx'}</span>
                       </div>
                     );
                   }
