@@ -75,6 +75,7 @@ function ChatContainer() {
           "run_progress",
           "app_error",
           "agent_text",
+          "message_delta",
         ].includes(event.event_type)
       ) {
         handleSSEEvent(event, dispatch);
@@ -346,6 +347,7 @@ function ChatContainer() {
             runProgress={state.runProgress}
             agentSteps={state.agentSteps}
             error={state.error}
+            streamingMessage={state.streamingMessage}
           />
         )}
       </div>

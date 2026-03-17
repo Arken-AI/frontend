@@ -5,14 +5,15 @@
  * Features:
  * - Auto-resizing textarea
  * - Enter to send, Shift+Enter for new line
- * - Image attachment support (paste, drag-drop, file picker)
+ * - Image/PDF/DOCX attachment support (paste, drag-drop, file picker)
+ * - Voice input via Web Speech API (STT) — mic button with live transcription
  * - Inline attachment chips inside the input border (VS Code Copilot style)
  * - Disabled state during processing
  * - Stop/Cancel button when request is in progress
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Square, Paperclip, X, Image as ImageIcon, FileText } from 'lucide-react';
+import { Send, Loader2, Square, Paperclip, X, Image as ImageIcon, FileText, Mic, MicOff } from 'lucide-react';
 
 // Maximum total size across all attachments (20 MB)
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
@@ -66,8 +67,95 @@ export default function MessageInput({
   const [isSending, setIsSending] = useState(false);
   const [attachments, setAttachments] = useState([]);  // [{media_type, data, filename, preview, size}]
   const [dragActive, setDragActive] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  // ---- Web Speech API (STT) ----
+  const SpeechRecognition = typeof window !== 'undefined'
+    ? (window.SpeechRecognition || window.webkitSpeechRecognition)
+    : null;
+  const speechSupported = !!SpeechRecognition;
+
+  const startListening = useCallback(() => {
+    if (!SpeechRecognition || isListening) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    // We'll track the "final committed text" so we can show interim
+    // results in the textarea without duplicating.
+    let finalTranscript = '';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      finalTranscript = message; // start from whatever is already typed
+    };
+
+    recognition.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          // Append final result with a space
+          finalTranscript += (finalTranscript ? ' ' : '') + transcript.trim();
+        } else {
+          interim += transcript;
+        }
+      }
+      // Show committed + in-progress text
+      const display = interim
+        ? finalTranscript + (finalTranscript ? ' ' : '') + interim
+        : finalTranscript;
+      setMessage(display);
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('Speech recognition error:', event.error);
+      // "no-speech" and "aborted" are normal — user just stopped talking
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        setIsListening(false);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      // Focus the textarea so the user can edit/send
+      textareaRef.current?.focus();
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [SpeechRecognition, isListening, message]);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+  }, []);
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  }, [isListening, startListening, stopListening]);
+
+  // Clean up recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
   
   // Auto-resize textarea (only for non-compact mode)
   useEffect(() => {
@@ -168,6 +256,9 @@ export default function MessageInput({
   const handleSend = async () => {
     const trimmedMessage = message.trim();
     if ((!trimmedMessage && attachments.length === 0) || disabled || isSending) return;
+    
+    // Stop voice recognition if active
+    if (isListening) stopListening();
     
     const currentAttachments = attachments.length > 0 ? [...attachments] : null;
     
@@ -326,6 +417,26 @@ export default function MessageInput({
               }}
             />
 
+            {/* Mic button (voice input) */}
+            {speechSupported && (
+              <button
+                onClick={toggleListening}
+                disabled={isDisabled || isProcessing}
+                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
+                  isListening
+                    ? 'text-red-500 bg-red-50 hover:bg-red-100 animate-pulse'
+                    : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
+                }`}
+                title={isListening ? 'Stop listening' : 'Voice input'}
+              >
+                {isListening ? (
+                  <MicOff className="w-[18px] h-[18px]" />
+                ) : (
+                  <Mic className="w-[18px] h-[18px]" />
+                )}
+              </button>
+            )}
+
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -382,6 +493,18 @@ export default function MessageInput({
               <span className="ml-1">new line</span>
               <span className="mx-1">·</span>
               <span className="text-gray-400">Paste or drop images, PDFs & Word docs</span>
+              {speechSupported && (
+                <>
+                  <span className="mx-1">·</span>
+                  <span className="text-gray-400">
+                    {isListening ? (
+                      <span className="text-red-400">🎙️ Listening…</span>
+                    ) : (
+                      'Mic for voice'
+                    )}
+                  </span>
+                </>
+              )}
             </>
           )}
         </p>

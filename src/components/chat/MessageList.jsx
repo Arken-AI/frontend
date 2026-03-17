@@ -15,6 +15,7 @@ import ThinkingIndicator from '../events/ThinkingIndicator';
 import ToolExecutionCard from '../events/ToolExecutionCard';
 import RunProgressBar from '../events/RunProgressBar';
 import AgentTextBlock from '../events/AgentTextBlock';
+import MarkdownRenderer from '../markdown/MarkdownRenderer';
 
 export default function MessageList({
   messages = [],
@@ -25,6 +26,7 @@ export default function MessageList({
   runProgress = null,
   agentSteps = [],
   onSuggestionClick,
+  streamingMessage = "",
 }) {
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -34,7 +36,7 @@ export default function MessageList({
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isThinking, activeTool, toolExecutions, agentSteps]);
+  }, [messages, isThinking, activeTool, toolExecutions, agentSteps, streamingMessage]);
 
   // Show welcome screen if no messages
   if (messages.length === 0 && !isThinking) {
@@ -144,17 +146,45 @@ export default function MessageList({
               />
             )}
 
+            {/* Streaming assistant response (arrives via SSE message_delta) */}
+            {streamingMessage && (
+              <div className="mb-4 w-full">
+                <div className="w-full">
+                  <div className="bg-surface px-6 py-4">
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <MarkdownRenderer content={streamingMessage} />
+                    </div>
+                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-blue-500 animate-pulse rounded-sm align-text-bottom" />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Inline thinking indicator between iterations */}
-            {!activeTool && !runProgress && (
+            {!activeTool && !runProgress && !streamingMessage && (
               <ThinkingIndicator startTime={thinkingStartTime} />
             )}
           </div>
         )}
 
         {/* Initial thinking indicator (no steps yet) */}
-        {isThinking && agentSteps.length === 0 && (
+        {isThinking && agentSteps.length === 0 && !streamingMessage && (
           <div className="mt-1">
             <ThinkingIndicator startTime={thinkingStartTime} />
+          </div>
+        )}
+
+        {/* Streaming response when no agent steps are present (simple Q&A, no tools) */}
+        {isThinking && agentSteps.length === 0 && streamingMessage && (
+          <div className="mb-4 w-full mt-1">
+            <div className="w-full">
+              <div className="bg-surface px-6 py-4">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <MarkdownRenderer content={streamingMessage} />
+                </div>
+                <span className="inline-block w-1.5 h-4 ml-0.5 bg-blue-500 animate-pulse rounded-sm align-text-bottom" />
+              </div>
+            </div>
           </div>
         )}
 

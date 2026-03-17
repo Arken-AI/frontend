@@ -86,6 +86,16 @@ export function handleSSEEvent(event, dispatch) {
       });
       break;
 
+    case "message_delta":
+      dispatch({
+        type: ACTIONS.MESSAGE_DELTA,
+        payload: {
+          delta: event.delta,
+          accumulated_length: event.accumulated_length,
+        },
+      });
+      break;
+
     // Handle stream timeout gracefully
     case "stream_timeout":
       console.warn("[Event] Stream timeout:", event.message);

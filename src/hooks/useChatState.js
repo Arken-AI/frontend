@@ -17,6 +17,7 @@ const initialState = {
   runProgress: null, // Current simulation progress { stage, percentage, etc }
   agentSteps: [], // Ordered list of { type: "text"|"tool"|"tool_running", ... }
   error: null, // Current error message
+  streamingMessage: "", // Accumulates message_delta chunks for live typing effect
 };
 
 // Action types
@@ -37,6 +38,7 @@ export const ACTIONS = {
   CLEAR_ERROR: "CLEAR_ERROR",
   CANCEL_REQUEST: "CANCEL_REQUEST",
   AGENT_TEXT: "AGENT_TEXT",
+  MESSAGE_DELTA: "MESSAGE_DELTA",
 };
 
 // Reducer function
@@ -139,6 +141,12 @@ function chatReducer(state, action) {
             iteration: action.payload.iteration,
           },
         ],
+      };
+
+    case ACTIONS.MESSAGE_DELTA:
+      return {
+        ...state,
+        streamingMessage: state.streamingMessage + (action.payload.delta || ""),
       };
 
     case ACTIONS.APP_ERROR:
@@ -356,6 +364,7 @@ function chatReducer(state, action) {
         agentSteps: [],
         runProgress: null,
         error: null,
+        streamingMessage: "", // Clear streaming text for new response
       };
 
     case ACTIONS.SET_THINKING:
@@ -371,6 +380,9 @@ function chatReducer(state, action) {
         // Safety net: clear agentSteps when thinking stops in case ADD_MESSAGE
         // didn't fire (error path). Normal flow: ADD_MESSAGE clears first.
         agentSteps: action.payload ? state.agentSteps : [],
+        // Clear streaming text when thinking stops — the full message is in
+        // ADD_MESSAGE by now.
+        streamingMessage: action.payload ? state.streamingMessage : "",
       };
 
     case ACTIONS.SET_ERROR:

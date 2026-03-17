@@ -27,6 +27,7 @@ const EVENT_TYPES = [
   "run_progress",
   "app_error",
   "agent_text",
+  "message_delta",
 ];
 
 /** Maximum time (ms) to wait for EventSource.onopen before proceeding. */
