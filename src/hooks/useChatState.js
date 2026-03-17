@@ -133,7 +133,11 @@ function chatReducer(state, action) {
         ...state,
         agentSteps: [
           ...state.agentSteps,
-          { type: "text", content: action.payload.content, iteration: action.payload.iteration },
+          {
+            type: "text",
+            content: action.payload.content,
+            iteration: action.payload.iteration,
+          },
         ],
       };
 
@@ -195,7 +199,10 @@ function chatReducer(state, action) {
       if (incomingToolExecs.length > 0) {
         let toolIndex = 0;
         enrichedSteps = enrichedSteps.map((step) => {
-          if ((step.type === "tool" || step.type === "tool_running") && incomingToolExecs[toolIndex]) {
+          if (
+            (step.type === "tool" || step.type === "tool_running") &&
+            incomingToolExecs[toolIndex]
+          ) {
             const httpTool = incomingToolExecs[toolIndex];
             toolIndex++;
             return {
@@ -207,8 +214,13 @@ function chatReducer(state, action) {
             };
           }
           // If positional match exhausted, try name-based fallback
-          if ((step.type === "tool" || step.type === "tool_running") && toolIndex >= incomingToolExecs.length) {
-            const byName = incomingToolExecs.find((t) => (t.tool_name || t.name) === step.name);
+          if (
+            (step.type === "tool" || step.type === "tool_running") &&
+            toolIndex >= incomingToolExecs.length
+          ) {
+            const byName = incomingToolExecs.find(
+              (t) => (t.tool_name || t.name) === step.name,
+            );
             if (byName) {
               return {
                 ...step,
@@ -224,7 +236,11 @@ function chatReducer(state, action) {
       }
       // Append final response text as the last step
       if (action.payload.role === "assistant" && action.payload.content) {
-        enrichedSteps.push({ type: "text", content: action.payload.content, isFinal: true });
+        enrichedSteps.push({
+          type: "text",
+          content: action.payload.content,
+          isFinal: true,
+        });
       }
 
       return {
@@ -237,6 +253,8 @@ function chatReducer(state, action) {
             timestamp: action.payload.timestamp || new Date().toISOString(),
             metadata: action.payload.metadata,
             run_ids: action.payload.run_ids,
+            // Image attachments (user messages)
+            attachments: action.payload.attachments,
             // Normalised array used by MessageList for inline rendering
             toolExecutions: toolExecsForMessage,
             // Ordered interleaved steps (text + tools)
@@ -275,8 +293,13 @@ function chatReducer(state, action) {
           [];
         let mappedAgentSteps = (msg.metadata?.agent_steps || []).map((step) =>
           step.type === "tool"
-            ? { ...step, toolName: step.tool_name, durationMs: step.duration_ms, isFinal: step.is_final }
-            : { ...step, isFinal: step.is_final }
+            ? {
+                ...step,
+                toolName: step.tool_name,
+                durationMs: step.duration_ms,
+                isFinal: step.is_final,
+              }
+            : { ...step, isFinal: step.is_final },
         );
         // Backfill missing arguments/result from toolExecutions (old data compat)
         if (mappedAgentSteps.length > 0 && toolExecs.length > 0) {
@@ -301,6 +324,9 @@ function chatReducer(state, action) {
           content: msg.content,
           timestamp: msg.timestamp || new Date().toISOString(),
           metadata: msg.metadata,
+          // Carry forward image attachment metadata for display in MessageBubble
+          attachments:
+            msg.attachments || msg.metadata?.attachments || undefined,
           toolExecutions: toolExecs,
           agentSteps: mappedAgentSteps,
         };

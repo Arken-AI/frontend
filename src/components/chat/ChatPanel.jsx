@@ -221,8 +221,8 @@ const ChatPanel = forwardRef(function ChatPanel({
 
   // Send message handler
   const handleSendMessage = useCallback(
-    async (content) => {
-      if (!content.trim() || state.isThinking) return;
+    async (content, attachments = null) => {
+      if ((!content.trim() && (!attachments || attachments.length === 0)) || state.isThinking) return;
 
       // For new conversations, pre-generate the ID before isThinking so
       // SSEClient can open the stream before the POST fires.
@@ -243,6 +243,8 @@ const ChatPanel = forwardRef(function ChatPanel({
         role: "user",
         content: content.trim(),
         timestamp: new Date().toISOString(),
+        // Store attachments on the message for preview in MessageBubble
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
       dispatch({ type: "SET_THINKING", payload: true });
@@ -259,6 +261,7 @@ const ChatPanel = forwardRef(function ChatPanel({
           message: content.trim(),
           conversation_id: activeConversationId,
           username,
+          attachments: attachments || null,
         });
 
         // Wait for SSE stream to finish delivering all tool events before

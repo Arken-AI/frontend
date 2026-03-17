@@ -85,8 +85,8 @@ function ChatContainer() {
 
   // Send message handler - now synchronous with direct response
   const handleSendMessage = useCallback(
-    async (content) => {
-      if (!content.trim() || state.isThinking) return;
+    async (content, attachments = null) => {
+      if ((!content.trim() && (!attachments || attachments.length === 0)) || state.isThinking) return;
 
       // Clear any leftover tool state from the previous turn FIRST,
       // before the user message is added and before SSE events start arriving.
@@ -97,6 +97,8 @@ function ChatContainer() {
         role: "user",
         content: content.trim(),
         timestamp: new Date().toISOString(),
+        // Store attachments on the message for preview in MessageBubble
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
 
@@ -131,6 +133,7 @@ function ChatContainer() {
           message: content.trim(),
           conversation_id: activeConversationId,
           username,
+          attachments: attachments || null,
         });
 
         // ── Wait for SSE stream to finish ──────────────────────────────
@@ -214,6 +217,7 @@ function ChatContainer() {
       refreshConversations,
       setConversationId,
       updateLatestRunId,
+      username,
     ],
   );
 

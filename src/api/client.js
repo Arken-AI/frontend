@@ -62,6 +62,7 @@ export async function loginUser({ username, password }) {
  * @param {string|null} params.conversation_id - Existing conversation ID or null for new
  * @param {string|null} params.username - Username for user_id metadata
  * @param {Object|null} params.extra_metadata - Additional metadata merged alongside user_id
+ * @param {Array|null} params.attachments - Image attachments [{media_type, data, filename}]
  * @returns {Promise<Object>} Response with conversation_id, message, status, run_ids, tool_executions, token_usage
  */
 export async function sendMessage({
@@ -69,11 +70,21 @@ export async function sendMessage({
   conversation_id = null,
   username = null,
   extra_metadata = null,
+  attachments = null,
 }) {
   const body = {
     conversation_id,
     message: message.trim(),
   };
+
+  // Add attachments if present
+  if (attachments && attachments.length > 0) {
+    body.attachments = attachments.map((att) => ({
+      media_type: att.media_type,
+      data: att.data,
+      filename: att.filename || null,
+    }));
+  }
 
   // Merge user_id and any extra_metadata (e.g. re_simulation payload)
   const metadataBase = username ? { user_id: username.toLowerCase() } : {};
