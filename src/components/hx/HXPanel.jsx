@@ -274,7 +274,7 @@ export default function HXPanel({ steps: extSteps, isRunning: extRunning, curren
                 color:           'var(--color-running)',
                 borderColor:     'var(--color-running)',
                 backgroundColor: 'transparent',
-                borderRadius:    '4px',
+                borderRadius:    '8px',
               }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(59,130,246,0.08)'}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
