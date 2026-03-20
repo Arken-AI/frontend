@@ -59,7 +59,7 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
         {/* Sidebar toggle */}
         <button
           onClick={onToggleSidebar}
-          className="flex items-center justify-center w-7 h-7 transition-colors"
+          className="flex items-center justify-center w-11 h-11 transition-colors"
           style={{
             color:           sidebarOpen ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
             borderRadius:    '2px',
@@ -109,7 +109,7 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
             </span>
             <button
               onClick={() => { logout(); navigate('/login'); }}
-              className="text-xs transition-colors"
+              className="text-xs transition-colors px-2 py-2"
               style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}

@@ -268,7 +268,7 @@ export default function HXPanel({ steps: extSteps, isRunning: extRunning, curren
             </div>
             <button
               onClick={demo.start}
-              className="flex items-center gap-2 px-4 py-2 border text-xs transition-colors"
+              className="flex items-center gap-2 px-5 py-3 border text-xs transition-colors"
               style={{
                 fontFamily:      'var(--font-mono)',
                 color:           'var(--color-running)',
