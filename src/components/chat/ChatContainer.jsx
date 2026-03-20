@@ -49,6 +49,12 @@ function ChatContainer() {
   // This prevents the conversation-switch reset effect from wiping state.
   const newConvFromSendRef = useRef(false);
 
+  // Tracks which conversation is currently displayed. Updated synchronously
+  // on every conversation switch. handleSendMessage checks this to avoid
+  // dispatching a stale response into the wrong conversation (Claude Desktop
+  // pattern: backend finishes in background, UI ignores if user navigated away).
+  const activeConvRef = useRef(conversationId);
+
   // Holds the active SSEClient instance for the current in-flight request.
   // Stored in a ref so it's accessible from the cancel handler.
   const sseClientRef = useRef(null);
@@ -66,6 +72,7 @@ function ChatContainer() {
       if (event.sequence) {
         lastSequenceRef.current = event.sequence;
       }
+
       if (
         [
           "thinking_start",
@@ -150,6 +157,20 @@ function ChatContainer() {
         // and SET_THINKING(false) (which hides the live block).
         await sseClient.waitForCompletion();
 
+        // ── Guard: did the user switch away while we were waiting? ───
+        // If so, the backend already saved the response to MongoDB.
+        // Just clean up the SSE and refresh the sidebar so the
+        // conversation preview updates — don't touch the UI state.
+        const userSwitchedAway = activeConvRef.current !== activeConversationId;
+
+        if (userSwitchedAway) {
+          sseClient.close();
+          sseClientRef.current = null;
+          // Refresh sidebar so the completed conversation shows latest preview
+          await refreshConversations();
+          return;
+        }
+
         // Update conversation ID if backend returned a different one (shouldn't
         // happen since we pre-generated it, but guard anyway)
         if (
@@ -224,6 +245,10 @@ function ChatContainer() {
   useEffect(() => {
     const previousId = previousConversationIdRef.current;
 
+    // Always keep activeConvRef in sync so in-flight requests know
+    // the user navigated away (Claude Desktop pattern).
+    activeConvRef.current = conversationId;
+
     if (newConvFromSendRef.current) {
       // This change came from handleSendMessage — don't reset.
       newConvFromSendRef.current = false;
@@ -232,6 +257,15 @@ function ChatContainer() {
     }
 
     if (conversationId !== previousId && previousId !== null) {
+      // User switched conversations. Close the SSE client for the old
+      // conversation so it stops dispatching stale events. The backend
+      // keeps processing — the response is saved to DB and will be
+      // available when the user switches back (loaded via getContext).
+      if (sseClientRef.current) {
+        sseClientRef.current.close();
+        sseClientRef.current = null;
+      }
+
       dispatch({ type: "RESET" });
       lastSequenceRef.current = 0;
     }
