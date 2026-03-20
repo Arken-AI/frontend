@@ -273,8 +273,21 @@ function ChatContainer() {
     previousConversationIdRef.current = conversationId;
   }, [conversationId, dispatch]);
 
-  // Load messages from context when conversation changes
+  // Load messages from context when conversation changes.
+  // IMPORTANT: Skip if a request is in-flight (isThinking). The backend saves
+  // the user message to MongoDB BEFORE Claude responds, so mid-request the DB
+  // history ends with the old assistant message. If LOAD_MESSAGES fires now,
+  // it replaces the live messages array with stale DB data — making the old
+  // assistant response appear as the "new" response. When the real response
+  // arrives via HTTP, it "replaces" the stale one. Skipping here avoids that.
+  const isThinkingRef = useRef(false);
+  isThinkingRef.current = state.isThinking;
+
   useEffect(() => {
+    if (isThinkingRef.current) {
+      // Request in-flight — don't overwrite live state with stale DB history.
+      return;
+    }
     if (currentContext && currentContext.messages) {
       dispatch({
         type: "LOAD_MESSAGES",
