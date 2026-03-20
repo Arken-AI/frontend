@@ -22,12 +22,9 @@
 const EVENT_TYPES = [
   "thinking_start",
   "thinking_end",
-  "tool_start",
-  "tool_end",
-  "run_progress",
-  "app_error",
-  "agent_text",
   "message_delta",
+  "message_final",
+  "app_error",
 ];
 
 /** Maximum time (ms) to wait for EventSource.onopen before proceeding. */

@@ -2,6 +2,9 @@
  * SSE Event Handlers
  *
  * Maps SSE event types to chat state actions.
+ * Currently handles generic chatbot events only (no tools).
+ * Tool events (tool_start, tool_end, run_progress, agent_text)
+ * will be added back when HX Engine integration is ready.
  */
 
 import { ACTIONS } from "../hooks/useChatState";
@@ -16,55 +19,27 @@ export function handleSSEEvent(event, dispatch) {
     case "thinking_start":
       // Do NOT dispatch THINKING_START from SSE — the HTTP flow controls
       // isThinking via SET_THINKING(true) BEFORE the SSE connection opens.
-      // Dispatching it here would be redundant (harmless) but we skip it
-      // to keep the lifecycle clear: HTTP owns isThinking, SSE owns tools.
       break;
 
     case "thinking_end":
-      // Do NOT dispatch THINKING_END from SSE — this would set isThinking=false
-      // BEFORE the HTTP flow has dispatched ADD_MESSAGE, causing the live block
-      // to disappear before tools are adopted onto the message.
-      // The SSEClient resolves its `completed` promise on thinking_end instead,
-      // and the HTTP flow dispatches SET_THINKING(false) after ADD_MESSAGE.
+      // Do NOT dispatch THINKING_END from SSE — the SSEClient resolves its
+      // `completed` promise on thinking_end instead. The HTTP flow dispatches
+      // SET_THINKING(false) after ADD_MESSAGE.
       break;
 
-    case "tool_start":
+    case "message_delta":
       dispatch({
-        type: ACTIONS.TOOL_START,
+        type: ACTIONS.MESSAGE_DELTA,
         payload: {
-          tool_name: event.tool_name,
-          arguments: event.arguments,
-          estimated_duration_ms: event.estimated_duration_ms,
+          delta: event.delta,
+          accumulated_length: event.accumulated_length,
         },
       });
       break;
 
-    case "tool_end":
-      dispatch({
-        type: ACTIONS.TOOL_END,
-        payload: {
-          tool_name: event.tool_name,
-          status: event.status,
-          duration_ms: event.duration_ms,
-          summary: event.summary,
-          error_message: event.error_message,
-          result_id: event.result_id,
-          result: event.result || null,
-        },
-      });
-      break;
-
-    case "run_progress":
-      dispatch({
-        type: ACTIONS.RUN_PROGRESS,
-        payload: {
-          stage: event.stage,
-          percentage: event.percentage,
-          message: event.message,
-          current_block: event.current_block,
-          total_blocks: event.total_blocks,
-        },
-      });
+    case "message_final":
+      // Final message arrives via HTTP response (source of truth).
+      // SSE message_final is used only as a stream completion signal.
       break;
 
     case "app_error":
@@ -79,27 +54,9 @@ export function handleSSEEvent(event, dispatch) {
       });
       break;
 
-    case "agent_text":
-      dispatch({
-        type: ACTIONS.AGENT_TEXT,
-        payload: { content: event.content, iteration: event.iteration },
-      });
-      break;
-
-    case "message_delta":
-      dispatch({
-        type: ACTIONS.MESSAGE_DELTA,
-        payload: {
-          delta: event.delta,
-          accumulated_length: event.accumulated_length,
-        },
-      });
-      break;
-
     // Handle stream timeout gracefully
     case "stream_timeout":
       console.warn("[Event] Stream timeout:", event.message);
-      // Just log it - response will come via HTTP
       break;
 
     // Handle generic errors sent via SSE

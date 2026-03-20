@@ -70,12 +70,9 @@ function ChatContainer() {
         [
           "thinking_start",
           "thinking_end",
-          "tool_start",
-          "tool_end",
-          "run_progress",
-          "app_error",
-          "agent_text",
           "message_delta",
+          "message_final",
+          "app_error",
         ].includes(event.event_type)
       ) {
         handleSSEEvent(event, dispatch);
