@@ -13,13 +13,12 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Square, Paperclip, X, Image as ImageIcon, FileText, Mic, MicOff } from 'lucide-react';
+import { Send, Loader2, Square, Paperclip, X, FileText, Mic, MicOff } from 'lucide-react';
 
 // Maximum total size across all attachments (20 MB)
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-const DOC_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const MAX_ATTACHMENTS = 5;
 
 /**
