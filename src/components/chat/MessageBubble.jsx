@@ -5,10 +5,11 @@
  * User messages are right-aligned with blue background.
  * Assistant messages are left-aligned with gray background and markdown support.
  * Shows status indicators for incomplete/error/cancelled messages.
+ * Action buttons: copy, retry (like Claude Desktop).
  */
 
 import { useState } from 'react';
-import { Copy, Check, AlertCircle, XCircle, Loader2, FileText } from 'lucide-react';
+import { Copy, Check, AlertCircle, XCircle, Loader2, FileText, RotateCcw } from 'lucide-react';
 import MarkdownRenderer from '../markdown/MarkdownRenderer';
 
 // Status indicator component
@@ -44,7 +45,7 @@ function MessageStatusIndicator({ status }) {
   );
 }
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, onRetry, isLastAssistant = false, isLastUser = false }) {
   const [copied, setCopied] = useState(false);
   
   const isUser = message.role === 'user';
@@ -66,7 +67,7 @@ export default function MessageBubble({ message }) {
     const hasText = message.content && message.content.trim();
 
     return (
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-4 group">
         <div className="max-w-[80%] md:max-w-[70%]">
           <div className={`bg-blue-500 text-white rounded-2xl rounded-br-md overflow-hidden ${!hasText && hasAttachments ? 'p-1.5' : ''}`}>
             {/* Image attachments inside the bubble */}
@@ -78,7 +79,6 @@ export default function MessageBubble({ message }) {
                   const hasImageData = !isPdf && !isDocx && (att.preview || att.data);
 
                   if (isPdf) {
-                    // PDF chip — icon + filename
                     return (
                       <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-blue-400/60 rounded-xl text-white/90">
                         <FileText className="w-5 h-5 flex-shrink-0" />
@@ -88,7 +88,6 @@ export default function MessageBubble({ message }) {
                   }
 
                   if (isDocx) {
-                    // DOCX chip — icon + filename
                     return (
                       <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-blue-400/60 rounded-xl text-white/90">
                         <FileText className="w-5 h-5 flex-shrink-0" />
@@ -112,7 +111,6 @@ export default function MessageBubble({ message }) {
                     );
                   }
 
-                  // Fallback chip for metadata-only attachments (from history)
                   return (
                     <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-400/60 rounded-lg text-white/90 text-xs">
                       <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,6 +127,33 @@ export default function MessageBubble({ message }) {
               <div className="px-4 py-3">
                 <p className="whitespace-pre-wrap break-words">{message.content}</p>
               </div>
+            )}
+          </div>
+
+          {/* Action buttons — right-aligned, appear on hover */}
+          <div className="flex justify-end items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Copy */}
+            <button
+              onClick={handleCopy}
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+              title="Copy message"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-gray-400" />
+              )}
+            </button>
+
+            {/* Retry — only on the last user message */}
+            {isLastUser && onRetry && (
+              <button
+                onClick={onRetry}
+                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                title="Resend this message"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
+              </button>
             )}
           </div>
         </div>
@@ -148,19 +173,33 @@ export default function MessageBubble({ message }) {
           
           {/* Status indicator for incomplete messages */}
           <MessageStatusIndicator status={status} />
-          
-          {/* Copy button - appears on hover */}
+        </div>
+        
+        {/* Action buttons — always visible below the message (like Claude) */}
+        <div className="flex items-center gap-1 px-6 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Copy */}
           <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 p-1.5 rounded-md bg-surface-secondary/80 hover:bg-surface-tertiary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+            className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
             title="Copy message"
           >
             {copied ? (
               <Check className="w-4 h-4 text-green-500" />
             ) : (
-              <Copy className="w-4 h-4 text-content-secondary" />
+              <Copy className="w-4 h-4 text-gray-400" />
             )}
           </button>
+
+          {/* Retry — only on the last assistant message */}
+          {isLastAssistant && onRetry && (
+            <button
+              onClick={onRetry}
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+              title="Retry this response"
+            >
+              <RotateCcw className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
         </div>
         
         {/* Metadata */}

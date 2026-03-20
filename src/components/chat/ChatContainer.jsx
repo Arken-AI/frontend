@@ -308,6 +308,39 @@ function ChatContainer() {
     dispatch({ type: "CANCEL_REQUEST" });
   }, [dispatch]);
 
+  // Retry: resend the last user message
+  const handleRetry = useCallback(() => {
+    const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsg || state.isThinking) return;
+
+    // Remove the last assistant message (the failed/bad response) if present
+    const msgs = [...state.messages];
+    if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
+      msgs.pop();
+      // Also remove the user message — handleSendMessage will re-add it
+      if (msgs.length > 0 && msgs[msgs.length - 1].role === "user") {
+        msgs.pop();
+      }
+    } else if (msgs.length > 0 && msgs[msgs.length - 1].role === "user") {
+      // Error happened before assistant response — remove user msg so it re-adds
+      msgs.pop();
+    }
+
+    dispatch({ type: "LOAD_MESSAGES", payload: { messages: msgs.map((m) => ({
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp,
+      metadata: m.metadata,
+      attachments: m.attachments,
+      toolExecutions: m.toolExecutions,
+      agentSteps: m.agentSteps,
+    })) } });
+    dispatch({ type: "CLEAR_ERROR" });
+
+    // Re-send
+    handleSendMessage(lastUserMsg.content, lastUserMsg.attachments || null);
+  }, [state.messages, state.isThinking, dispatch, handleSendMessage]);
+
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
 
@@ -392,6 +425,7 @@ function ChatContainer() {
             agentSteps={state.agentSteps}
             error={state.error}
             streamingMessage={state.streamingMessage}
+            onRetry={handleRetry}
           />
         )}
       </div>

@@ -9,6 +9,7 @@
  */
 
 import { useRef, useEffect } from 'react';
+import { AlertCircle, RotateCcw } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import WelcomeScreen from './WelcomeScreen';
 import ThinkingIndicator from '../events/ThinkingIndicator';
@@ -27,6 +28,8 @@ export default function MessageList({
   agentSteps = [],
   onSuggestionClick,
   streamingMessage = "",
+  error = null,
+  onRetry,
 }) {
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -43,6 +46,16 @@ export default function MessageList({
     return <WelcomeScreen onSuggestionClick={onSuggestionClick} />;
   }
 
+  // Find the index of the last assistant/user messages (for retry button)
+  const lastAssistantIndex = messages.reduce(
+    (acc, msg, i) => (msg.role === 'assistant' ? i : acc),
+    -1
+  );
+  const lastUserIndex = messages.reduce(
+    (acc, msg, i) => (msg.role === 'user' ? i : acc),
+    -1
+  );
+
   return (
     <div
       ref={scrollRef}
@@ -53,7 +66,35 @@ export default function MessageList({
         {messages.map((message, index) => (
           <div key={index}>
             {/* User message */}
-            {message.role === 'user' && <MessageBubble message={message} />}
+            {message.role === 'user' && (
+              <MessageBubble
+                message={message}
+                onRetry={onRetry}
+                isLastUser={index === lastUserIndex}
+              />
+            )}
+
+            {/* Inline error after the last user message when response failed */}
+            {message.role === 'user' &&
+              index === messages.length - 1 &&
+              !isThinking &&
+              error && (
+                <div className="flex justify-start mb-4">
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm max-w-[80%]">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1">{error.message || "Failed to get response"}</span>
+                    {onRetry && (
+                      <button
+                        onClick={onRetry}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors flex-shrink-0"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Retry
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
             {/* Assistant message — interleaved steps or fallback tool cards */}
             {message.role === 'assistant' && (
@@ -97,7 +138,11 @@ export default function MessageList({
                     ))}
                   </div>
                 ) : null}
-                <MessageBubble message={message} />
+                <MessageBubble
+                  message={message}
+                  onRetry={onRetry}
+                  isLastAssistant={index === lastAssistantIndex}
+                />
               </div>
             )}
           </div>
