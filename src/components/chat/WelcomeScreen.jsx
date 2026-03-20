@@ -18,7 +18,7 @@ export default function WelcomeScreen({ onSend }) {
         Describe your heat exchanger problem.
       </h1>
 
-      <div className="flex flex-col gap-2 w-full max-w-xs">
+      <div className="flex flex-col gap-2 w-full max-w-sm">
         {EXAMPLE_PROMPTS.map((prompt, i) => (
           <button
             key={i}
@@ -29,7 +29,7 @@ export default function WelcomeScreen({ onSend }) {
               color:           'var(--color-text-muted)',
               borderColor:     'var(--color-border)',
               backgroundColor: 'transparent',
-              borderRadius:    '2px',
+              borderRadius:    '8px',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.borderColor     = 'var(--color-running)';
