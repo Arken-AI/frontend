@@ -475,30 +475,6 @@ function ChatContainer() {
         placeholder="Describe your heat exchanger problem…"
       />
 
-      {/* Processing indicator */}
-      {state.isThinking && state.agentSteps.length === 0 && (
-        <div
-          className="px-3 py-1.5 flex items-center gap-2"
-          style={{ borderTop: '1px solid var(--color-border)' }}
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            <span
-              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-              style={{ backgroundColor: 'var(--color-running)' }}
-            />
-            <span
-              className="relative inline-flex rounded-full h-1.5 w-1.5"
-              style={{ backgroundColor: 'var(--color-running)' }}
-            />
-          </span>
-          <span
-            className="text-xs"
-            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
-          >
-            processing
-          </span>
-        </div>
-      )}
     </div>
   );
 }

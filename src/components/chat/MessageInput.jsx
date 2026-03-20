@@ -472,9 +472,9 @@ export default function MessageInput({
             {isProcessing ? (
               <button
                 onClick={handleCancel}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-colors"
-                style={{ backgroundColor: 'var(--color-error)', color: 'white', borderRadius: '2px' }}
-                title="Stop"
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-opacity hover:opacity-80"
+                style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg)', borderRadius: '50%' }}
+                title="Stop generation"
               >
                 <Square className="w-3 h-3 fill-current" />
               </button>
