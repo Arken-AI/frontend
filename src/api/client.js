@@ -114,6 +114,31 @@ export async function sendMessage({
 }
 
 /**
+ * Retry the last user message in a conversation.
+ *
+ * Tells the backend to delete the stale assistant response (and user msg)
+ * from the DB, then re-process the same user message through Claude.
+ *
+ * @param {string} conversationId - Conversation to retry in
+ * @returns {Promise<Object>} Same shape as sendMessage response
+ */
+export async function retryMessage(conversationId) {
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
+    throw new Error(error.message || error.error || "Failed to retry message");
+  }
+
+  return response.json();
+}
+
+/**
  * Get list of conversations
  * @param {number} limit - Maximum number of conversations
  * @param {number} offset - Number to skip

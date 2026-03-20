@@ -17,7 +17,7 @@ import { useCallback, useRef, useEffect } from "react";
 import { useChatContext } from "../../context/ChatContext";
 import { useChatState } from "../../hooks/useChatState";
 import { handleSSEEvent } from "../../utils/eventHandlers";
-import { sendMessage, getStreamUrl } from "../../api/client";
+import { sendMessage, retryMessage, getStreamUrl } from "../../api/client";
 import SSEClient from "../../utils/sseClient";
 
 import MessageList from "./MessageList";
@@ -308,38 +308,94 @@ function ChatContainer() {
     dispatch({ type: "CANCEL_REQUEST" });
   }, [dispatch]);
 
-  // Retry: resend the last user message
-  const handleRetry = useCallback(() => {
-    const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
-    if (!lastUserMsg || state.isThinking) return;
+  // Retry: ask the backend to delete the stale tail messages from DB,
+  // then re-run the same user message through Claude from scratch.
+  const handleRetry = useCallback(async () => {
+    if (!conversationId || state.isThinking) return;
 
-    // Remove the last assistant message (the failed/bad response) if present
+    // Find the last user message (for optimistic UI)
+    const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsg) return;
+
+    // ── Optimistic UI: strip tail messages ──────────────────────────
     const msgs = [...state.messages];
     if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
-      msgs.pop();
-      // Also remove the user message — handleSendMessage will re-add it
-      if (msgs.length > 0 && msgs[msgs.length - 1].role === "user") {
-        msgs.pop();
-      }
-    } else if (msgs.length > 0 && msgs[msgs.length - 1].role === "user") {
-      // Error happened before assistant response — remove user msg so it re-adds
-      msgs.pop();
+      msgs.pop(); // remove the bad assistant response
     }
+    // Keep the user message visible — the backend will re-add it to DB,
+    // and we'll get a fresh assistant response via SSE + HTTP.
+    // Don't pop the user message from UI — it stays visible during retry.
 
-    dispatch({ type: "LOAD_MESSAGES", payload: { messages: msgs.map((m) => ({
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp,
-      metadata: m.metadata,
-      attachments: m.attachments,
-      toolExecutions: m.toolExecutions,
-      agentSteps: m.agentSteps,
-    })) } });
+    dispatch({
+      type: "LOAD_MESSAGES",
+      payload: {
+        messages: msgs.map((m) => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp,
+          metadata: m.metadata,
+          attachments: m.attachments,
+          toolExecutions: m.toolExecutions,
+          agentSteps: m.agentSteps,
+        })),
+      },
+    });
     dispatch({ type: "CLEAR_ERROR" });
+    dispatch({ type: "RESET_RESPONSE" });
+    dispatch({ type: "SET_THINKING", payload: true });
 
-    // Re-send
-    handleSendMessage(lastUserMsg.content, lastUserMsg.attachments || null);
-  }, [state.messages, state.isThinking, dispatch, handleSendMessage]);
+    // ── Open SSE before the retry POST ──────────────────────────────
+    const sseUrl = getStreamUrl(conversationId, lastSequenceRef.current);
+    const sseClient = new SSEClient(sseUrl, onSSEEvent);
+    sseClientRef.current = sseClient;
+    await sseClient.ready;
+
+    try {
+      // Call the dedicated retry endpoint — it deletes stale DB messages
+      // and re-processes the same user text through Claude.
+      const response = await retryMessage(conversationId);
+
+      await sseClient.waitForCompletion();
+
+      // Guard: user might have switched away while waiting
+      if (activeConvRef.current !== conversationId) {
+        sseClient.close();
+        sseClientRef.current = null;
+        await refreshConversations();
+        return;
+      }
+
+      if (response.status === "completed" && response.message) {
+        dispatch({
+          type: "ADD_MESSAGE",
+          payload: {
+            role: "assistant",
+            content: response.message,
+            timestamp: new Date().toISOString(),
+            run_ids: response.run_ids,
+            tool_executions: response.tool_executions,
+            token_usage: response.token_usage,
+          },
+        });
+      } else if (response.status === "error") {
+        dispatch({
+          type: "SET_ERROR",
+          payload: response.message || "Retry failed",
+        });
+      }
+
+      dispatch({ type: "SET_THINKING", payload: false });
+      sseClient.close();
+      sseClientRef.current = null;
+      await refreshConversations();
+    } catch (error) {
+      console.error("Error retrying message:", error);
+      sseClientRef.current?.close();
+      sseClientRef.current = null;
+      dispatch({ type: "SET_ERROR", payload: error.message || "Failed to retry" });
+      dispatch({ type: "SET_THINKING", payload: false });
+    }
+  }, [conversationId, state.messages, state.isThinking, dispatch, onSSEEvent, refreshConversations]);
 
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
