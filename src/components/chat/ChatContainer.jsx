@@ -317,29 +317,10 @@ function ChatContainer() {
     const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
 
-    // ── Optimistic UI: strip tail messages ──────────────────────────
-    const msgs = [...state.messages];
-    if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
-      msgs.pop(); // remove the bad assistant response
-    }
-    // Keep the user message visible — the backend will re-add it to DB,
-    // and we'll get a fresh assistant response via SSE + HTTP.
-    // Don't pop the user message from UI — it stays visible during retry.
-
-    dispatch({
-      type: "LOAD_MESSAGES",
-      payload: {
-        messages: msgs.map((m) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp,
-          metadata: m.metadata,
-          attachments: m.attachments,
-          toolExecutions: m.toolExecutions,
-          agentSteps: m.agentSteps,
-        })),
-      },
-    });
+    // ── Optimistic UI: strip the bad assistant response ─────────────
+    // Use POP_LAST_ASSISTANT instead of LOAD_MESSAGES — it does NOT
+    // reset isThinking, so the thinking indicator stays visible.
+    dispatch({ type: "POP_LAST_ASSISTANT" });
     dispatch({ type: "CLEAR_ERROR" });
     dispatch({ type: "RESET_RESPONSE" });
     dispatch({ type: "SET_THINKING", payload: true });

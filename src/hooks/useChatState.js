@@ -39,6 +39,7 @@ export const ACTIONS = {
   CANCEL_REQUEST: "CANCEL_REQUEST",
   AGENT_TEXT: "AGENT_TEXT",
   MESSAGE_DELTA: "MESSAGE_DELTA",
+  POP_LAST_ASSISTANT: "POP_LAST_ASSISTANT",
 };
 
 // Reducer function
@@ -410,6 +411,20 @@ function chatReducer(state, action) {
         agentSteps: [],
         runProgress: null,
       };
+
+    case ACTIONS.POP_LAST_ASSISTANT: {
+      // Remove the last message if it's an assistant message.
+      // Does NOT touch isThinking — safe to call mid-retry.
+      const msgs = [...state.messages];
+      if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
+        msgs.pop();
+      }
+      return {
+        ...state,
+        messages: msgs,
+        streamingMessage: "",
+      };
+    }
 
     default:
       return state;
