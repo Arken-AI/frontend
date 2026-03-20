@@ -44,8 +44,8 @@ export default function MessageList({
   );
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8">
+      <div className="max-w-2xl mx-auto">
         {/* Render all messages with their inline tool executions */}
         {messages.map((message, index) => (
           <div key={index}>
@@ -63,14 +63,30 @@ export default function MessageList({
               index === messages.length - 1 &&
               !isThinking &&
               error && (
-                <div className="flex justify-start mb-4">
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm max-w-[80%]">
+                <div className="flex justify-start mb-6">
+                  <div
+                    className="flex items-center gap-3 px-4 py-3 text-sm"
+                    style={{
+                      backgroundColor: 'rgba(239,68,68,0.08)',
+                      border:          '1px solid rgba(239,68,68,0.2)',
+                      borderRadius:    '8px',
+                      color:           'var(--color-error)',
+                      maxWidth:        '80%',
+                    }}
+                  >
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span className="flex-1">{error.message || "Failed to get response"}</span>
                     {onRetry && (
                       <button
                         onClick={onRetry}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors flex-shrink-0"
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs transition-colors flex-shrink-0"
+                        style={{
+                          backgroundColor: 'rgba(239,68,68,0.12)',
+                          color:           'var(--color-error)',
+                          borderRadius:    '4px',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.2)'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.12)'}
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         Retry
@@ -177,14 +193,13 @@ export default function MessageList({
 
             {/* Streaming assistant response (arrives via SSE message_delta) */}
             {streamingMessage && (
-              <div className="mb-4 w-full">
-                <div className="w-full">
-                  <div className="bg-surface px-6 py-4">
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <MarkdownRenderer content={streamingMessage} />
-                    </div>
-                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-blue-500 animate-pulse rounded-sm align-text-bottom" />
-                  </div>
+              <div className="mb-6 w-full">
+                <div className="prose prose-sm max-w-none dark:prose-invert" style={{ lineHeight: '1.7' }}>
+                  <MarkdownRenderer content={streamingMessage} />
+                  <span
+                    className="inline-block w-0.5 h-4 ml-0.5 animate-pulse align-text-bottom"
+                    style={{ backgroundColor: 'var(--color-text-muted)', borderRadius: '1px' }}
+                  />
                 </div>
               </div>
             )}
