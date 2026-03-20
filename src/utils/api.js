@@ -90,33 +90,6 @@ export async function fetchJSON(url, options = {}, maxRetries = 3) {
 }
 
 /**
- * API endpoints configuration
- * Centralized API URL management
- */
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8001";
-
-export const API = {
-  // Simulation results
-  getSimulationResults: (runId) =>
-    fetchJSON(`${API_BASE_URL}/api/simulations/${runId}`),
-
-  // Equipment data
-  getEquipmentData: (runId) =>
-    fetchJSON(`${API_BASE_URL}/api/simulations/${runId}/equipment`),
-
-  // Stream data
-  getStreamData: (runId) =>
-    fetchJSON(`${API_BASE_URL}/api/simulations/${runId}/streams`),
-
-  // Warnings
-  getWarnings: (runId) =>
-    fetchJSON(`${API_BASE_URL}/api/simulations/${runId}/warnings`),
-
-  // Run history
-  getRunHistory: () => fetchJSON(`${API_BASE_URL}/api/simulations/history`),
-};
-
-/**
  * Manual retry wrapper for user-triggered actions
  * Used when automatic retry fails and user clicks "Retry" button
  */

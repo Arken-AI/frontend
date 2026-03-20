@@ -27,6 +27,7 @@ import { useChatState } from "../../hooks/useChatState";
 import { handleSSEEvent } from "../../utils/eventHandlers";
 import { sendMessage, getStreamUrl } from "../../api/client";
 import SSEClient from "../../utils/sseClient";
+import { useAutoScroll } from "../../hooks/useAutoScroll";
 
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
@@ -103,6 +104,12 @@ const ChatPanel = forwardRef(function ChatPanel({
   );
 
   const [state, dispatch] = useChatState();
+  const { scrollRef, bottomRef, showScrollButton, scrollToBottom } = useAutoScroll([
+    state.messages,
+    state.streamingMessage,
+    state.isThinking,
+    state.agentSteps,
+  ]);
   const previousConversationIdRef = useRef(conversationId);
 
   // Holds the active SSEClient for the current in-flight request.
@@ -125,6 +132,7 @@ const ChatPanel = forwardRef(function ChatPanel({
         [
           "thinking_start",
           "thinking_end",
+          "message_delta",
           "tool_start",
           "tool_end",
           "run_progress",
@@ -522,7 +530,7 @@ const ChatPanel = forwardRef(function ChatPanel({
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
         {showWelcome ? (
           <WelcomeScreen onSend={handleSendMessage} compact />
         ) : (
@@ -531,9 +539,23 @@ const ChatPanel = forwardRef(function ChatPanel({
             isThinking={state.isThinking}
             activeTool={state.activeTool}
             toolExecutions={state.toolExecutions}
+            agentSteps={state.agentSteps}
             runProgress={state.runProgress}
+            streamingMessage={state.streamingMessage}
             error={state.error}
+            bottomRef={bottomRef}
           />
+        )}
+        {showScrollButton && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-md text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            Scroll to latest
+          </button>
         )}
       </div>
 

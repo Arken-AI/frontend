@@ -2,8 +2,8 @@
  * Main App Component
  *
  * Sets up routing for the application:
- * - "/" : Chat interface (existing)
- * - "/results/:runId" : Results viewer (new)
+ * - "/" : Chat interface
+ * - "/login" : Login page
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -12,7 +12,6 @@ import { AuthProvider } from "./context/AuthContext";
 import { ChatProvider } from "./context/ChatContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import ChatPage from "./pages/ChatPage";
-import ResultsPage from "./pages/ResultsPage";
 import LoginPage from "./pages/LoginPage";
 
 function App() {
@@ -63,14 +62,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ChatPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/results/:runId"
-              element={
-                <ProtectedRoute>
-                  <ResultsPage />
                 </ProtectedRoute>
               }
             />

@@ -1,14 +1,11 @@
 /**
  * MessageList Component
  *
- * Scrollable container that displays all messages and inline events.
- * Features:
- * - Auto-scroll to bottom on new messages
- * - Renders interleaved agent steps (text + tool cards) in real-time
- * - Backward-compatible fallback for messages without agentSteps
+ * Pure content renderer — renders messages and live streaming state.
+ * Scroll management is handled by the parent via useAutoScroll hook.
+ * The parent passes a bottomRef which is rendered as a scroll anchor.
  */
 
-import { useRef, useEffect } from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import WelcomeScreen from './WelcomeScreen';
@@ -23,24 +20,14 @@ export default function MessageList({
   isThinking = false,
   thinkingStartTime = null,
   activeTool = null,
-  toolExecutions = [],
   runProgress = null,
   agentSteps = [],
   onSuggestionClick,
   streamingMessage = "",
   error = null,
   onRetry,
+  bottomRef,        // scroll anchor — provided by parent via useAutoScroll
 }) {
-  const scrollRef = useRef(null);
-  const bottomRef = useRef(null);
-
-  // Auto-scroll to bottom when content changes
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isThinking, activeTool, toolExecutions, agentSteps, streamingMessage]);
-
   // Show welcome screen if no messages
   if (messages.length === 0 && !isThinking) {
     return <WelcomeScreen onSuggestionClick={onSuggestionClick} />;
@@ -57,10 +44,7 @@ export default function MessageList({
   );
 
   return (
-    <div
-      ref={scrollRef}
-      className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin"
-    >
+    <div className="p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Render all messages with their inline tool executions */}
         {messages.map((message, index) => (
@@ -233,7 +217,7 @@ export default function MessageList({
           </div>
         )}
 
-        {/* Scroll anchor */}
+        {/* Scroll anchor — controlled by parent via useAutoScroll */}
         <div ref={bottomRef} />
       </div>
     </div>
