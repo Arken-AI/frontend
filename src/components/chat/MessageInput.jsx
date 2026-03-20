@@ -291,7 +291,10 @@ export default function MessageInput({
   // ---- Compact mode (simplified single-line input) ----
   if (compact) {
     return (
-      <div className="bg-white p-2">
+      <div
+        className="p-2 border-t"
+        style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
+      >
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -301,19 +304,32 @@ export default function MessageInput({
             onPaste={handlePaste}
             placeholder={placeholder}
             disabled={disabled}
-            className="w-full h-10 px-3 text-sm rounded-xl border border-gray-200 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-300 focus:bg-white disabled:bg-gray-100 disabled:text-gray-400 placeholder:text-gray-400 transition-all duration-200"
+            className="w-full h-9 px-3 text-sm"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              border:          '1px solid var(--color-border)',
+              color:           'var(--color-text-primary)',
+              fontFamily:      'var(--font-ui)',
+              borderRadius:    '2px',
+              outline:         'none',
+            }}
+            onFocus={e => e.currentTarget.style.borderColor = 'var(--color-border-focus)'}
+            onBlur={e  => e.currentTarget.style.borderColor = 'var(--color-border)'}
           />
           <button
             onClick={handleSend}
             disabled={!canSend}
-            className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 ${
-              canSend
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm hover:shadow hover:scale-105'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-            title="Send message (Enter)"
+            className="flex-shrink-0 w-9 h-9 flex items-center justify-center transition-opacity"
+            style={{
+              backgroundColor: canSend ? 'var(--color-running)' : 'var(--color-border)',
+              color:           'white',
+              borderRadius:    '2px',
+              cursor:          canSend ? 'pointer' : 'not-allowed',
+              opacity:         canSend ? 1 : 0.4,
+            }}
+            title="Send (Enter)"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -323,87 +339,87 @@ export default function MessageInput({
   // ---- Full mode ----
   return (
     <div
-      className="bg-white px-4 py-3 relative"
+      className="px-3 py-3 border-t relative"
+      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Drag overlay */}
       {dragActive && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-50/80 border-2 border-dashed border-blue-400 rounded-xl pointer-events-none">
-          <div className="flex flex-col items-center gap-2 text-blue-600">
-            <Paperclip className="w-8 h-8" />
-            <span className="text-sm font-medium">Drop files here</span>
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none border-2 border-dashed"
+          style={{ backgroundColor: 'rgba(59,130,246,0.06)', borderColor: 'var(--color-running)' }}
+        >
+          <div className="flex flex-col items-center gap-2" style={{ color: 'var(--color-running)' }}>
+            <Paperclip className="w-6 h-6" />
+            <span className="text-xs" style={{ fontFamily: 'var(--font-mono)' }}>drop files here</span>
           </div>
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto">
-        {/* 
-          Single bordered container — attachments chips + textarea + buttons all inside.
-          Matches the VS Code Copilot chat input style.
-        */}
+      <div>
+        {/* Single bordered container */}
         <div
-          className={`
-            rounded-2xl border bg-gray-50 
-            focus-within:border-blue-400 focus-within:bg-white focus-within:shadow-sm 
-            transition-all duration-200
-            ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}
-          `}
+          className="border transition-colors duration-150"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            borderColor:     dragActive ? 'var(--color-running)' : 'var(--color-border)',
+            borderRadius:    '2px',
+          }}
         >
-          {/* Attachment chips row — inside the border, above the textarea */}
+          {/* Attachment chips */}
           {attachments.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2.5 pb-0.5">
+            <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-1">
               {attachments.map((att, idx) => (
                 <div
                   key={idx}
-                  className="group flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-md bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-gray-300 transition-colors"
+                  className="flex items-center gap-1.5 h-6 pl-1.5 pr-1 border"
+                  style={{
+                    backgroundColor: 'var(--color-bg)',
+                    borderColor:     'var(--color-border)',
+                    borderRadius:    '2px',
+                  }}
                 >
-                  {/* Tiny thumbnail or file type icon */}
                   {att.preview ? (
-                    <img
-                      src={att.preview}
-                      alt=""
-                      className="w-5 h-5 rounded object-cover flex-shrink-0"
-                    />
-                  ) : att.media_type === 'application/pdf' ? (
-                    <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  ) : DOC_TYPES.includes(att.media_type) ? (
-                    <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <img src={att.preview} alt="" className="w-4 h-4 object-cover flex-shrink-0" />
                   ) : (
-                    <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
                   )}
-                  {/* Filename */}
-                  <span className="text-xs text-gray-600 select-none whitespace-nowrap">
+                  <span className="text-xs select-none whitespace-nowrap" style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}>
                     {truncateFilename(att.filename)}
                   </span>
-                  {/* Remove button */}
                   <button
                     onClick={() => removeAttachment(idx)}
-                    className="ml-0.5 w-4 h-4 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="w-4 h-4 flex items-center justify-center transition-colors"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
                     title="Remove"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Textarea row with attach and send buttons */}
+          {/* Textarea row */}
           <div className="flex items-end gap-1 px-2 py-2">
             {/* Attach button */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isDisabled || isProcessing || attachments.length >= MAX_ATTACHMENTS}
-              className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
-                attachments.length >= MAX_ATTACHMENTS
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
-              }`}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-colors"
+              style={{
+                color:  attachments.length >= MAX_ATTACHMENTS ? 'var(--color-border)' : 'var(--color-text-muted)',
+                cursor: attachments.length >= MAX_ATTACHMENTS ? 'not-allowed' : 'pointer',
+              }}
+              onMouseEnter={e => { if (attachments.length < MAX_ATTACHMENTS) e.currentTarget.style.color = 'var(--color-running)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = attachments.length >= MAX_ATTACHMENTS ? 'var(--color-border)' : 'var(--color-text-muted)'; }}
               title={attachments.length >= MAX_ATTACHMENTS ? `Max ${MAX_ATTACHMENTS} files` : 'Attach image, PDF, or Word doc'}
             >
-              <Paperclip className="w-[18px] h-[18px]" />
+              <Paperclip className="w-4 h-4" />
             </button>
             <input
               ref={fileInputRef}
@@ -417,23 +433,18 @@ export default function MessageInput({
               }}
             />
 
-            {/* Mic button (voice input) */}
+            {/* Mic button */}
             {speechSupported && (
               <button
                 onClick={toggleListening}
                 disabled={isDisabled || isProcessing}
-                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
-                  isListening
-                    ? 'text-red-500 bg-red-50 hover:bg-red-100 animate-pulse'
-                    : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
-                }`}
+                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center transition-colors ${isListening ? 'animate-pulse' : ''}`}
+                style={{ color: isListening ? 'var(--color-error)' : 'var(--color-text-muted)', cursor: 'pointer' }}
+                onMouseEnter={e => { if (!isListening) e.currentTarget.style.color = 'var(--color-running)'; }}
+                onMouseLeave={e => { if (!isListening) e.currentTarget.style.color = 'var(--color-text-muted)'; }}
                 title={isListening ? 'Stop listening' : 'Voice input'}
               >
-                {isListening ? (
-                  <MicOff className="w-[18px] h-[18px]" />
-                ) : (
-                  <Mic className="w-[18px] h-[18px]" />
-                )}
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
             )}
 
@@ -447,34 +458,44 @@ export default function MessageInput({
               placeholder={placeholder}
               disabled={disabled}
               rows={1}
-              className="flex-1 resize-none bg-transparent text-gray-900 text-sm leading-snug px-1 py-1.5 focus:outline-none disabled:text-gray-400 placeholder:text-gray-400"
-              style={{ minHeight: '36px', maxHeight: '200px' }}
+              className="flex-1 resize-none text-sm leading-snug px-1 py-1.5 focus:outline-none"
+              style={{
+                backgroundColor: 'transparent',
+                color:           'var(--color-text-primary)',
+                minHeight:       '36px',
+                maxHeight:       '200px',
+                fontFamily:      'var(--font-ui)',
+              }}
             />
 
             {/* Send or Stop button */}
             {isProcessing ? (
               <button
                 onClick={handleCancel}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all duration-150 hover:scale-105"
-                title="Stop request"
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-colors"
+                style={{ backgroundColor: 'var(--color-error)', color: 'white', borderRadius: '2px' }}
+                title="Stop"
               >
-                <Square className="w-3.5 h-3.5 fill-current" />
+                <Square className="w-3 h-3 fill-current" />
               </button>
             ) : (
               <button
                 onClick={handleSend}
                 disabled={!canSend}
-                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
-                  canSend
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow hover:scale-105'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-                title={isDisabled ? 'Please wait...' : 'Send message (Enter)'}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-opacity"
+                style={{
+                  backgroundColor: canSend ? 'var(--color-running)' : 'var(--color-border)',
+                  color:           'white',
+                  borderRadius:    '2px',
+                  cursor:          canSend ? 'pointer' : 'not-allowed',
+                  opacity:         canSend ? 1 : 0.4,
+                }}
+                title="Send (Enter)"
               >
                 {isSending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                 )}
               </button>
             )}
@@ -482,28 +503,26 @@ export default function MessageInput({
         </div>
         
         {/* Helper text */}
-        <p className="text-[11px] text-gray-300 mt-1.5 text-center">
+        <p
+          className="text-[11px] mt-1.5 text-center"
+          style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+        >
           {isProcessing ? (
-            <span className="text-amber-500">Processing… Click stop to cancel</span>
+            <span style={{ color: 'var(--color-corrected)' }}>processing… click stop to cancel</span>
           ) : (
             <>
-              <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-mono text-[10px]">Enter</kbd>
+              <kbd
+                className="px-1 py-0.5 text-[10px]"
+                style={{ border: '1px solid var(--color-border)', borderRadius: '2px', color: 'var(--color-text-muted)' }}
+              >Enter</kbd>
               <span className="mx-1">to send</span>
-              <kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-400 font-mono text-[10px]">Shift + Enter</kbd>
+              <kbd
+                className="px-1 py-0.5 text-[10px]"
+                style={{ border: '1px solid var(--color-border)', borderRadius: '2px', color: 'var(--color-text-muted)' }}
+              >Shift + Enter</kbd>
               <span className="ml-1">new line</span>
-              <span className="mx-1">·</span>
-              <span className="text-gray-400">Paste or drop images, PDFs & Word docs</span>
-              {speechSupported && (
-                <>
-                  <span className="mx-1">·</span>
-                  <span className="text-gray-400">
-                    {isListening ? (
-                      <span className="text-red-400">🎙️ Listening…</span>
-                    ) : (
-                      'Mic for voice'
-                    )}
-                  </span>
-                </>
+              {speechSupported && isListening && (
+                <span className="ml-2" style={{ color: 'var(--color-error)' }}>● listening…</span>
               )}
             </>
           )}

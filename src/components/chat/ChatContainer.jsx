@@ -392,64 +392,40 @@ function ChatContainer() {
   const isProcessing = state.isThinking;
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div
+      className="flex flex-col h-full"
+      style={{ backgroundColor: 'var(--color-bg)' }}
+    >
       {/* Error display */}
       {state.error && (
         <div
-          className={`text-sm px-4 py-3 text-center border-b flex items-center justify-center gap-3 ${
-            state.error.type === "rate_limit_error"
-              ? "bg-yellow-50 text-yellow-900 border-yellow-200"
-              : "bg-red-50 text-red-800 border-red-200"
-          }`}
+          className="text-sm px-3 py-2.5 border-b flex items-center justify-between gap-3"
+          style={{
+            backgroundColor: state.error.type === 'rate_limit_error'
+              ? 'rgba(234,179,8,0.08)'
+              : 'rgba(239,68,68,0.08)',
+            borderColor: state.error.type === 'rate_limit_error'
+              ? 'rgba(234,179,8,0.3)'
+              : 'rgba(239,68,68,0.3)',
+          }}
         >
-          <div className="flex-1 flex items-center justify-center gap-2">
-            {state.error.type === "rate_limit_error" ? (
-              <svg
-                className="w-5 h-5 text-yellow-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-5 h-5 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+          <div className="flex-1 text-xs" style={{
+            color: state.error.type === 'rate_limit_error'
+              ? 'var(--color-warning)'
+              : 'var(--color-error)',
+            fontFamily: 'var(--font-mono)',
+          }}>
+            {state.error.message}
+            {state.error.details?.suggestion && (
+              <span className="ml-2 opacity-70">{state.error.details.suggestion}</span>
             )}
-            <div className="text-left">
-              <div className="font-medium">{state.error.message}</div>
-              {state.error.details?.suggestion && (
-                <div className="text-xs mt-1 opacity-75">
-                  {state.error.details.suggestion}
-                </div>
-              )}
-            </div>
           </div>
           <button
             onClick={() => dispatch({ type: "CLEAR_ERROR" })}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              state.error.type === "rate_limit_error"
-                ? "text-yellow-700 hover:bg-yellow-100"
-                : "text-red-700 hover:bg-red-100"
-            }`}
+            className="text-xs ml-2 transition-opacity hover:opacity-70"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
           >
-            Dismiss
+            ✕
           </button>
         </div>
       )}
@@ -476,12 +452,16 @@ function ChatContainer() {
         {showScrollButton && (
           <button
             onClick={scrollToBottom}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-md text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 border text-xs transition-colors"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              borderColor:     'var(--color-border)',
+              color:           'var(--color-text-muted)',
+              fontFamily:      'var(--font-mono)',
+              borderRadius:    '2px',
+            }}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-            Scroll to latest
+            ↓ latest
           </button>
         )}
       </div>
@@ -492,21 +472,31 @@ function ChatContainer() {
         onCancel={handleCancelRequest}
         disabled={false}
         isProcessing={isProcessing}
-        placeholder="Ask about process simulations..."
+        placeholder="Describe your heat exchanger problem…"
       />
 
-      {/* Status indicator — only show when no agent steps are visible yet */}
+      {/* Processing indicator */}
       {state.isThinking && state.agentSteps.length === 0 && (
-        <div className="px-4 py-1.5">
-          <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 text-xs text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-              </span>
-              <span className="text-gray-400 text-xs">Processing</span>
-            </span>
-          </div>
+        <div
+          className="px-3 py-1.5 flex items-center gap-2"
+          style={{ borderTop: '1px solid var(--color-border)' }}
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span
+              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+              style={{ backgroundColor: 'var(--color-running)' }}
+            />
+            <span
+              className="relative inline-flex rounded-full h-1.5 w-1.5"
+              style={{ backgroundColor: 'var(--color-running)' }}
+            />
+          </span>
+          <span
+            className="text-xs"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+          >
+            processing
+          </span>
         </div>
       )}
     </div>

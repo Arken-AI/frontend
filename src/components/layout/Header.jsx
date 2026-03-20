@@ -1,188 +1,123 @@
 /**
- * Header Component
+ * Header — app bar.
  *
- * Top navigation bar with:
- * - App branding
- * - Page title/breadcrumb
- * - Health indicator (styled as badge)
- * - Action buttons
+ * Left:  ≡ toggle (history sidebar) + ARKEN wordmark
+ * Right: connection status + username + sign out
  */
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useChatContext } from "../../context/ChatContext";
-import { useAuth } from "../../context/AuthContext";
-import { checkHealth } from "../../api/client";
-import { Menu, Settings, ChevronRight, Eye, LogOut, User } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { checkHealth } from '../../api/client';
 
-/**
- * Health Badge - Consistent with Equipment Browser badges
- */
-function HealthBadge({ status, loading }) {
-  if (loading) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400">
-        <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse" />
-        <span className="hidden sm:inline">Checking...</span>
-      </span>
-    );
-  }
-
-  const isHealthy = status?.status === "healthy";
-
+function StatusDot({ healthy, loading }) {
+  if (loading) return (
+    <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-600 animate-pulse" title="Checking…" />
+  );
   return (
     <span
-      className={`
-      inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors
-      ${isHealthy ? "text-emerald-600 bg-emerald-50" : "text-red-500 bg-red-50"}
-    `}
-    >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${isHealthy ? "bg-emerald-500" : "bg-red-400 animate-pulse"}`}
-      />
-      <span className="hidden sm:inline">
-        {isHealthy ? "Connected" : "Disconnected"}
-      </span>
-    </span>
+      className={`inline-block w-1.5 h-1.5 rounded-full ${healthy ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}
+      title={healthy ? 'Connected' : 'Disconnected'}
+    />
   );
 }
 
-export default function Header({
-  onMenuClick,
-  title = "ARKEN AI",
-  subtitle,
-  showBackButton = false,
-  onBackClick,
-}) {
-  const navigate = useNavigate();
-  const { conversationId, conversations, latestRunId } = useChatContext();
+export default function Header({ onToggleSidebar, sidebarOpen }) {
   const { username, logout } = useAuth();
-  const [health, setHealth] = useState(null);
-  const [healthLoading, setHealthLoading] = useState(true);
+  const navigate = useNavigate();
+  const [health,  setHealth]  = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Get current conversation info
-  const currentConversation = conversations.find(
-    (c) => c.conversation_id === conversationId,
-  );
-
-  // Check backend health on mount and periodically
   useEffect(() => {
-    const checkBackendHealth = async () => {
+    const check = async () => {
       try {
-        const healthData = await checkHealth();
-        setHealth(healthData);
-      } catch (error) {
-        setHealth({ status: "unhealthy", error: error.message });
+        const data = await checkHealth();
+        setHealth(data);
+      } catch {
+        setHealth({ status: 'unhealthy' });
       } finally {
-        setHealthLoading(false);
+        setLoading(false);
       }
     };
-
-    checkBackendHealth();
-    const interval = setInterval(checkBackendHealth, 30000);
-    return () => clearInterval(interval);
+    check();
+    const t = setInterval(check, 30000);
+    return () => clearInterval(t);
   }, []);
 
+  const healthy = health?.status === 'healthy';
+
   return (
-    <header className="h-14 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 flex items-center justify-between shrink-0 sticky top-0 z-30">
-      {/* Left side */}
-      <div className="flex items-center gap-3">
-        {/* Mobile menu button */}
+    <header
+      className="h-11 flex items-center justify-between px-3 shrink-0 border-b"
+      style={{
+        backgroundColor: 'var(--color-surface)',
+        borderColor:     'var(--color-border)',
+      }}
+    >
+      {/* Left: sidebar toggle + wordmark */}
+      <div className="flex items-center gap-2.5">
+        {/* Sidebar toggle */}
         <button
-          onClick={onMenuClick}
-          className="md:hidden p-2 text-gray-400 hover:text-gray-600 
-                   hover:bg-gray-50 rounded-xl transition-all duration-200"
-          aria-label="Toggle menu"
+          onClick={onToggleSidebar}
+          className="flex items-center justify-center w-7 h-7 transition-colors"
+          style={{
+            color:           sidebarOpen ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+            borderRadius:    '2px',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text-primary)'}
+          onMouseLeave={e => e.currentTarget.style.color = sidebarOpen ? 'var(--color-text-primary)' : 'var(--color-text-muted)'}
+          title={sidebarOpen ? 'Close history' : 'Design history'}
+          aria-label="Toggle design history"
         >
-          <Menu size={20} />
+          {/* Hamburger icon */}
+          <svg width="15" height="12" viewBox="0 0 15 12" fill="none">
+            <rect y="0"  width="15" height="1.5" rx="0.75" fill="currentColor" />
+            <rect y="5"  width="15" height="1.5" rx="0.75" fill="currentColor" />
+            <rect y="10" width="15" height="1.5" rx="0.75" fill="currentColor" />
+          </svg>
         </button>
 
-        {/* App branding + breadcrumb */}
-        <div className="flex items-center gap-2.5">
-          <img
-            src="/arken-logo.svg"
-            alt="Arken AI"
-            className="w-8 h-8 rounded-lg shadow-sm"
-          />
-          <h1 className="text-sm font-bold tracking-tight text-gray-900">
-            {title}
-          </h1>
-
-          {/* Breadcrumb separator + subtitle */}
-          {subtitle && (
-            <>
-              <ChevronRight size={14} className="text-gray-300" />
-              <span className="text-sm font-medium text-gray-500">
-                {subtitle}
-              </span>
-            </>
-          )}
-
-          {/* Current conversation title (if no subtitle) */}
-          {!subtitle && currentConversation && (
-            <>
-              <ChevronRight size={14} className="text-gray-300" />
-              <span className="hidden lg:block text-sm text-gray-400 max-w-xs truncate">
-                {currentConversation.title || "Untitled"}
-              </span>
-            </>
-          )}
-        </div>
+        {/* Wordmark */}
+        <span
+          className="text-sm font-bold tracking-[0.12em] uppercase select-none"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          ARKEN
+        </span>
       </div>
 
-      {/* Right side */}
-      <div className="flex items-center gap-2">
-        {/* View Flowsheet button - only show if there's a recent simulation */}
-        {latestRunId && (
-          <button
-            onClick={() => navigate(`/results/${latestRunId}`)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium
-                     text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100
-                     rounded-xl transition-all duration-200 shadow-sm"
-            title="View latest simulation results"
+      {/* Right: status + user */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <StatusDot healthy={healthy} loading={loading} />
+          <span
+            className="text-xs hidden sm:inline"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
           >
-            <Eye size={15} />
-            <span className="hidden sm:inline">View Flowsheet</span>
-          </button>
-        )}
+            {loading ? 'checking…' : healthy ? 'connected' : 'disconnected'}
+          </span>
+        </div>
 
-        {/* Health indicator */}
-        <HealthBadge status={health} loading={healthLoading} />
-
-        {/* Settings button */}
-        <button
-          className="p-2 text-gray-400 hover:text-gray-600 
-                   hover:bg-gray-50 rounded-xl transition-all duration-200"
-          aria-label="Settings"
-        >
-          <Settings size={18} />
-        </button>
-
-        {/* User display & logout */}
         {username && (
-          <div className="flex items-center gap-2 ml-1 pl-2 border-l border-gray-200">
-            <div className="flex items-center gap-1.5 text-sm text-gray-600">
-              <User size={15} className="text-gray-400" />
-              <span
-                className="hidden sm:inline font-medium max-w-[120px] truncate"
-                title={username}
-              >
-                {username}
-              </span>
-            </div>
-            <button
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-              className="p-1.5 text-gray-400 hover:text-red-500 
-                       hover:bg-red-50 rounded-lg transition-all duration-200"
-              aria-label="Logout"
-              title="Logout"
+          <>
+            <span style={{ color: 'var(--color-border)' }}>|</span>
+            <span
+              className="text-xs hidden sm:inline"
+              style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}
             >
-              <LogOut size={16} />
+              {username}
+            </span>
+            <button
+              onClick={() => { logout(); navigate('/login'); }}
+              className="text-xs transition-colors"
+              style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+              aria-label="Sign out"
+            >
+              sign out
             </button>
-          </div>
+          </>
         )}
       </div>
     </header>
