@@ -11,19 +11,35 @@
  * Children must be exactly two elements: [ChatPanel, HXPanel]
  */
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import Header from './Header';
 import HistorySidebar from './HistorySidebar';
 
 const MIN_CHAT_PCT  = 20;
 const MAX_CHAT_PCT  = 50;
 const DEFAULT_PCT   = 28;
+const MOBILE_BREAKPOINT = 768;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
 
 export default function Layout({ children }) {
   const [chatPct,        setChatPct]        = useState(DEFAULT_PCT);
   const [sidebarOpen,    setSidebarOpen]    = useState(false);
+  const [activeTab,      setActiveTab]      = useState('chat'); // mobile tab
   const containerRef = useRef(null);
   const dragging     = useRef(false);
+  const isMobile     = useIsMobile();
 
   const toggleSidebar = useCallback(() => setSidebarOpen(o => !o), []);
 
@@ -65,44 +81,79 @@ export default function Layout({ children }) {
     >
       <Header onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
 
-      <div className="flex flex-1 min-h-0">
-        {/* ── History sidebar (240px, collapsible) ─────────── */}
-        <HistorySidebar isOpen={sidebarOpen} />
-
-        {/* ── Split panels ─────────────────────────────────── */}
-        <div ref={containerRef} className="flex flex-1 min-h-0 min-w-0">
-
-          {/* Chat panel */}
+      {/* ── Mobile: tab bar + single panel ─────────────────── */}
+      {isMobile && (
+        <>
           <div
-            className="flex flex-col min-h-0 border-r"
-            style={{
-              width:       `${chatPct}%`,
-              borderColor: 'var(--color-border)',
-            }}
+            className="flex shrink-0 border-b"
+            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
           >
-            {chatPanel}
+            {[
+              { id: 'chat', label: 'Chat' },
+              { id: 'hx',   label: 'HX Pipeline' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex-1 py-2.5 text-xs tracking-wide transition-colors"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  color: activeTab === tab.id ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                  borderBottom: activeTab === tab.id ? '2px solid var(--color-running)' : '2px solid transparent',
+                  backgroundColor: 'transparent',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
+          <div className="flex flex-col flex-1 min-h-0">
+            {activeTab === 'chat' ? chatPanel : hxPanel}
+          </div>
+        </>
+      )}
 
-          {/* Resize handle */}
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize panels"
-            aria-valuenow={Math.round(chatPct)}
-            aria-valuemin={MIN_CHAT_PCT}
-            aria-valuemax={MAX_CHAT_PCT}
-            tabIndex={0}
-            className="resize-handle w-1 shrink-0 focus:outline-none"
-            onMouseDown={onMouseDown}
-            onKeyDown={onKeyDown}
-          />
+      {/* ── Desktop: sidebar + draggable split ─────────────── */}
+      {!isMobile && (
+        <div className="flex flex-1 min-h-0">
+          {/* History sidebar (240px, collapsible) */}
+          <HistorySidebar isOpen={sidebarOpen} />
 
-          {/* HX progress panel */}
-          <div className="flex flex-col min-h-0 flex-1">
-            {hxPanel}
+          {/* Split panels */}
+          <div ref={containerRef} className="flex flex-1 min-h-0 min-w-0">
+
+            {/* Chat panel */}
+            <div
+              className="flex flex-col min-h-0 border-r"
+              style={{
+                width:       `${chatPct}%`,
+                borderColor: 'var(--color-border)',
+              }}
+            >
+              {chatPanel}
+            </div>
+
+            {/* Resize handle */}
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize panels"
+              aria-valuenow={Math.round(chatPct)}
+              aria-valuemin={MIN_CHAT_PCT}
+              aria-valuemax={MAX_CHAT_PCT}
+              tabIndex={0}
+              className="resize-handle w-1 shrink-0 focus:outline-none"
+              onMouseDown={onMouseDown}
+              onKeyDown={onKeyDown}
+            />
+
+            {/* HX progress panel */}
+            <div className="flex flex-col min-h-0 flex-1">
+              {hxPanel}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
