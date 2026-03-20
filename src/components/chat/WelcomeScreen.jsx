@@ -11,12 +11,12 @@ const EXAMPLE_PROMPTS = [
 export default function WelcomeScreen({ onSend }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-5 px-6">
-      <p
-        className="text-sm"
+      <h1
+        className="text-sm font-normal"
         style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
       >
         Describe your heat exchanger problem.
-      </p>
+      </h1>
 
       <div className="flex flex-col gap-2 w-full max-w-xs">
         {EXAMPLE_PROMPTS.map((prompt, i) => (

@@ -253,12 +253,12 @@ export default function HXPanel({ steps: extSteps, isRunning: extRunning, curren
         {showIdle && (
           <div className="flex flex-col items-center justify-center h-full gap-5">
             <div className="text-center space-y-1">
-              <p
-                className="text-xs tracking-widest uppercase"
+              <h2
+                className="text-xs font-normal tracking-widest uppercase"
                 style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
               >
                 Bell-Delaware · 16-Step Pipeline
-              </p>
+              </h2>
               <p
                 className="text-xs"
                 style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
