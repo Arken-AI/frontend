@@ -13,7 +13,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Square, Paperclip, X, FileText, Mic, MicOff } from 'lucide-react';
+import { Send, Loader2, Square, Paperclip, X, FileText, Mic } from 'lucide-react';
 
 // Maximum total size across all attachments (20 MB)
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
@@ -443,7 +443,7 @@ export default function MessageInput({
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={placeholder}
+          placeholder={isListening ? 'Listening...' : placeholder}
           disabled={disabled}
           rows={1}
           className="w-full resize-none text-sm leading-relaxed px-4 pt-3 pb-2"
@@ -453,6 +453,7 @@ export default function MessageInput({
             minHeight:       '44px',
             maxHeight:       '200px',
             fontFamily:      'var(--font-ui)',
+            fontStyle:       isListening ? 'italic' : 'normal',
             display:         'block',
             outline:         'none',
             border:          'none',
@@ -483,9 +484,9 @@ export default function MessageInput({
             />
           </div>
 
-          {/* Right — stop / send / mic */}
+          {/* Right — stop / send / listening pill / mic */}
           {isProcessing ? (
-            /* Stop button — matches send button shape, error color */
+            /* Stop button */
             <button
               onClick={handleCancel}
               className="flex-shrink-0 w-11 h-11 flex items-center justify-center transition-all hover:opacity-85"
@@ -493,6 +494,26 @@ export default function MessageInput({
               title="Stop generation"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
+            </button>
+          ) : isListening ? (
+            /* Listening — blue pill with animated dots + mic icon (click to stop) */
+            <button
+              onClick={stopListening}
+              className="flex-shrink-0 h-11 flex items-center justify-center gap-1.5 px-3 transition-all hover:opacity-85"
+              style={{
+                backgroundColor: 'var(--color-running)',
+                color:           'white',
+                borderRadius:    '10px',
+                cursor:          'pointer',
+              }}
+              title="Stop listening"
+            >
+              <span className="flex items-center gap-[3px]">
+                <span className="w-[5px] h-[5px] rounded-full bg-white animate-pulse" style={{ animationDelay: '0ms' }} />
+                <span className="w-[5px] h-[5px] rounded-full bg-white animate-pulse" style={{ animationDelay: '150ms' }} />
+                <span className="w-[5px] h-[5px] rounded-full bg-white animate-pulse" style={{ animationDelay: '300ms' }} />
+              </span>
+              <Mic className="w-4 h-4" />
             </button>
           ) : canSend ? (
             /* Send button — accent rounded square, arrow-up */
@@ -516,26 +537,21 @@ export default function MessageInput({
               )}
             </button>
           ) : speechSupported ? (
-            /* Mic button — shown when nothing typed */
+            /* Mic — small toolbar icon when idle */
             <ToolbarButton
               onClick={toggleListening}
               disabled={isDisabled}
-              title={isListening ? 'Stop listening' : 'Voice input'}
-              active={isListening}
+              title="Voice input"
             >
-              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              <Mic className="w-4 h-4" />
             </ToolbarButton>
           ) : null}
         </div>
       </InputCard>
 
-      {/* Disclaimer */}
+      {/* Disclaimer — always visible, never changes */}
       <p className="text-[11px] mt-2 text-center" style={{ color: 'var(--color-text-muted)' }}>
-        {isListening ? (
-          <span style={{ color: 'var(--color-error)' }}>● listening…</span>
-        ) : (
-          <span>ARKEN AI may make errors in engineering calculations. Always verify critical parameters.</span>
-        )}
+        ARKEN AI may make errors in engineering calculations. Always verify critical parameters.
       </p>
     </div>
   );
