@@ -485,14 +485,14 @@ export default function MessageInput({
 
           {/* Right — stop / send / mic */}
           {isProcessing ? (
-            /* Stop button — white circle */
+            /* Stop button — matches send button shape, error color */
             <button
               onClick={handleCancel}
-              className="flex-shrink-0 w-11 h-11 flex items-center justify-center transition-opacity hover:opacity-75"
-              style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg)', borderRadius: '50%' }}
+              className="flex-shrink-0 w-11 h-11 flex items-center justify-center transition-all hover:opacity-85"
+              style={{ backgroundColor: 'var(--color-error)', color: 'white', borderRadius: '10px', cursor: 'pointer' }}
               title="Stop generation"
             >
-              <Square className="w-3 h-3 fill-current" />
+              <Square className="w-3.5 h-3.5 fill-current" />
             </button>
           ) : canSend ? (
             /* Send button — accent rounded square, arrow-up */
@@ -531,9 +531,7 @@ export default function MessageInput({
 
       {/* Disclaimer */}
       <p className="text-[11px] mt-2 text-center" style={{ color: 'var(--color-text-muted)' }}>
-        {isProcessing ? (
-          <span style={{ color: 'var(--color-corrected)' }}>processing… click stop to cancel</span>
-        ) : isListening ? (
+        {isListening ? (
           <span style={{ color: 'var(--color-error)' }}>● listening…</span>
         ) : (
           <span>ARKEN AI may make errors in engineering calculations. Always verify critical parameters.</span>

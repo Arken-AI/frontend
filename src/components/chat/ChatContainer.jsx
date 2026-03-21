@@ -17,7 +17,7 @@ import { useCallback, useRef, useEffect } from "react";
 import { useChatContext } from "../../context/ChatContext";
 import { useChatState } from "../../hooks/useChatState";
 import { handleSSEEvent } from "../../utils/eventHandlers";
-import { sendMessage, retryMessage, getStreamUrl } from "../../api/client";
+import { sendMessage, retryMessage, cancelMessage, getStreamUrl } from "../../api/client";
 import SSEClient from "../../utils/sseClient";
 import { useAutoScroll } from "../../hooks/useAutoScroll";
 
@@ -65,6 +65,11 @@ function ChatContainer() {
   // Holds the active SSEClient instance for the current in-flight request.
   // Stored in a ref so it's accessible from the cancel handler.
   const sseClientRef = useRef(null);
+
+  // AbortController for the in-flight sendMessage fetch.
+  // Calling abort() immediately drops the HTTP connection so the backend
+  // cancel flag (set via POST /cancel) can stop the stream.
+  const abortControllerRef = useRef(null);
 
   // Tracks the highest event sequence number seen so far for this conversation.
   // Passed to each new SSEClient so the stream resumes after the last seen
@@ -139,6 +144,10 @@ function ChatContainer() {
       sseClientRef.current = sseClient;
       await sseClient.ready; // wait for TCP open (or timeout) before POST
 
+      // Create a fresh AbortController for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       try {
         // Send message to backend - waits for complete response
         const response = await sendMessage({
@@ -146,6 +155,7 @@ function ChatContainer() {
           conversation_id: activeConversationId,
           username,
           attachments: attachments || null,
+          signal: abortController.signal,
         });
 
         // ── Wait for SSE stream to finish ──────────────────────────────
@@ -226,9 +236,15 @@ function ChatContainer() {
 
         await refreshConversations();
       } catch (error) {
-        console.error("Error sending message:", error);
         sseClientRef.current?.close();
         sseClientRef.current = null;
+        abortControllerRef.current = null;
+        // AbortError is the expected path when the user clicks Stop — not an error
+        if (error.name === "AbortError") {
+          dispatch({ type: "SET_THINKING", payload: false });
+          return;
+        }
+        console.error("Error sending message:", error);
         dispatch({
           type: "SET_ERROR",
           payload: error.message || "Failed to send message",
@@ -310,10 +326,19 @@ function ChatContainer() {
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
+    // 1. Tell the backend to stop streaming (best-effort, fire-and-forget)
+    if (conversationId) {
+      cancelMessage(conversationId);
+    }
+    // 2. Abort the in-flight HTTP fetch so the frontend doesn't process the response
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    // 3. Close the SSE connection
     sseClientRef.current?.close();
     sseClientRef.current = null;
+    // 4. Reset UI state
     dispatch({ type: "CANCEL_REQUEST" });
-  }, [dispatch]);
+  }, [conversationId, dispatch]);
 
   // Retry: ask the backend to delete the stale tail messages from DB,
   // then re-run the same user message through Claude from scratch.

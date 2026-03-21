@@ -71,6 +71,7 @@ export async function sendMessage({
   username = null,
   extra_metadata = null,
   attachments = null,
+  signal = null,
 }) {
   const body = {
     conversation_id,
@@ -101,6 +102,7 @@ export async function sendMessage({
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {
@@ -111,6 +113,22 @@ export async function sendMessage({
   }
 
   return response.json();
+}
+
+/**
+ * Cancel an in-flight request for a conversation.
+ * Tells the backend to stop streaming Claude's response.
+ * @param {string} conversationId
+ */
+export async function cancelMessage(conversationId) {
+  try {
+    await fetch(`${API_BASE}/chat/${conversationId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch {
+    // Best-effort — ignore network errors on cancel
+  }
 }
 
 /**
