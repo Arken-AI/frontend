@@ -442,7 +442,7 @@ function ChatContainer() {
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       {/* Main content area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto relative" style={{ scrollbarGutter: 'stable' }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
         {showWelcome ? (
           <WelcomeScreen onSend={handleSendMessage} />
         ) : (
@@ -459,10 +459,14 @@ function ChatContainer() {
             bottomRef={bottomRef}
           />
         )}
+      </div>
+
+      {/* Input area — relative wrapper lets the scroll button float above it */}
+      <div className="relative flex-shrink-0">
         {showScrollButton && (
           <button
             onClick={scrollToBottom}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 border text-xs transition-colors"
+            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 border text-xs transition-colors z-10"
             style={{
               backgroundColor: 'var(--color-surface)',
               borderColor:     'var(--color-border)',
@@ -474,16 +478,14 @@ function ChatContainer() {
             ↓ latest
           </button>
         )}
+        <MessageInput
+          onSend={handleSendMessage}
+          onCancel={handleCancelRequest}
+          disabled={false}
+          isProcessing={isProcessing}
+          placeholder="Describe your heat exchanger problem…"
+        />
       </div>
-
-      {/* Input area - always show */}
-      <MessageInput
-        onSend={handleSendMessage}
-        onCancel={handleCancelRequest}
-        disabled={false}
-        isProcessing={isProcessing}
-        placeholder="Describe your heat exchanger problem…"
-      />
 
     </div>
   );
