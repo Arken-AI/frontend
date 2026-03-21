@@ -13,7 +13,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const usernameRef = useRef(null);
 
@@ -147,17 +148,45 @@ export default function LoginPage() {
             >
               password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              disabled={isSubmitting}
-              style={inputStyle}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--color-border-focus)'}
-              onBlur={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={isSubmitting}
+                style={{ ...inputStyle, paddingRight: '36px' }}
+                onFocus={e => e.currentTarget.style.borderColor = 'var(--color-border-focus)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
+              />
+              {password && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword(prev => !prev)}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword
+                    ? <EyeOff className="w-3.5 h-3.5" />
+                    : <Eye className="w-3.5 h-3.5" />
+                  }
+                </button>
+              )}
+            </div>
           </div>
 
           {error && (
