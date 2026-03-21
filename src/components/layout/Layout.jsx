@@ -18,7 +18,7 @@ import HistorySidebar from './HistorySidebar';
 const MIN_CHAT_PCT  = 20;
 const MAX_CHAT_PCT  = 50;
 const DEFAULT_PCT   = 28;
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = 1024;
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
