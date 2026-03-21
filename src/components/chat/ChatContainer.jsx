@@ -326,9 +326,11 @@ function ChatContainer() {
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
-    // 1. Tell the backend to stop streaming (best-effort, fire-and-forget)
+    // 1. Tell the backend to stop streaming — include the partial text the
+    //    frontend has accumulated so the backend can persist it to MongoDB.
+    //    This ensures the cancelled partial response survives page reloads.
     if (conversationId) {
-      cancelMessage(conversationId);
+      cancelMessage(conversationId, state.streamingMessage || "");
     }
     // 2. Abort the in-flight HTTP fetch so the frontend doesn't process the response
     abortControllerRef.current?.abort();
@@ -336,9 +338,9 @@ function ChatContainer() {
     // 3. Close the SSE connection
     sseClientRef.current?.close();
     sseClientRef.current = null;
-    // 4. Reset UI state
+    // 4. Reset UI state — this saves the partial text as a local message
     dispatch({ type: "CANCEL_REQUEST" });
-  }, [conversationId, dispatch]);
+  }, [conversationId, dispatch, state.streamingMessage]);
 
   // Retry: ask the backend to delete the stale tail messages from DB,
   // then re-run the same user message through Claude from scratch.

@@ -65,7 +65,7 @@ export default function MessageBubble({ message, onRetry, isLastAssistant = fals
   const [copied, setCopied] = useState(false);
 
   const isUser = message.role === 'user';
-  const status = message.status || 'complete';
+  const status = message.cancelled ? 'cancelled' : (message.status || 'complete');
 
   const handleCopy = async () => {
     try {

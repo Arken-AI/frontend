@@ -333,6 +333,9 @@ function chatReducer(state, action) {
           content: msg.content,
           timestamp: msg.timestamp || new Date().toISOString(),
           metadata: msg.metadata,
+          // Preserve cancelled / status flags from DB
+          status: msg.status,
+          cancelled: msg.status === "cancelled" || msg.cancelled || false,
           // Carry forward image attachment metadata for display in MessageBubble
           attachments:
             msg.attachments || msg.metadata?.attachments || undefined,
@@ -403,14 +406,63 @@ function chatReducer(state, action) {
         error: null,
       };
 
-    case ACTIONS.CANCEL_REQUEST:
+    case ACTIONS.CANCEL_REQUEST: {
+      // If there's a partial streamed response, save it as a real message
+      // so the user sees what was generated before they clicked Stop.
+      // Include any tool executions and agent steps that occurred before cancel.
+      const partial = state.streamingMessage;
+      const cancelledToolExecs = state.toolExecutions.map((t) => ({
+        tool_name: t.name,
+        status: t.status,
+        duration_ms: t.duration,
+        summary: t.summary,
+        error: t.error,
+        arguments: t.args,
+        result: t.result || undefined,
+      }));
+      // Upgrade any still-running tool steps to "cancelled"
+      const cancelledSteps = state.agentSteps.map((step) =>
+        step.type === "tool_running"
+          ? { ...step, type: "tool", status: "cancelled" }
+          : step,
+      );
+      // Append the partial text as the final step if present
+      if (partial) {
+        cancelledSteps.push({
+          type: "text",
+          content: partial,
+          isFinal: true,
+        });
+      }
+      const messagesAfterCancel =
+        partial || cancelledToolExecs.length > 0
+          ? [
+              ...state.messages,
+              {
+                role: "assistant",
+                content: partial || "",
+                timestamp: new Date().toISOString(),
+                cancelled: true,
+                toolExecutions:
+                  cancelledToolExecs.length > 0
+                    ? cancelledToolExecs
+                    : undefined,
+                agentSteps:
+                  cancelledSteps.length > 1 ? cancelledSteps : undefined,
+              },
+            ]
+          : state.messages;
       return {
         ...state,
+        messages: messagesAfterCancel,
+        streamingMessage: "",
         isThinking: false,
         activeTool: null,
+        toolExecutions: [],
         agentSteps: [],
         runProgress: null,
       };
+    }
 
     case ACTIONS.POP_LAST_ASSISTANT: {
       // Remove the last message if it's an assistant message.
