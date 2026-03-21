@@ -80,7 +80,7 @@ function ToolbarButton({ onClick, disabled, title, active, children }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="w-8 h-8 flex items-center justify-center transition-colors"
+      className="w-11 h-11 flex items-center justify-center transition-colors"
       style={{
         color:        active ? 'var(--color-error)' : 'var(--color-text-muted)',
         borderRadius: '8px',
@@ -488,7 +488,7 @@ export default function MessageInput({
             /* Stop button — white circle */
             <button
               onClick={handleCancel}
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-opacity hover:opacity-75"
+              className="flex-shrink-0 w-11 h-11 flex items-center justify-center transition-opacity hover:opacity-75"
               style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg)', borderRadius: '50%' }}
               title="Stop generation"
             >
@@ -498,7 +498,7 @@ export default function MessageInput({
             /* Send button — accent rounded square, arrow-up */
             <button
               onClick={handleSend}
-              className="flex-shrink-0 w-8 h-8 flex items-center justify-center transition-all hover:opacity-85"
+              className="flex-shrink-0 w-11 h-11 flex items-center justify-center transition-all hover:opacity-85"
               style={{
                 backgroundColor: 'var(--color-running)',
                 color:           'white',
