@@ -6,7 +6,6 @@
  * The parent passes a bottomRef which is rendered as a scroll anchor.
  */
 
-import { AlertCircle, RotateCcw } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import WelcomeScreen from './WelcomeScreen';
 import ThinkingIndicator from '../events/ThinkingIndicator';
@@ -24,7 +23,6 @@ export default function MessageList({
   agentSteps = [],
   onSuggestionClick,
   streamingMessage = "",
-  error = null,
   onRetry,
   bottomRef,        // scroll anchor — provided by parent via useAutoScroll
 }) {
@@ -57,44 +55,6 @@ export default function MessageList({
                 isLastUser={index === lastUserIndex}
               />
             )}
-
-            {/* Inline error after the last user message when response failed */}
-            {message.role === 'user' &&
-              index === messages.length - 1 &&
-              !isThinking &&
-              error && (
-                <div className="flex justify-start mb-6">
-                  <div
-                    className="flex items-center gap-3 px-4 py-3 text-sm"
-                    style={{
-                      backgroundColor: 'rgba(239,68,68,0.08)',
-                      border:          '1px solid rgba(239,68,68,0.2)',
-                      borderRadius:    '8px',
-                      color:           'var(--color-error)',
-                      maxWidth:        '80%',
-                    }}
-                  >
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span className="flex-1">{error.message || "Failed to get response"}</span>
-                    {onRetry && (
-                      <button
-                        onClick={onRetry}
-                        className="flex items-center gap-1 px-2.5 py-1 text-xs transition-colors flex-shrink-0"
-                        style={{
-                          backgroundColor: 'rgba(239,68,68,0.12)',
-                          color:           'var(--color-error)',
-                          borderRadius:    '4px',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.2)'}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.12)'}
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Retry
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
 
             {/* Assistant message — interleaved steps or fallback tool cards */}
             {message.role === 'assistant' && (

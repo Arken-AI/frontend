@@ -262,6 +262,10 @@ function chatReducer(state, action) {
             timestamp: action.payload.timestamp || new Date().toISOString(),
             metadata: action.payload.metadata,
             run_ids: action.payload.run_ids,
+            // Preserve status (error, cancelled, etc.)
+            status: action.payload.status,
+            cancelled:
+              action.payload.cancelled || action.payload.status === "cancelled",
             // Image attachments (user messages)
             attachments: action.payload.attachments,
             // Normalised array used by MessageList for inline rendering

@@ -219,11 +219,16 @@ function ChatContainer() {
             updateLatestRunId(response.run_ids);
           }
         } else if (response.status === "error") {
+          // Add the error as an assistant message so it persists in the
+          // conversation and survives page reloads (saved by the backend).
           dispatch({
-            type: "SET_ERROR",
-            payload:
-              response.message ||
-              "An error occurred while processing your request",
+            type: "ADD_MESSAGE",
+            payload: {
+              role: "assistant",
+              content: response.message || "An error occurred while processing your request",
+              timestamp: new Date().toISOString(),
+              status: "error",
+            },
           });
         }
 
@@ -246,8 +251,13 @@ function ChatContainer() {
         }
         console.error("Error sending message:", error);
         dispatch({
-          type: "SET_ERROR",
-          payload: error.message || "Failed to send message",
+          type: "ADD_MESSAGE",
+          payload: {
+            role: "assistant",
+            content: error.message || "Failed to send message",
+            timestamp: new Date().toISOString(),
+            status: "error",
+          },
         });
         dispatch({ type: "SET_THINKING", payload: false });
       }
@@ -431,40 +441,6 @@ function ChatContainer() {
       className="flex flex-col h-full"
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
-      {/* Error display */}
-      {state.error && (
-        <div
-          className="text-sm px-3 py-2.5 border-b flex items-center justify-between gap-3"
-          style={{
-            backgroundColor: state.error.type === 'rate_limit_error'
-              ? 'rgba(234,179,8,0.08)'
-              : 'rgba(239,68,68,0.08)',
-            borderColor: state.error.type === 'rate_limit_error'
-              ? 'rgba(234,179,8,0.3)'
-              : 'rgba(239,68,68,0.3)',
-          }}
-        >
-          <div className="flex-1 text-xs" style={{
-            color: state.error.type === 'rate_limit_error'
-              ? 'var(--color-warning)'
-              : 'var(--color-error)',
-            fontFamily: 'var(--font-mono)',
-          }}>
-            {state.error.message}
-            {state.error.details?.suggestion && (
-              <span className="ml-2 opacity-70">{state.error.details.suggestion}</span>
-            )}
-          </div>
-          <button
-            onClick={() => dispatch({ type: "CLEAR_ERROR" })}
-            className="text-xs ml-2 transition-opacity hover:opacity-70"
-            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
       {/* Main content area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto relative" style={{ scrollbarGutter: 'stable' }}>
         {showWelcome ? (
@@ -478,7 +454,6 @@ function ChatContainer() {
             toolExecutions={state.toolExecutions}
             runProgress={state.runProgress}
             agentSteps={state.agentSteps}
-            error={state.error}
             streamingMessage={state.streamingMessage}
             onRetry={handleRetry}
             bottomRef={bottomRef}
