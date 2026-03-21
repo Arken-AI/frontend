@@ -12,8 +12,8 @@ export default function WelcomeScreen({ onSend }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-5 px-6">
       <h1
-        className="text-sm font-normal"
-        style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+        className="text-sm font-medium"
+        style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', textWrap: 'balance' }}
       >
         Describe your heat exchanger problem.
       </h1>
