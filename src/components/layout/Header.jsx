@@ -109,7 +109,7 @@ export default function Header({ onToggleSidebar, sidebarOpen }) {
             </span>
             <button
               onClick={() => { logout(); navigate('/login'); }}
-              className="text-xs transition-colors px-2 py-2"
+              className="text-xs transition-colors px-2 h-11"
               style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
