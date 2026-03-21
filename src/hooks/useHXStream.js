@@ -23,6 +23,8 @@ import { useState, useRef, useCallback } from "react";
 import { HX_EVENT_TYPES, eventToStepState } from "../types/hxEvents";
 import { STEP_NAMES } from "../components/hx/HXPanel";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+
 function makeInitialSteps() {
   return STEP_NAMES.map((name, i) => ({
     step:  i + 1,
@@ -135,7 +137,7 @@ export function useHXStream() {
   // ── Respond to an ESCALATED step ──────────────────────────────────────────
 
   const respondToEscalation = useCallback(async (sessionId, response) => {
-    await fetch(`/api/v1/hx/design/${sessionId}/respond`, {
+    await fetch(`${API_BASE}/v1/hx/design/${sessionId}/respond`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(response),

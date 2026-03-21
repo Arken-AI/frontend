@@ -118,16 +118,15 @@ export async function sendMessage({
 /**
  * Cancel an in-flight request for a conversation.
  * Tells the backend to stop streaming Claude's response.
- * Optionally sends the partial streamed text so the backend can persist it.
+ * Partial message persistence is handled server-side by the orchestration layer.
  * @param {string} conversationId
- * @param {string} [partialMessage] - Partial response text captured by the frontend
  */
-export async function cancelMessage(conversationId, partialMessage = "") {
+export async function cancelMessage(conversationId) {
   try {
     await fetch(`${API_BASE}/chat/${conversationId}/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ partial_message: partialMessage || "" }),
+      body: JSON.stringify({}),
     });
   } catch {
     // Best-effort — ignore network errors on cancel

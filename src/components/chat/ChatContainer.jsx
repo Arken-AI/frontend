@@ -340,7 +340,7 @@ function ChatContainer() {
     //    frontend has accumulated so the backend can persist it to MongoDB.
     //    This ensures the cancelled partial response survives page reloads.
     if (conversationId) {
-      cancelMessage(conversationId, state.streamingMessage || "");
+      cancelMessage(conversationId);
     }
     // 2. Abort the in-flight HTTP fetch so the frontend doesn't process the response
     abortControllerRef.current?.abort();
