@@ -140,10 +140,11 @@ export async function cancelMessage(conversationId) {
  * @param {string} conversationId - Conversation to retry in
  * @returns {Promise<Object>} Same shape as sendMessage response
  */
-export async function retryMessage(conversationId) {
+export async function retryMessage(conversationId, signal = null) {
   const response = await fetch(`${API_BASE}/chat/${conversationId}/retry`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {

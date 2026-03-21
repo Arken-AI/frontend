@@ -363,10 +363,13 @@ function ChatContainer() {
     sseClientRef.current = sseClient;
     await sseClient.ready;
 
+    const retryAbortController = new AbortController();
+    abortControllerRef.current = retryAbortController;
+
     try {
       // Call the dedicated retry endpoint — it deletes stale DB messages
       // and re-processes the same user text through Claude.
-      const response = await retryMessage(conversationId);
+      const response = await retryMessage(conversationId, retryAbortController.signal);
 
       await sseClient.waitForCompletion();
 
@@ -402,9 +405,14 @@ function ChatContainer() {
       sseClientRef.current = null;
       await refreshConversations();
     } catch (error) {
-      console.error("Error retrying message:", error);
       sseClientRef.current?.close();
       sseClientRef.current = null;
+      abortControllerRef.current = null;
+      if (error.name === "AbortError") {
+        dispatch({ type: "SET_THINKING", payload: false });
+        return;
+      }
+      console.error("Error retrying message:", error);
       dispatch({ type: "SET_ERROR", payload: error.message || "Failed to retry" });
       dispatch({ type: "SET_THINKING", payload: false });
     }

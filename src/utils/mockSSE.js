@@ -76,21 +76,27 @@ const MOCK_SEQUENCE = [
 // ── Fake EventSource ───────────────────────────────────────────────────────
 
 class FakeEventSource {
-  constructor(sequence, handlers) {
+  constructor(sequence, handlers, onDone) {
     this._closed = false;
     this._timers = [];
+    this._onDone = onDone;
     this._schedule(sequence, handlers);
   }
 
   _schedule(sequence, handlers) {
     let elapsed = 0;
-    for (const item of sequence) {
+    for (let i = 0; i < sequence.length; i++) {
+      const item = sequence[i];
+      const isLast = i === sequence.length - 1;
       elapsed += item.ms;
       const t = setTimeout(() => {
         if (this._closed) return;
         const listener = handlers[item.type];
         if (listener) {
           listener({ data: JSON.stringify(item.data) });
+        }
+        if (isLast && this._onDone) {
+          this._onDone();
         }
       }, elapsed);
       this._timers.push(t);
@@ -100,6 +106,7 @@ class FakeEventSource {
   close() {
     this._closed = true;
     this._timers.forEach(clearTimeout);
+    this._onDone = null; // prevent double-call if close() races with last event
   }
 }
 
@@ -119,12 +126,19 @@ export function startMockDesign(connectStream, sequence = MOCK_SEQUENCE) {
     constructor(_url) {
       super();
       const handlers = {};
-      this._fake = new FakeEventSource(sequence, handlers);
+      let restored = false;
+      const restore = () => {
+        if (!restored) {
+          restored = true;
+          window.EventSource = OriginalEventSource;
+        }
+      };
+      this._fake = new FakeEventSource(sequence, handlers, restore);
       // addEventListener calls from useHXStream register into `handlers`
       this.addEventListener = (type, fn) => { handlers[type] = fn; };
       this.close = () => {
         this._fake.close();
-        window.EventSource = OriginalEventSource;
+        restore();
       };
       this.onerror = null;
     }
