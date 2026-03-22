@@ -77,13 +77,12 @@ export default function LoginPage() {
 
   const inputStyle = {
     width: '100%',
-    padding: '8px 12px',
+    padding: '12px 12px',
     backgroundColor: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
     color: 'var(--color-text-primary)',
     fontFamily: 'var(--font-mono)',
     fontSize: '13px',
-    outline: 'none',
     borderRadius: '2px',
     opacity: isSubmitting ? 0.5 : 1,
   };
@@ -202,7 +201,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 text-sm transition-colors flex items-center justify-center gap-2"
             style={{
               backgroundColor: isSubmitting ? 'var(--color-border)' : 'var(--color-running)',
               color:           'white',
