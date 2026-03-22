@@ -63,7 +63,7 @@ function InputCard({ children, dragActive }) {
       onBlurCapture={() => setFocused(false)}
       style={{
         backgroundColor: 'var(--color-surface)',
-        border: `1px solid ${dragActive ? 'var(--color-running)' : focused ? 'rgba(255,255,255,0.2)' : 'var(--color-border)'}`,
+        border: `1px solid ${dragActive ? 'var(--color-running)' : focused ? 'var(--color-border-focus)' : 'var(--color-border)'}`,
         borderRadius: '16px',
         transition: 'border-color 0.15s',
       }}
