@@ -157,6 +157,23 @@ body {
 }
 
 /* ============================================
+   Reduced Motion
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-step-in,
+  .animate-spin-slow,
+  .shimmer,
+  .progress-bar-active {
+    animation: none;
+  }
+
+  .resize-handle,
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
    Toaster override (dark theme)
    ============================================ */
 .react-hot-toast > div {
