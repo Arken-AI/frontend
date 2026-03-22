@@ -550,7 +550,7 @@ export default function MessageInput({
       </InputCard>
 
       {/* Disclaimer — always visible, never changes */}
-      <p className="text-[11px] mt-2 text-center" style={{ color: 'var(--color-text-muted)' }}>
+      <p className="text-xs mt-2 text-center" style={{ color: 'var(--color-text-muted)' }}>
         ARKEN AI may make errors in engineering calculations. Always verify critical parameters.
       </p>
     </div>
