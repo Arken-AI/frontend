@@ -239,3 +239,54 @@ export async function checkHealth() {
 export function getStreamUrl(conversationId, afterSequence = 0) {
   return `${API_BASE}/chat/${conversationId}/stream?after_sequence=${afterSequence}`;
 }
+
+/**
+ * Create a public share link for a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string|null} username - Owner username
+ * @returns {Promise<Object>} { share_url, token }
+ */
+export async function shareConversation(conversationId, username = null) {
+  const headers = { "Content-Type": "application/json" };
+  if (username) headers["X-Username"] = username.toLowerCase();
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/share`, {
+    method: "POST",
+    headers,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Failed to share" }));
+    throw new Error(error.detail || "Failed to create share link");
+  }
+  return response.json();
+}
+
+/**
+ * Revoke the public share link for a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string|null} username - Owner username
+ * @returns {Promise<void>}
+ */
+export async function revokeShare(conversationId, username = null) {
+  const headers = {};
+  if (username) headers["X-Username"] = username.toLowerCase();
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/share`, {
+    method: "DELETE",
+    headers,
+  });
+  if (response.status !== 204 && !response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Failed to revoke" }));
+    throw new Error(error.detail || "Failed to revoke share link");
+  }
+}
+
+/**
+ * Fetch a shared design by token (no auth required)
+ * @param {string} token - Share token UUID
+ * @returns {Promise<Object>} { title, created_at, messages, hx_steps }
+ */
+export async function getSharedDesign(token) {
+  const response = await fetch(`${API_BASE}/share/${token}`);
+  if (response.status === 404) throw new Error("not_found");
+  if (!response.ok) throw new Error("Failed to load shared design");
+  return response.json();
+}

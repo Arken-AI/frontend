@@ -13,6 +13,7 @@ import { ChatProvider } from "./context/ChatContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import ChatPage from "./pages/ChatPage";
 import LoginPage from "./pages/LoginPage";
+import SharedDesignPage from "./pages/SharedDesignPage";
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
 
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/share/:token" element={<SharedDesignPage />} />
             <Route
               path="/"
               element={

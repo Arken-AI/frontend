@@ -16,6 +16,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useChatContext } from '../../context/ChatContext';
 import { getConversations } from '../../api/client';
+import ShareModal from '../modals/ShareModal';
 
 const PAGE_SIZE = 30;
 
@@ -49,56 +50,159 @@ function groupConversations(convs) {
 
 // ── Design item ───────────────────────────────────────────────────────────────
 
-function DesignItem({ conv, isActive, onSelect, onDelete }) {
+function DesignItem({ conv, isActive, onSelect, onDelete, onShareChange }) {
+  const [menuOpen,      setMenuOpen]      = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const title = conv.title || 'Untitled design';
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const menuRef = useRef(null);
+  const title   = conv.title || 'Untitled design';
 
-  const handleDelete = (e) => {
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [menuOpen]);
+
+  const handleMenuToggle = (e) => {
+    e.stopPropagation();
+    setMenuOpen(v => !v);
+    setConfirmDelete(false);
+  };
+
+  const handleShare = (e) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    setShareModalOpen(true);
+  };
+
+  const handleDeleteClick = (e) => {
     e.stopPropagation();
     if (confirmDelete) {
+      setMenuOpen(false);
       onDelete(conv.conversation_id);
     } else {
       setConfirmDelete(true);
-      // Auto-reset confirm after 3s
-      setTimeout(() => setConfirmDelete(false), 3000);
     }
   };
 
   return (
-    <div
-      className="group relative flex items-center px-3 py-2 cursor-pointer transition-colors"
-      style={{
-        backgroundColor: isActive ? 'rgba(59,130,246,0.08)' : 'transparent',
-        borderLeft:      isActive ? '2px solid var(--color-running)' : '2px solid transparent',
-      }}
-      onClick={() => onSelect(conv.conversation_id)}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
-    >
-      {/* Title */}
-      <span
-        className="flex-1 text-xs truncate pr-1"
+    <>
+      <div
+        className="group relative flex items-center px-3 py-2 cursor-pointer transition-colors"
         style={{
-          color:      isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-          fontWeight: isActive ? 500 : 400,
+          backgroundColor: isActive ? 'rgba(59,130,246,0.08)' : 'transparent',
+          borderLeft:      isActive ? '2px solid var(--color-running)' : '2px solid transparent',
         }}
+        onClick={() => onSelect(conv.conversation_id)}
+        onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
+        onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
       >
-        {title}
-      </span>
+        {/* Title */}
+        <span
+          className="flex-1 text-xs truncate pr-1"
+          style={{
+            color:      isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            fontWeight: isActive ? 500 : 400,
+          }}
+        >
+          {title}
+        </span>
 
-      {/* Delete button — visible on hover */}
-      <button
-        onClick={handleDelete}
-        className="flex-shrink-0 w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{
-          color:  confirmDelete ? 'var(--color-error)' : 'var(--color-text-muted)',
-          fontSize: '11px',
-        }}
-        title={confirmDelete ? 'Click again to confirm' : 'Delete'}
-      >
-        {confirmDelete ? '✕' : '⌫'}
-      </button>
-    </div>
+        {/* Shared indicator dot */}
+        {conv.is_shared && (
+          <span
+            title="Public link active"
+            style={{
+              width:           '5px',
+              height:          '5px',
+              borderRadius:    '50%',
+              backgroundColor: 'var(--color-running)',
+              flexShrink:      0,
+              marginRight:     '4px',
+            }}
+          />
+        )}
+
+        {/* ··· context menu button — visible on hover */}
+        <button
+          onClick={handleMenuToggle}
+          className="flex-shrink-0 w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{
+            color:    'var(--color-text-muted)',
+            fontSize: '14px',
+            lineHeight: 1,
+          }}
+          title="Options"
+        >
+          ···
+        </button>
+
+        {/* Dropdown menu */}
+        {menuOpen && (
+          <div
+            ref={menuRef}
+            className="absolute right-2 top-7 z-20 flex flex-col"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              border:          '1px solid var(--color-border)',
+              borderRadius:    '2px',
+              minWidth:        '130px',
+              boxShadow:       '0 4px 12px rgba(0,0,0,0.4)',
+              fontFamily:      'var(--font-mono)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Share option */}
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 px-3 py-2 text-xs text-left w-full transition-colors"
+              style={{ color: 'var(--color-text-secondary)' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <span>{conv.is_shared ? '🔗' : '⇧'}</span>
+              <span>{conv.is_shared ? 'Manage link' : 'Share'}</span>
+            </button>
+
+            {/* Divider */}
+            <div style={{ height: '1px', backgroundColor: 'var(--color-border)' }} />
+
+            {/* Delete option */}
+            <button
+              onClick={handleDeleteClick}
+              className="flex items-center gap-2 px-3 py-2 text-xs text-left w-full transition-colors"
+              style={{ color: confirmDelete ? 'var(--color-error, #ef4444)' : 'var(--color-text-secondary)' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = confirmDelete ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.06)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <span>✕</span>
+              <span>{confirmDelete ? 'Confirm delete' : 'Delete'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Share modal */}
+      {shareModalOpen && (
+        <ShareModal
+          conversationId={conv.conversation_id}
+          isShared={conv.is_shared || false}
+          shareUrl={conv.share_url || null}
+          username={conv.username}
+          onClose={() => setShareModalOpen(false)}
+          onShareChange={(isShared, shareUrl) => {
+            onShareChange(conv.conversation_id, isShared, shareUrl);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -181,6 +285,12 @@ export default function HistorySidebar({ isOpen }) {
     setTotal(t => Math.max(0, t - 1));
     offsetRef.current = Math.max(0, offsetRef.current - 1);
   }, [deleteConversation]);
+
+  const handleShareChange = useCallback((convId, isShared, shareUrl) => {
+    setItems(prev => prev.map(c =>
+      c.conversation_id === convId ? { ...c, is_shared: isShared, share_url: shareUrl } : c
+    ));
+  }, []);
 
   const handleNew = useCallback(() => {
     createNewConversation();
@@ -298,10 +408,11 @@ export default function HistorySidebar({ isOpen }) {
               {groups[group].map(conv => (
                 <DesignItem
                   key={conv.conversation_id}
-                  conv={conv}
+                  conv={{ ...conv, username }}
                   isActive={conv.conversation_id === conversationId}
                   onSelect={handleSelect}
                   onDelete={handleDelete}
+                  onShareChange={handleShareChange}
                 />
               ))}
             </div>
