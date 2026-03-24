@@ -17,7 +17,7 @@ import { useCallback, useRef, useEffect } from "react";
 import { useChatContext } from "../../context/ChatContext";
 import { useChatState } from "../../hooks/useChatState";
 import { handleSSEEvent } from "../../utils/eventHandlers";
-import { sendMessage, retryMessage, cancelMessage, getStreamUrl } from "../../api/client";
+import { sendMessage, retryMessage, editMessage, cancelMessage, getStreamUrl } from "../../api/client";
 import SSEClient from "../../utils/sseClient";
 import { useAutoScroll } from "../../hooks/useAutoScroll";
 
@@ -430,6 +430,100 @@ function ChatContainer() {
     }
   }, [conversationId, state.messages, state.isThinking, dispatch, onSSEEvent, refreshConversations]);
 
+  // Edit: truncate conversation from the edited message onward and re-process
+  // with the new content. Same SSE + HTTP pattern as send and retry.
+  const handleEditMessage = useCallback(async (messageIndex, newContent, attachments = null) => {
+    if (!conversationId || state.isThinking) return;
+
+    // ── Optimistic UI: truncate and show the edited user message ────
+    dispatch({
+      type: "EDIT_USER_MESSAGE",
+      payload: { messageIndex, newContent, attachments },
+    });
+    dispatch({ type: "RESET_RESPONSE" });
+    dispatch({ type: "SET_THINKING", payload: true });
+    dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: messageIndex });
+
+    // ── Open SSE before the edit POST ───────────────────────────────
+    const sseUrl = getStreamUrl(conversationId, lastSequenceRef.current);
+    const sseClient = new SSEClient(sseUrl, onSSEEvent);
+    sseClientRef.current = sseClient;
+    await sseClient.ready;
+
+    const editAbortController = new AbortController();
+    abortControllerRef.current = editAbortController;
+
+    try {
+      const response = await editMessage(
+        conversationId,
+        messageIndex,
+        newContent,
+        attachments,
+        editAbortController.signal,
+      );
+
+      await sseClient.waitForCompletion();
+
+      // Guard: user switched away while we were waiting
+      if (activeConvRef.current !== conversationId) {
+        sseClient.close();
+        sseClientRef.current = null;
+        await refreshConversations();
+        return;
+      }
+
+      if (response.status === "completed" && response.message) {
+        dispatch({
+          type: "ADD_MESSAGE",
+          payload: {
+            role: "assistant",
+            content: response.message,
+            timestamp: new Date().toISOString(),
+            run_ids: response.run_ids,
+            tool_executions: response.tool_executions,
+            token_usage: response.token_usage,
+          },
+        });
+
+        if (response.run_ids && response.run_ids.length > 0) {
+          updateLatestRunId(response.run_ids);
+        }
+      } else if (response.status === "error") {
+        dispatch({
+          type: "SET_ERROR",
+          payload: response.message || "Edit failed",
+        });
+      }
+
+      dispatch({ type: "SET_THINKING", payload: false });
+      dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+      sseClient.close();
+      sseClientRef.current = null;
+      await refreshConversations();
+    } catch (error) {
+      sseClientRef.current?.close();
+      sseClientRef.current = null;
+      abortControllerRef.current = null;
+      if (error.name === "AbortError") {
+        dispatch({ type: "SET_THINKING", payload: false });
+        dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+        return;
+      }
+      console.error("Error editing message:", error);
+      let errorMessage = error.message || "Failed to edit message";
+      if (error.code === "INVALID_EDIT") {
+        errorMessage = `Invalid edit: ${error.message}`;
+      } else if (error.code === "CONVERSATION_NOT_FOUND") {
+        errorMessage = "Conversation no longer exists";
+      } else if (error.status === 500) {
+        errorMessage = "Server error while editing. Please try again.";
+      }
+      dispatch({ type: "SET_ERROR", payload: errorMessage });
+      dispatch({ type: "SET_THINKING", payload: false });
+      dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+    }
+  }, [conversationId, state.isThinking, dispatch, onSSEEvent, refreshConversations, updateLatestRunId]);
+
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
 
@@ -456,6 +550,8 @@ function ChatContainer() {
             agentSteps={state.agentSteps}
             streamingMessage={state.streamingMessage}
             onRetry={handleRetry}
+            onEditMessage={handleEditMessage}
+            editingMessageIndex={state.editingMessageIndex}
             bottomRef={bottomRef}
           />
         )}

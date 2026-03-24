@@ -6,8 +6,8 @@
  * Actions:   copy + retry, appear on hover
  */
 
-import { useState } from 'react';
-import { Copy, Check, AlertCircle, XCircle, Loader2, FileText, RotateCcw } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Copy, Check, AlertCircle, XCircle, Loader2, FileText, RotateCcw, Pencil } from 'lucide-react';
 import MarkdownRenderer from '../markdown/MarkdownRenderer';
 
 function MessageStatusIndicator({ status }) {
@@ -61,11 +61,58 @@ function ActionButton({ onClick, title, children }) {
   );
 }
 
-export default function MessageBubble({ message, onRetry, isLastAssistant = false, isLastUser = false }) {
+export default function MessageBubble({ message, onRetry, onEdit, messageIndex, isLastAssistant = false, isLastUser = false, isProcessing = false, editingMessageIndex = null }) {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const editTextareaRef = useRef(null);
 
   const isUser = message.role === 'user';
   const status = message.cancelled ? 'cancelled' : (message.status || 'complete');
+
+  // Auto-focus and auto-resize textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && editTextareaRef.current) {
+      const ta = editTextareaRef.current;
+      ta.focus();
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+      // Place cursor at the end
+      ta.selectionStart = ta.selectionEnd = ta.value.length;
+    }
+  }, [isEditing]);
+
+  const handleStartEdit = () => {
+    setEditText(message.content);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditText('');
+  };
+
+  const handleSaveEdit = () => {
+    const trimmed = editText.trim();
+    if (!trimmed || trimmed === message.content) {
+      handleCancelEdit();
+      return;
+    }
+    if (onEdit && messageIndex !== undefined) {
+      onEdit(messageIndex, trimmed);
+    }
+    setIsEditing(false);
+    setEditText('');
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      handleCancelEdit();
+    } else if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    }
+  };
 
   const handleCopy = async () => {
     try {
@@ -85,14 +132,15 @@ export default function MessageBubble({ message, onRetry, isLastAssistant = fals
 
     return (
       <div className="flex justify-end mb-6 group">
-        <div style={{ maxWidth: '75%' }}>
+        <div style={{ maxWidth: isEditing ? '90%' : '75%', minWidth: isEditing ? '300px' : undefined, transition: 'max-width 0.2s ease' }}>
           {/* Bubble */}
           <div
-            className={`overflow-hidden ${!hasText && hasAttachments ? 'p-1.5' : ''}`}
+            className={`${isEditing ? '' : 'overflow-hidden'} ${!hasText && hasAttachments ? 'p-1.5' : ''}`}
             style={{
               backgroundColor: 'rgba(255,255,255,0.08)',
-              borderRadius:    '16px 16px 4px 16px',
+              borderRadius:    isEditing ? '12px' : '16px 16px 4px 16px',
               color:           'var(--color-text-primary)',
+              border:          isEditing ? '1px solid rgba(255,255,255,0.15)' : undefined,
             }}
           >
             {/* Attachments */}
@@ -145,28 +193,78 @@ export default function MessageBubble({ message, onRetry, isLastAssistant = fals
               </div>
             )}
 
-            {/* Text */}
-            {hasText && (
+            {/* Text or Edit textarea */}
+            {isEditing ? (
+              <div className="px-4 py-3">
+                <textarea
+                  ref={editTextareaRef}
+                  value={editText}
+                  onChange={(e) => {
+                    setEditText(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
+                  onKeyDown={handleEditKeyDown}
+                  className="w-full bg-transparent text-sm leading-relaxed resize-none outline-none focus:ring-1 focus:ring-offset-1 rounded"
+                  style={{
+                    color: 'var(--color-text-primary)',
+                    minHeight: '3rem',
+                    overflow: 'hidden',
+                    '--tw-ring-color': 'rgba(255,255,255,0.2)',
+                    '--tw-ring-offset-color': 'rgba(0,0,0,0)',
+                  }}
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-2 text-xs rounded-md transition-colors"
+                    style={{
+                      color: 'var(--color-text-muted)',
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-3 py-2 text-xs rounded-md transition-colors font-medium"
+                    style={{
+                      color: 'var(--color-text-primary)',
+                      backgroundColor: 'rgba(255,255,255,0.12)',
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : hasText ? (
               <div className="px-4 py-3">
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
               </div>
-            )}
+            ) : null}
           </div>
 
-          {/* Action row */}
-          <div className="flex justify-end items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <ActionButton onClick={handleCopy} title="Copy message">
-              {copied
-                ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--color-approved)' }} />
-                : <Copy className="w-3.5 h-3.5" />
-              }
-            </ActionButton>
-            {isLastUser && onRetry && (
-              <ActionButton onClick={onRetry} title="Resend this message">
-                <RotateCcw className="w-3.5 h-3.5" />
+          {/* Action row — hidden during edit mode */}
+          {!isEditing && (
+            <div className="flex justify-end items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ActionButton onClick={handleCopy} title="Copy message">
+                {copied
+                  ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--color-approved)' }} />
+                  : <Copy className="w-3.5 h-3.5" />
+                }
               </ActionButton>
-            )}
-          </div>
+              {onEdit && editingMessageIndex !== messageIndex && (
+                <ActionButton onClick={handleStartEdit} title="Edit message">
+                  <Pencil className="w-3.5 h-3.5" />
+                </ActionButton>
+              )}
+              {isLastUser && onRetry && (
+                <ActionButton onClick={onRetry} title="Resend this message">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </ActionButton>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

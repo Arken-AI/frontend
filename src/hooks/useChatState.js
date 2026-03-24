@@ -18,6 +18,7 @@ const initialState = {
   agentSteps: [], // Ordered list of { type: "text"|"tool"|"tool_running", ... }
   error: null, // Current error message
   streamingMessage: "", // Accumulates message_delta chunks for live typing effect
+  editingMessageIndex: null, // Index of message currently being edited/processed
 };
 
 // Action types
@@ -40,6 +41,8 @@ export const ACTIONS = {
   AGENT_TEXT: "AGENT_TEXT",
   MESSAGE_DELTA: "MESSAGE_DELTA",
   POP_LAST_ASSISTANT: "POP_LAST_ASSISTANT",
+  EDIT_USER_MESSAGE: "EDIT_USER_MESSAGE",
+  SET_EDITING_MESSAGE_INDEX: "SET_EDITING_MESSAGE_INDEX",
 };
 
 // Reducer function
@@ -410,6 +413,12 @@ function chatReducer(state, action) {
         error: null,
       };
 
+    case ACTIONS.SET_EDITING_MESSAGE_INDEX:
+      return {
+        ...state,
+        editingMessageIndex: action.payload,
+      };
+
     case ACTIONS.CANCEL_REQUEST: {
       // If there's a partial streamed response, save it as a real message
       // so the user sees what was generated before they clicked Stop.
@@ -479,6 +488,29 @@ function chatReducer(state, action) {
         ...state,
         messages: msgs,
         streamingMessage: "",
+      };
+    }
+
+    case ACTIONS.EDIT_USER_MESSAGE: {
+      // Truncate messages from the edited index onward, then append
+      // the new user message with the edited content.
+      const editIndex = action.payload.messageIndex;
+      const truncated = state.messages.slice(0, editIndex);
+      truncated.push({
+        role: "user",
+        content: action.payload.newContent,
+        timestamp: new Date().toISOString(),
+        ...(action.payload.attachments
+          ? { attachments: action.payload.attachments }
+          : {}),
+      });
+      return {
+        ...state,
+        messages: truncated,
+        toolExecutions: [],
+        agentSteps: [],
+        streamingMessage: "",
+        error: null,
       };
     }
 

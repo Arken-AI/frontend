@@ -24,6 +24,8 @@ export default function MessageList({
   onSuggestionClick,
   streamingMessage = "",
   onRetry,
+  onEditMessage,
+  editingMessageIndex = null,
   bottomRef,        // scroll anchor — provided by parent via useAutoScroll
 }) {
   // Show welcome screen if no messages
@@ -52,7 +54,11 @@ export default function MessageList({
               <MessageBubble
                 message={message}
                 onRetry={onRetry}
+                onEdit={onEditMessage}
+                messageIndex={index}
                 isLastUser={index === lastUserIndex}
+                isProcessing={isThinking}
+                editingMessageIndex={editingMessageIndex}
               />
             )}
 

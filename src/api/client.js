@@ -160,6 +160,60 @@ export async function retryMessage(conversationId, signal = null) {
 }
 
 /**
+ * Edit a previously sent user message and regenerate the response.
+ *
+ * Truncates the conversation from the specified message index onward
+ * and re-processes with the new content through the LLM.
+ *
+ * @param {string} conversationId - Conversation to edit in
+ * @param {number} messageIndex - Zero-based index of the user message to edit
+ * @param {string} newContent - The edited message text
+ * @param {Array|null} attachments - Optional attachments
+ * @param {AbortSignal|null} signal - Optional abort signal
+ * @returns {Promise<Object>} Same shape as sendMessage response
+ */
+export async function editMessage(
+  conversationId,
+  messageIndex,
+  newContent,
+  attachments = null,
+  signal = null,
+) {
+  const body = {
+    message_index: messageIndex,
+    new_content: newContent.trim(),
+  };
+
+  if (attachments && attachments.length > 0) {
+    body.attachments = attachments.map((att) => ({
+      media_type: att.media_type,
+      data: att.data,
+      filename: att.filename || null,
+    }));
+  }
+
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/edit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    ...(signal ? { signal } : {}),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
+    const errorMsg = error.message || error.detail || error.error || "Failed to edit message";
+    const err = new Error(errorMsg);
+    err.status = response.status;
+    err.code = response.status === 400 ? "INVALID_EDIT" : response.status === 404 ? "CONVERSATION_NOT_FOUND" : "EDIT_FAILED";
+    throw err;
+  }
+
+  return response.json();
+}
+
+/**
  * Get list of conversations
  * @param {number} limit - Maximum number of conversations
  * @param {number} offset - Number to skip
@@ -254,7 +308,9 @@ export async function shareConversation(conversationId, username = null) {
     headers,
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: "Failed to share" }));
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to share" }));
     throw new Error(error.detail || "Failed to create share link");
   }
   return response.json();
@@ -274,7 +330,9 @@ export async function revokeShare(conversationId, username = null) {
     headers,
   });
   if (response.status !== 204 && !response.ok) {
-    const error = await response.json().catch(() => ({ detail: "Failed to revoke" }));
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to revoke" }));
     throw new Error(error.detail || "Failed to revoke share link");
   }
 }
