@@ -207,10 +207,11 @@ export function ChatProvider({ children }) {
     [setConversationId],
   );
 
-  // Load conversations on mount
+  // Load conversations on mount — only when authenticated
   useEffect(() => {
+    if (!username) return;
     refreshConversations();
-  }, [refreshConversations]);
+  }, [refreshConversations, username]);
 
   // Load context when conversation changes (skip if loadConversation was just called)
   useEffect(() => {

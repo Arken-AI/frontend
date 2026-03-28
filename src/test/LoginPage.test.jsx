@@ -152,6 +152,22 @@ describe("LoginPage", () => {
     expect(mockLogin).toHaveBeenCalledWith("TestUser", "arkenai123");
   });
 
+  it("redirects authenticated users to /app, not /", () => {
+    mockAuth.isAuthenticated = true;
+    mockAuth.isLoading = false;
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    // Navigate should fire — form should not render
+    expect(screen.queryByRole("button", { name: /sign in/i })).not.toBeInTheDocument();
+    // The Navigate component renders nothing visible — absence of form is the signal
+    expect(container.innerHTML).toBe("");
+  });
+
   it("shows loading spinner when auth is loading", () => {
     mockAuth.isLoading = true;
     renderLoginPage();

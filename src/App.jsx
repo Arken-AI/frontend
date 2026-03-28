@@ -2,8 +2,10 @@
  * Main App Component
  *
  * Sets up routing for the application:
- * - "/" : Chat interface
- * - "/login" : Login page
+ * - "/"           : Marketing homepage (public)
+ * - "/app"        : Chat interface (requires login)
+ * - "/login"      : Login page
+ * - "/share/:token": Shared design (public)
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -14,6 +16,7 @@ import ProtectedRoute from "./components/common/ProtectedRoute";
 import ChatPage from "./pages/ChatPage";
 import LoginPage from "./pages/LoginPage";
 import SharedDesignPage from "./pages/SharedDesignPage";
+import HomePage from "./pages/HomePage";
 
 function App() {
   return (
@@ -41,10 +44,11 @@ function App() {
           />
 
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/share/:token" element={<SharedDesignPage />} />
+            <Route path="/"              element={<HomePage />} />
+            <Route path="/login"         element={<LoginPage />} />
+            <Route path="/share/:token"  element={<SharedDesignPage />} />
             <Route
-              path="/"
+              path="/app"
               element={
                 <ProtectedRoute>
                   <ChatPage />
