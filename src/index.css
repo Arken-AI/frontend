@@ -36,6 +36,27 @@
 }
 
 /* ============================================
+   Homepage Light Theme Tokens
+   (Scoped to .homepage — overrides dark :root)
+   ============================================ */
+.homepage {
+  --hp-bg:              #f8f9fb;
+  --hp-bg-alt:          #f1f3f7;
+  --hp-surface:         #ffffff;
+  --hp-text:            #0f1117;
+  --hp-muted:           #6b7280;
+  --hp-subtle:          #9ca3af;
+  --hp-border:          #e5e7eb;
+  --hp-accent:          #f59e0b;
+  --hp-accent-blue:     #3b82f6;
+  --hp-success:         #22c55e;
+  --hp-terminal-bg:     #1a1d27;
+  --hp-terminal-border: #2a2d3a;
+  --hp-terminal-dim:    #4b5563;
+  --font-display:       'DM Serif Display', Georgia, serif;
+}
+
+/* ============================================
    Base Styles
    ============================================ */
 html {

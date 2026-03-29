@@ -75,6 +75,13 @@ describe("HomePage Nav", () => {
     const requestAccess = screen.getByRole("link", { name: /request access/i });
     expect(requestAccess.getAttribute("href")).toMatch(/^mailto:/);
   });
+
+  it("nav has How It Works and Features anchor links", () => {
+    renderHomePage();
+    const links = screen.getAllByRole("link", { name: /how it works/i });
+    expect(links.length).toBeGreaterThan(0);
+    expect(links[0]).toHaveAttribute("href", "#how-it-works");
+  });
 });
 
 describe("HomePage Hero", () => {
@@ -214,5 +221,52 @@ describe("HomePage sections", () => {
   it("renders footer with copyright", () => {
     renderHomePage();
     expect(screen.getByText(/© 2026 ARKEN AI/i)).toBeInTheDocument();
+  });
+});
+
+describe("HomePage Section 6D — Conversational Interface", () => {
+  it("renders the conversational section header", () => {
+    renderHomePage();
+    expect(screen.getByText(/Describe it the way you'd explain it to a colleague/i)).toBeInTheDocument();
+  });
+
+  it("shows full user message when prefers-reduced-motion is true", () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    renderHomePage();
+    expect(screen.getByText(/Cool 50 kg\/s of crude oil/i)).toBeInTheDocument();
+  });
+
+  it("shows AI response when prefers-reduced-motion is true", () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    renderHomePage();
+    expect(screen.getByText(/cooling water on the shell side/i)).toBeInTheDocument();
+  });
+
+  it("shows prompt chips when prefers-reduced-motion is true", () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    renderHomePage();
+    expect(screen.getByText(/Quick sizing for cooling water loop/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rate my existing exchanger/i)).toBeInTheDocument();
+  });
+
+  it("footer links to anchors not dead spans", () => {
+    renderHomePage();
+    const howItWorks = screen.getAllByRole("link", { name: /how it works/i });
+    howItWorks.forEach((link) => expect(link).toHaveAttribute("href", "#how-it-works"));
   });
 });

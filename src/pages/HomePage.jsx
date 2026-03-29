@@ -9,6 +9,8 @@
  * - CSS @keyframes for logo marquee (no JS)
  * - setInterval for hero step cycling (with cleanup + prefers-reduced-motion guard)
  * - colorScheme: "light" on root div (overrides html { color-scheme: dark } in index.css)
+ * - CSS custom properties via .homepage class (defined in index.css)
+ * - Responsive grid classes defined in inline <style> block
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -227,6 +229,242 @@ function MeshBackdrop({ color1 = "rgba(124,58,237,0.3)", color2 = "rgba(245,158,
   );
 }
 
+// ─── Conversational Interface Section ─────────────────────────────────────────
+
+const USER_MSG = "Cool 50 kg/s of crude oil from 150°C to 90°C using water at 30°C. Prefer low tube-side fouling.";
+const AI_MSG = "Got it. I'll use cooling water on the shell side given your fouling preference. One clarifying question: do you have a maximum shell diameter constraint?";
+
+const PROMPT_CHIPS = [
+  "Quick sizing for cooling water loop",
+  "Rate my existing exchanger",
+  "Check vibration safety",
+];
+
+function ConversationalSection() {
+  const ref = useRef(null);
+  const startedRef = useRef(false);
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const [userText, setUserText] = useState(prefersReduced ? USER_MSG : "");
+  const [aiText, setAiText] = useState(prefersReduced ? AI_MSG : "");
+  const [showChips, setShowChips] = useState(prefersReduced);
+
+  useEffect(() => {
+    if (prefersReduced) return;
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !startedRef.current) {
+          startedRef.current = true;
+          observer.disconnect();
+
+          let i = 0;
+          const typeUser = setInterval(() => {
+            i++;
+            setUserText(USER_MSG.slice(0, i));
+            if (i >= USER_MSG.length) {
+              clearInterval(typeUser);
+              const aiDelay = setTimeout(() => {
+                let j = 0;
+                const typeAi = setInterval(() => {
+                  j++;
+                  setAiText(AI_MSG.slice(0, j));
+                  if (j >= AI_MSG.length) {
+                    clearInterval(typeAi);
+                    setTimeout(() => setShowChips(true), 300);
+                  }
+                }, 22);
+              }, 600);
+              return () => clearTimeout(aiDelay);
+            }
+          }, 28);
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [prefersReduced]);
+
+  return (
+    <section
+      ref={ref}
+      id="conversational"
+      style={{ padding: "5rem 2rem", background: "#f8f9fb" }}
+    >
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <motion.p
+          {...fadeUp}
+          style={{
+            textAlign: "center",
+            fontSize: "12px",
+            color: "#6b7280",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "1rem",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          Natural language input
+        </motion.p>
+        <motion.h2
+          {...fadeUp}
+          style={{
+            fontFamily: "'DM Serif Display', Georgia, serif",
+            fontSize: "clamp(1.75rem,3.5vw,2.5rem)",
+            fontWeight: 400,
+            color: "#0f1117",
+            textAlign: "center",
+            marginBottom: "3rem",
+          }}
+        >
+          Describe it the way you'd explain it to a colleague.
+        </motion.h2>
+
+        {/* Chat window */}
+        <motion.div
+          {...fadeUp}
+          style={{
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        >
+          {/* Window chrome */}
+          <div style={{
+            padding: "10px 14px",
+            borderBottom: "1px solid #e5e7eb",
+            background: "#f8f9fb",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e5e7eb", display: "inline-block" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e5e7eb", display: "inline-block" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e5e7eb", display: "inline-block" }} />
+            <span style={{ flex: 1, textAlign: "center", color: "#9ca3af", fontSize: "11px" }}>ARKEN Chat</span>
+          </div>
+
+          <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", minHeight: "180px" }}>
+            {/* User message */}
+            {(userText || prefersReduced) && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div style={{
+                  background: "#0f1117",
+                  color: "#e8eaf0",
+                  padding: "12px 16px",
+                  borderRadius: "12px 12px 2px 12px",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                  maxWidth: "85%",
+                  fontFamily: "'Inter', sans-serif",
+                }}>
+                  {userText}
+                  {!prefersReduced && userText.length < USER_MSG.length && (
+                    <span style={{ display: "inline-block", width: "2px", height: "14px", background: "#f59e0b", marginLeft: "2px", verticalAlign: "middle", animation: "cursorBlink 0.8s steps(1) infinite" }} />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* AI message */}
+            {(aiText || prefersReduced) && (
+              <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "#0f1117",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "10px",
+                  color: "#f59e0b",
+                  fontWeight: 700,
+                  fontFamily: "'Inter', sans-serif",
+                  flexShrink: 0,
+                }}>
+                  A
+                </div>
+                <div style={{
+                  background: "#f8f9fb",
+                  border: "1px solid #e5e7eb",
+                  color: "#374151",
+                  padding: "12px 16px",
+                  borderRadius: "2px 12px 12px 12px",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                  maxWidth: "85%",
+                }}>
+                  {aiText}
+                  {!prefersReduced && aiText.length > 0 && aiText.length < AI_MSG.length && (
+                    <span style={{ display: "inline-block", width: "2px", height: "14px", background: "#3b82f6", marginLeft: "2px", verticalAlign: "middle", animation: "cursorBlink 0.8s steps(1) infinite" }} />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Prompt chips */}
+          {showChips && (
+            <div style={{
+              padding: "1rem 1.5rem",
+              borderTop: "1px solid #e5e7eb",
+              display: "flex",
+              gap: "0.5rem",
+              flexWrap: "wrap",
+            }}>
+              {PROMPT_CHIPS.map((chip) => (
+                <span
+                  key={chip}
+                  style={{
+                    padding: "5px 12px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "9999px",
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    cursor: "default",
+                    background: "#fff",
+                  }}
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Security SVG icons ───────────────────────────────────────────────────────
+
+const IconLock = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const IconShield = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+const IconFile = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+
 // ─── FAQ accordion ────────────────────────────────────────────────────────────
 
 const FAQ_ITEMS = [
@@ -316,7 +554,74 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: "#f8f9fb", minHeight: "100vh", colorScheme: "light" }}>
+    <div className="homepage" style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: "#f8f9fb", minHeight: "100vh", colorScheme: "light" }}>
+
+      {/* ── Responsive grid styles + animations ─────────────────────────── */}
+      <style>{`
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes cursorBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .hp-hero-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4rem;
+          align-items: center;
+        }
+        .hp-two-col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4rem;
+          align-items: center;
+          position: relative;
+          z-index: 1;
+        }
+        .hp-three-col {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 2.5rem;
+        }
+        .hp-problem-grid {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          gap: 1.5rem;
+          align-items: center;
+        }
+        .hp-testimonials-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+          .hp-hero-grid,
+          .hp-two-col,
+          .hp-testimonials-grid {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+          }
+          .hp-three-col {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .hp-problem-grid {
+            grid-template-columns: 1fr;
+          }
+          .hp-problem-arrow { display: none; }
+          .hp-annotation-cards { display: none; }
+          .hp-nav-links { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .hp-marquee { animation: none !important; }
+          .hp-spin { animation: none !important; }
+        }
+
+        .hp-cta-btn { transition: filter 150ms ease; }
+        .hp-cta-btn:hover { filter: brightness(0.92); }
+        .hp-ghost-btn { transition: border-color 150ms ease, color 150ms ease; }
+        .hp-ghost-btn:hover { border-color: #9ca3af; color: #e8eaf0; }
+      `}</style>
 
       {/* ── 1. Nav ──────────────────────────────────────────────────────── */}
       <nav style={{
@@ -336,20 +641,26 @@ export default function HomePage() {
         <span style={{ fontWeight: 700, fontSize: "14px", letterSpacing: "0.1em", color: "#0f1117" }}>
           ARKEN
         </span>
-        <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-          <Link to="/login" style={{ color: "#6b7280", textDecoration: "none", fontSize: "14px" }}>
+        <div className="hp-nav-links" style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
+          <a href="#how-it-works" style={{ color: "#6b7280", textDecoration: "none", fontSize: "14px" }}>How It Works</a>
+          <a href="#features" style={{ color: "#6b7280", textDecoration: "none", fontSize: "14px" }}>Features</a>
+        </div>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <Link to="/login" style={{ color: "#6b7280", textDecoration: "none", fontSize: "14px", padding: "8px 4px" }}>
             Sign In
           </Link>
           <a
             href="mailto:hello@arken.ai?subject=Request%20Access%20to%20ARKEN"
+            className="hp-cta-btn"
             style={{
               background: "#f59e0b",
               color: "#0f1117",
-              padding: "7px 16px",
+              padding: "8px 16px",
               borderRadius: "9999px",
               fontWeight: 500,
               fontSize: "13px",
               textDecoration: "none",
+              display: "inline-block",
             }}
           >
             Request Access →
@@ -359,7 +670,7 @@ export default function HomePage() {
 
       {/* ── 2. Hero ──────────────────────────────────────────────────────── */}
       <section style={{ padding: "5rem 2rem 4rem", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
+        <div className="hp-hero-grid">
           {/* Left: copy */}
           <div>
             <motion.h1
@@ -393,6 +704,7 @@ export default function HomePage() {
             >
               <Link
                 to="/login"
+                className="hp-cta-btn"
                 style={{
                   background: "#f59e0b",
                   color: "#0f1117",
@@ -401,6 +713,7 @@ export default function HomePage() {
                   fontWeight: 500,
                   fontSize: "14px",
                   textDecoration: "none",
+                  display: "inline-block",
                 }}
               >
                 Try a Free Design →
@@ -410,7 +723,7 @@ export default function HomePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              style={{ marginTop: "1.5rem", fontSize: "12px", color: "#9ca3af", fontFamily: "'JetBrains Mono', monospace", lineHeight: 2 }}
+              style={{ marginTop: "1.5rem", fontSize: "12px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace", lineHeight: 2 }}
             >
               ✓ Bell-Delaware correlations &nbsp; ✓ 16-step audit trail<br />
               ✓ Confidence scoring &nbsp; ✓ HTRI-comparable accuracy
@@ -422,7 +735,9 @@ export default function HomePage() {
             <div style={{ position: "relative", zIndex: 1 }}>
               <HeroAnimation />
             </div>
-            <AnnotationCards />
+            <div className="hp-annotation-cards">
+              <AnnotationCards />
+            </div>
             {/* Mesh gradient behind the pipeline */}
             <div style={{ position: "absolute", inset: "-30%", zIndex: 0 }}>
               <MeshBackdrop color1="rgba(124,58,237,0.25)" color2="rgba(245,158,11,0.15)" />
@@ -433,10 +748,10 @@ export default function HomePage() {
 
       {/* ── 3. Logo wall ─────────────────────────────────────────────────── */}
       <section style={{ padding: "3rem 0", borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb", overflow: "hidden" }}>
-        <p style={{ textAlign: "center", fontSize: "12px", color: "#9ca3af", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "1.5rem" }}>
+        <p style={{ textAlign: "center", fontSize: "12px", color: "#6b7280", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "1.5rem" }}>
           Trusted by engineering teams at
         </p>
-        <div style={{ display: "flex", gap: "4rem", animation: "marquee 30s linear infinite", width: "max-content" }}>
+        <div className="hp-marquee" style={{ display: "flex", gap: "4rem", animation: "marquee 30s linear infinite", width: "max-content" }}>
           {[
             "EPC Firm (Houston, TX)",
             "Refinery Operations (Rotterdam)",
@@ -449,19 +764,11 @@ export default function HomePage() {
             "Thermal Design (Singapore)",
             "Upstream Engineering (Perth)",
           ].map((name, i) => (
-            <span key={i} style={{ fontSize: "13px", color: "#9ca3af", whiteSpace: "nowrap", fontStyle: "italic" }}>
+            <span key={i} style={{ fontSize: "13px", color: "#6b7280", whiteSpace: "nowrap", fontStyle: "italic" }}>
               {name}
             </span>
           ))}
         </div>
-        <style>{`
-          @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-          @keyframes spin { to { transform: rotate(360deg); } }
-          @media (prefers-reduced-motion: reduce) {
-            [style*="marquee"] { animation: none; }
-            [style*="spin"] { animation: none; }
-          }
-        `}</style>
       </section>
 
       {/* ── 4. The Problem ───────────────────────────────────────────────── */}
@@ -480,10 +787,10 @@ export default function HomePage() {
         </motion.p>
         <motion.div
           {...fadeUp}
-          style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: "1.5rem", alignItems: "center" }}
+          className="hp-problem-grid"
         >
           <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "1.5rem", textAlign: "left" }}>
-            <p style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>Before ARKEN</p>
+            <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>Before ARKEN</p>
             <p style={{ fontSize: "13px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.8 }}>
               HX-101_rev3_FINAL.xlsx<br />
               HX-101_rev3_FINAL_v2.xlsx<br />
@@ -491,7 +798,7 @@ export default function HomePage() {
               <span style={{ color: "#ef4444" }}>Status: waiting for HTRI slot</span>
             </p>
           </div>
-          <span style={{ fontSize: "24px", color: "#d1d5db" }}>→</span>
+          <span className="hp-problem-arrow" style={{ fontSize: "24px", color: "#d1d5db" }}>→</span>
           <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", padding: "1.5rem", textAlign: "left" }}>
             <p style={{ fontSize: "11px", color: "#4b5563", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'JetBrains Mono', monospace" }}>After ARKEN</p>
             <p style={{ fontSize: "13px", color: "#22c55e", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.8 }}>
@@ -505,7 +812,7 @@ export default function HomePage() {
       </section>
 
       {/* ── 5. How It Works ──────────────────────────────────────────────── */}
-      <section style={{ padding: "5rem 2rem", background: "#f1f3f7" }}>
+      <section id="how-it-works" style={{ padding: "5rem 2rem", background: "#f1f3f7" }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
           <motion.h2
             {...fadeUp}
@@ -513,7 +820,7 @@ export default function HomePage() {
           >
             How it works
           </motion.h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2.5rem" }}>
+          <div className="hp-three-col">
             {[
               {
                 n: "1",
@@ -560,109 +867,118 @@ export default function HomePage() {
       </section>
 
       {/* ── 6A. Feature: Pipeline Transparency ───────────────────────────── */}
-      <section style={{ padding: "5rem 2rem", position: "relative", overflow: "hidden" }}>
+      <section id="features" style={{ padding: "5rem 2rem", position: "relative", overflow: "hidden" }}>
         <MeshBackdrop color1="rgba(124,58,237,0.15)" color2="rgba(59,130,246,0.1)" />
-        <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center", position: "relative", zIndex: 1 }}>
-          <motion.div {...fadeUp}>
-            <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", padding: "1.5rem", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px" }}>
-              <p style={{ color: "#f59e0b", marginBottom: "0.5rem" }}>Step 5 — CORRECTED</p>
-              <p style={{ color: "#9ca3af", lineHeight: 1.8 }}>
-                baffle_spacing: 0.20m → <span style={{ color: "#22c55e" }}>0.15m</span><br />
-                Reason: J_l was 0.38, below threshold 0.40<br />
-                Re-running Bell-Delaware with updated geometry...<br />
-                <span style={{ color: "#22c55e" }}>h_shell: 1240 W/m²K ✓</span>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div className="hp-two-col">
+            <motion.div {...fadeUp}>
+              <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", padding: "1.5rem", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px" }}>
+                <p style={{ color: "#f59e0b", marginBottom: "0.5rem" }}>Step 5 — CORRECTED</p>
+                <p style={{ color: "#9ca3af", lineHeight: 1.8 }}>
+                  baffle_spacing: 0.20m → <span style={{ color: "#22c55e" }}>0.15m</span><br />
+                  Reason: J_l was 0.38, below threshold 0.40<br />
+                  Re-running Bell-Delaware with updated geometry...<br />
+                  <span style={{ color: "#22c55e" }}>h_shell: 1240 W/m²K ✓</span>
+                </p>
+              </div>
+            </motion.div>
+            <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }}>
+              <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "clamp(1.75rem,3.5vw,2.25rem)", fontWeight: 400, color: "#0f1117", marginBottom: "1rem" }}>
+                See every calculation.<br />Not just the answer.
+              </h2>
+              <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.8, marginBottom: "1rem" }}>
+                Every one of the 16 steps shows what was calculated, what the AI reviewed, and what changed — and why. No black box. No "trust us."
               </p>
-            </div>
-          </motion.div>
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }}>
-            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "clamp(1.75rem,3.5vw,2.25rem)", fontWeight: 400, color: "#0f1117", marginBottom: "1rem" }}>
-              See every calculation.<br />Not just the answer.
-            </h2>
-            <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.8, marginBottom: "1rem" }}>
-              Every one of the 16 steps shows what was calculated, what the AI reviewed, and what changed — and why. No black box. No "trust us."
-            </p>
-            <p style={{ fontSize: "13px", color: "#9ca3af", fontFamily: "'JetBrains Mono', monospace" }}>
-              Full audit trail exportable as PDF.
-            </p>
-          </motion.div>
+              <p style={{ fontSize: "13px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace" }}>
+                Full audit trail exportable as PDF.
+              </p>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ── 6B. Feature: Confidence Scoring ──────────────────────────────── */}
       <section style={{ padding: "5rem 2rem", background: "#f1f3f7", position: "relative", overflow: "hidden" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
-          <motion.div {...fadeUp}>
-            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "clamp(1.75rem,3.5vw,2.25rem)", fontWeight: 400, color: "#0f1117", marginBottom: "1rem" }}>
-              Know how much to trust the result.
-            </h2>
-            <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.8, marginBottom: "1rem" }}>
-              Every design returns a 0–1.0 confidence score — a weighted breakdown of geometry convergence, AI review alignment, physics cross-checks, and input completeness.
-            </p>
-            <p style={{ fontSize: "13px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.9 }}>
-              Below 0.5: ARKEN escalates to you.<br />
-              Above 0.8: ready for your next review.
-            </p>
-          </motion.div>
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }}>
-            <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", padding: "1.5rem", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px" }}>
-              <p style={{ color: "#e8eaf0", marginBottom: "1rem" }}>Design Confidence: <span style={{ color: "#22c55e" }}>0.82</span></p>
-              {[
-                ["Geometry convergence", 0.92, "#22c55e"],
-                ["AI review alignment", 0.88, "#22c55e"],
-                ["Physics cross-check", 0.71, "#f59e0b"],
-                ["Input completeness", 0.95, "#22c55e"],
-              ].map(([label, val, color]) => (
-                <div key={label} style={{ marginBottom: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                    <span style={{ color: "#6b7280" }}>{label}</span>
-                    <span style={{ color }}>{val}</span>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div className="hp-two-col" style={{ position: "static" }}>
+            <motion.div {...fadeUp}>
+              <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "clamp(1.75rem,3.5vw,2.25rem)", fontWeight: 400, color: "#0f1117", marginBottom: "1rem" }}>
+                Know how much to trust the result.
+              </h2>
+              <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.8, marginBottom: "1rem" }}>
+                Every design returns a 0–1.0 confidence score — a weighted breakdown of geometry convergence, AI review alignment, physics cross-checks, and input completeness.
+              </p>
+              <p style={{ fontSize: "13px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.9 }}>
+                Below 0.5: ARKEN escalates to you.<br />
+                Above 0.8: ready for your next review.
+              </p>
+            </motion.div>
+            <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }}>
+              <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", padding: "1.5rem", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px" }}>
+                <p style={{ color: "#e8eaf0", marginBottom: "1rem" }}>Design Confidence: <span style={{ color: "#22c55e" }}>0.82</span></p>
+                {[
+                  ["Geometry convergence", 0.92, "#22c55e"],
+                  ["AI review alignment", 0.88, "#22c55e"],
+                  ["Physics cross-check", 0.71, "#f59e0b"],
+                  ["Input completeness", 0.95, "#22c55e"],
+                ].map(([label, val, color]) => (
+                  <div key={label} style={{ marginBottom: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                      <span style={{ color: "#6b7280" }}>{label}</span>
+                      <span style={{ color }}>{val}</span>
+                    </div>
+                    <div style={{ height: 3, background: "#2a2d3a", borderRadius: 2 }}>
+                      <div style={{ height: "100%", width: `${val * 100}%`, background: color, borderRadius: 2 }} />
+                    </div>
                   </div>
-                  <div style={{ height: 3, background: "#2a2d3a", borderRadius: 2 }}>
-                    <div style={{ height: "100%", width: `${val * 100}%`, background: color, borderRadius: 2 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ── 6C. Feature: HTRI Accuracy ───────────────────────────────────── */}
       <section style={{ padding: "5rem 2rem", position: "relative", overflow: "hidden" }}>
         <MeshBackdrop color1="rgba(59,130,246,0.15)" color2="rgba(245,158,11,0.1)" />
-        <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center", position: "relative", zIndex: 1 }}>
-          <motion.div {...fadeUp}>
-            <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", overflow: "hidden", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid #2a2d3a", color: "#4b5563", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
-                <span>Metric</span><span>ARKEN</span><span>HTRI</span><span style={{ color: "#22c55e" }}>Δ</span>
-              </div>
-              {[
-                ["U (W/m²K)", "342", "348", "1.7%"],
-                ["ΔP shell (bar)", "0.38", "0.41", "7.3%"],
-                ["A (m²)", "48.3", "47.1", "2.5%"],
-              ].map(([m, a, h, d]) => (
-                <div key={m} style={{ padding: "10px 16px", borderBottom: "1px solid #1a1d27", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", color: "#9ca3af" }}>
-                  <span>{m}</span><span style={{ color: "#e8eaf0" }}>{a}</span><span>{h}</span><span style={{ color: "#22c55e" }}>{d}</span>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div className="hp-two-col">
+            <motion.div {...fadeUp}>
+              <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: "8px", overflow: "hidden", fontFamily: "'JetBrains Mono', monospace", fontSize: "12px" }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid #2a2d3a", color: "#4b5563", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+                  <span>Metric</span><span>ARKEN</span><span>HTRI</span><span style={{ color: "#22c55e" }}>Δ</span>
                 </div>
-              ))}
-              <div style={{ padding: "10px 16px", color: "#4b5563", fontSize: "11px" }}>
-                Serth Example 5.1 — Crude Oil Cooler
+                {[
+                  ["U (W/m²K)", "342", "348", "1.7%"],
+                  ["ΔP shell (bar)", "0.38", "0.41", "7.3%"],
+                  ["A (m²)", "48.3", "47.1", "2.5%"],
+                ].map(([m, a, h, d]) => (
+                  <div key={m} style={{ padding: "10px 16px", borderBottom: "1px solid #1a1d27", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", color: "#9ca3af" }}>
+                    <span>{m}</span><span style={{ color: "#e8eaf0" }}>{a}</span><span>{h}</span><span style={{ color: "#22c55e" }}>{d}</span>
+                  </div>
+                ))}
+                <div style={{ padding: "10px 16px", color: "#4b5563", fontSize: "11px" }}>
+                  Serth Example 5.1 — Crude Oil Cooler
+                </div>
               </div>
-            </div>
-          </motion.div>
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }}>
-            <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "clamp(1.75rem,3.5vw,2.25rem)", fontWeight: 400, color: "#0f1117", marginBottom: "1rem" }}>
-              Accuracy you can defend.
-            </h2>
-            <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.8, marginBottom: "1rem" }}>
-              Validated against Serth Example 5.1 and HTRI benchmarks. ARKEN targets ±5% on U, ±10% on dP — the same tolerances your engineers use to accept or reject any design.
-            </p>
-            <p style={{ fontSize: "12px", color: "#9ca3af", fontFamily: "'JetBrains Mono', monospace" }}>
-              * Validation pending Week 5 HTRI accuracy gate
-            </p>
-          </motion.div>
+            </motion.div>
+            <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }}>
+              <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: "clamp(1.75rem,3.5vw,2.25rem)", fontWeight: 400, color: "#0f1117", marginBottom: "1rem" }}>
+                Accuracy you can defend.
+              </h2>
+              <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.8, marginBottom: "1rem" }}>
+                Validated against Serth Example 5.1 and HTRI benchmarks. ARKEN targets ±5% on U, ±10% on dP — the same tolerances your engineers use to accept or reject any design.
+              </p>
+              <p style={{ fontSize: "12px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace" }}>
+                * Validation pending Week 5 HTRI accuracy gate
+              </p>
+            </motion.div>
+          </div>
         </div>
       </section>
+
+      {/* ── 6D. Feature: Conversational Interface ────────────────────────── */}
+      <ConversationalSection />
 
       {/* ── 7. Testimonials ──────────────────────────────────────────────── */}
       <section style={{ padding: "5rem 2rem", background: "#f1f3f7" }}>
@@ -673,7 +989,7 @@ export default function HomePage() {
           >
             "Finally, a first-pass I can hand to a client."
           </motion.h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+          <div className="hp-testimonials-grid">
             {[
               {
                 quote: "We were spending 1–2 hours per design with HTRI setup, and our junior engineers couldn't access it at all. ARKEN gave us a complete first-pass with full reasoning in 8 minutes. The confidence score told us exactly where to focus our HTRI review.",
@@ -695,7 +1011,7 @@ export default function HomePage() {
                 <p style={{ fontSize: "14px", color: "#374151", lineHeight: 1.8, fontStyle: "italic", marginBottom: "1.25rem" }}>
                   "{t.quote}"
                 </p>
-                <p style={{ fontSize: "12px", color: "#9ca3af" }}>
+                <p style={{ fontSize: "12px", color: "#6b7280" }}>
                   — {t.attr}<br />
                   <span style={{ color: "#6b7280" }}>{t.role}</span>
                 </p>
@@ -719,12 +1035,12 @@ export default function HomePage() {
           </p>
           <div style={{ display: "flex", justifyContent: "center", gap: "2.5rem", flexWrap: "wrap" }}>
             {[
-              ["🔒", "End-to-end encryption"],
-              ["🛡", "Session-isolated data"],
-              ["📄", "Full audit trail exportable"],
-            ].map(([icon, label]) => (
+              { Icon: IconLock, label: "End-to-end encryption" },
+              { Icon: IconShield, label: "Session-isolated data" },
+              { Icon: IconFile, label: "Full audit trail exportable" },
+            ].map(({ Icon, label }) => (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "#6b7280" }}>
-                <span>{icon}</span>
+                <Icon />
                 <span>{label}</span>
               </div>
             ))}
@@ -747,6 +1063,7 @@ export default function HomePage() {
           <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap", marginBottom: "4rem" }}>
             <Link
               to="/login"
+              className="hp-cta-btn"
               style={{
                 background: "#f59e0b",
                 color: "#0f1117",
@@ -755,12 +1072,14 @@ export default function HomePage() {
                 fontWeight: 500,
                 fontSize: "14px",
                 textDecoration: "none",
+                display: "inline-block",
               }}
             >
               Try a Free Design →
             </Link>
             <a
               href="mailto:hello@arken.ai?subject=Talk%20to%20ARKEN"
+              className="hp-ghost-btn"
               style={{
                 border: "1px solid #2a2d3a",
                 color: "#9ca3af",
@@ -768,6 +1087,7 @@ export default function HomePage() {
                 borderRadius: "9999px",
                 fontSize: "14px",
                 textDecoration: "none",
+                display: "inline-block",
               }}
             >
               Talk to us
@@ -777,9 +1097,8 @@ export default function HomePage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
             <span style={{ fontWeight: 700, fontSize: "13px", letterSpacing: "0.08em" }}>ARKEN</span>
             <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-              {["Features", "How It Works", "Privacy", "Terms"].map((link) => (
-                <span key={link} style={{ fontSize: "13px", color: "#4b5563", cursor: "pointer" }}>{link}</span>
-              ))}
+              <a href="#how-it-works" style={{ fontSize: "13px", color: "#4b5563", textDecoration: "none" }}>How It Works</a>
+              <a href="#features" style={{ fontSize: "13px", color: "#4b5563", textDecoration: "none" }}>Features</a>
             </div>
             <span style={{ fontSize: "12px", color: "#374151" }}>© 2026 ARKEN AI. Built for process engineers.</span>
           </div>
