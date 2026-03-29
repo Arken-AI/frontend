@@ -608,8 +608,8 @@ export default function HomePage() {
             grid-template-columns: 1fr;
           }
           .hp-problem-arrow { display: none; }
-          .hp-annotation-cards { display: none; }
-          .hp-nav-links { display: none; }
+          .hp-annotation-cards { display: none !important; }
+          .hp-nav-links { display: none !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {
