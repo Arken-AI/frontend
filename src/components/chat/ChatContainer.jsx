@@ -33,7 +33,7 @@ function generateConversationId() {
   return `conv_${hex}`;
 }
 
-function ChatContainer() {
+function ChatContainer({ onHXDesignStarted }) {
   const {
     conversationId,
     setConversationId,
@@ -85,6 +85,13 @@ function ChatContainer() {
         lastSequenceRef.current = event.sequence;
       }
 
+      // hx_design_started: wire up the HX Engine stream BEFORE the whitelist
+      // so this event is never silently dropped by the filter below.
+      if (event.event_type === "hx_design_started" && onHXDesignStarted) {
+        onHXDesignStarted(event.stream_url, event.session_id);
+        return;
+      }
+
       if (
         [
           "thinking_start",
@@ -97,7 +104,7 @@ function ChatContainer() {
         handleSSEEvent(event, dispatch);
       }
     },
-    [dispatch],
+    [dispatch, onHXDesignStarted],
   );
 
   // Send message handler - now synchronous with direct response

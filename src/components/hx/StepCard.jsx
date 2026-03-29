@@ -25,7 +25,7 @@
  *   iteration  {object}  for Step 12 only — { current, total, deltaU, converged }
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // ── State config ────────────────────────────────────────────────────────────
 
@@ -188,6 +188,36 @@ function IterationProgress({ iteration }) {
   );
 }
 
+// ── Outputs table ────────────────────────────────────────────────────────────
+
+function OutputsTable({ outputs }) {
+  if (!outputs || typeof outputs !== 'object') return null;
+  const entries = Object.entries(outputs).filter(([, v]) => v != null);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mt-2">
+      <table className="w-full text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
+        <tbody>
+          {entries.map(([key, value]) => (
+            <tr key={key}>
+              <td
+                className="pr-3 py-0.5 whitespace-nowrap"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                {key}
+              </td>
+              <td className="py-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                {typeof value === 'number' ? value.toPrecision(6) : String(value)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Body by state ─────────────────────────────────────────────────────────────
 
 function CardBody({ state, data, iteration }) {
@@ -203,7 +233,12 @@ function CardBody({ state, data, iteration }) {
   }
 
   if (state === 'APPROVED') {
-    return <Reasoning text={data?.reasoning} forceOpen={false} />;
+    return (
+      <>
+        <OutputsTable outputs={data?.outputs} />
+        <Reasoning text={data?.reasoning} forceOpen={false} />
+      </>
+    );
   }
 
   if (state === 'CORRECTED') {
@@ -229,6 +264,7 @@ function CardBody({ state, data, iteration }) {
             {why}
           </p>
         )}
+        <OutputsTable outputs={data?.outputs} />
         <Reasoning text={reasoning} forceOpen={false} />
       </div>
     );
@@ -241,6 +277,7 @@ function CardBody({ state, data, iteration }) {
         {message && (
           <p className="text-xs" style={{ color: 'var(--color-warning)' }}>{message}</p>
         )}
+        <OutputsTable outputs={data?.outputs} />
         <Reasoning text={reasoning} forceOpen={true} />
       </div>
     );
@@ -343,6 +380,22 @@ function EscalatedBody({ question, onRespond }) {
 export default function StepCard({ step, name, state = 'PENDING', elapsed, data, iteration }) {
   const cfg = STATE_CONFIG[state] ?? STATE_CONFIG.PENDING;
   const isPending = state === 'PENDING';
+  const isRunning = state === 'RUNNING';
+  const isEscalated = state === 'ESCALATED';
+  // Expand by default for RUNNING, ESCALATED, and ERROR; collapsed for completed
+  const [expanded, setExpanded] = useState(isRunning || isEscalated || state === 'ERROR');
+  const canToggle = !isPending && !isRunning;
+
+  // Auto-expand when state changes to ESCALATED/ERROR, collapse when it settles to APPROVED/CORRECTED/WARNING
+  useEffect(() => {
+    if (isEscalated || state === 'ERROR') {
+      setExpanded(true);
+    } else if (isRunning) {
+      // Keep open while running — body handles animation
+    } else if (!isPending) {
+      setExpanded(false);
+    }
+  }, [state, isPending, isRunning, isEscalated]);
 
   return (
     <div
@@ -356,8 +409,12 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
       role="status"
       aria-live="polite"
     >
-      {/* Header row */}
-      <div className="flex items-center gap-2">
+      {/* Header row — clickable for completed steps */}
+      <div
+        className="flex items-center gap-2"
+        style={{ cursor: canToggle ? 'pointer' : 'default' }}
+        onClick={() => canToggle && setExpanded(e => !e)}
+      >
         {/* State indicator */}
         <span
           className={`text-sm w-4 flex-shrink-0 ${cfg.spin ? 'animate-spin-slow inline-block' : ''}`}
@@ -385,8 +442,17 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
           {name}
         </span>
 
-        {/* Elapsed time */}
+        {/* Elapsed time + expand chevron */}
         {!isPending && state !== 'RUNNING' && <Elapsed seconds={elapsed} />}
+        {canToggle && (
+          <span
+            className="text-xs flex-shrink-0"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+            aria-hidden="true"
+          >
+            {expanded ? '▾' : '▸'}
+          </span>
+        )}
         {state === 'RUNNING' && (
           <span
             className="text-xs ml-auto"
@@ -397,10 +463,12 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
         )}
       </div>
 
-      {/* Body (state-specific) */}
-      <div className="ml-6">
-        <CardBody state={state} data={data} iteration={iteration} />
-      </div>
+      {/* Body (state-specific) — shown when expanded or always for RUNNING/ESCALATED */}
+      {(expanded || isRunning) && (
+        <div className="ml-6">
+          <CardBody state={state} data={data} iteration={iteration} />
+        </div>
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ const EVENT_TYPES = [
   "message_delta",
   "message_final",
   "app_error",
+  "hx_design_started",
 ];
 
 /** Maximum time (ms) to wait for EventSource.onopen before proceeding. */

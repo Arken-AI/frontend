@@ -1,14 +1,13 @@
 /**
  * ChatPanel — the 28% left panel in the ARKEN split layout.
  *
- * A clean wrapper around the chat logic. The header chrome (conversation
- * history dropdown, connection status badge, etc.) from the old Results-page
- * panel has been removed — the main Header handles status and the new layout
- * has no sidebar.
+ * Forwards onHXDesignStarted to ChatContainer so it can call
+ * connectStream(streamUrl, sessionId) when it receives the
+ * hx_design_started SSE event from the backend.
  */
 
 import ChatContainer from './ChatContainer';
 
-export default function ChatPanel() {
-  return <ChatContainer />;
+export default function ChatPanel({ onHXDesignStarted }) {
+  return <ChatContainer onHXDesignStarted={onHXDesignStarted} />;
 }
