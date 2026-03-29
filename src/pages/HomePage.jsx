@@ -256,6 +256,10 @@ function ConversationalSection() {
     const el = ref.current;
     if (!el) return;
 
+    let typeUserInterval = null;
+    let aiDelayTimeout = null;
+    let typeAiInterval = null;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !startedRef.current) {
@@ -263,23 +267,24 @@ function ConversationalSection() {
           observer.disconnect();
 
           let i = 0;
-          const typeUser = setInterval(() => {
+          typeUserInterval = setInterval(() => {
             i++;
             setUserText(USER_MSG.slice(0, i));
             if (i >= USER_MSG.length) {
-              clearInterval(typeUser);
-              const aiDelay = setTimeout(() => {
+              clearInterval(typeUserInterval);
+              typeUserInterval = null;
+              aiDelayTimeout = setTimeout(() => {
                 let j = 0;
-                const typeAi = setInterval(() => {
+                typeAiInterval = setInterval(() => {
                   j++;
                   setAiText(AI_MSG.slice(0, j));
                   if (j >= AI_MSG.length) {
-                    clearInterval(typeAi);
+                    clearInterval(typeAiInterval);
+                    typeAiInterval = null;
                     setTimeout(() => setShowChips(true), 300);
                   }
                 }, 22);
               }, 600);
-              return () => clearTimeout(aiDelay);
             }
           }, 28);
         }
@@ -287,7 +292,12 @@ function ConversationalSection() {
       { threshold: 0.3 }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (typeUserInterval) clearInterval(typeUserInterval);
+      if (aiDelayTimeout) clearTimeout(aiDelayTimeout);
+      if (typeAiInterval) clearInterval(typeAiInterval);
+    };
   }, [prefersReduced]);
 
   return (
