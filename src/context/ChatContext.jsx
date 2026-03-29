@@ -207,11 +207,25 @@ export function ChatProvider({ children }) {
     [setConversationId],
   );
 
-  // Load conversations on mount — only when authenticated
+  // On fresh login, clear any stale conversationId so the user
+  // always lands on the welcome screen instead of a previous chat.
+  const prevUsernameRef = useRef(undefined);
   useEffect(() => {
-    if (!username) return;
-    refreshConversations();
-  }, [refreshConversations, username]);
+    if (prevUsernameRef.current === undefined) {
+      // First render — if username is already set (page reload while
+      // still authenticated) we intentionally keep the persisted
+      // conversationId so the user returns to where they left off.
+      prevUsernameRef.current = username;
+      if (username) refreshConversations();
+      return;
+    }
+    if (!prevUsernameRef.current && username) {
+      // Transition from logged-out → logged-in: fresh session
+      createNewConversation();
+    }
+    prevUsernameRef.current = username;
+    if (username) refreshConversations();
+  }, [username, refreshConversations, createNewConversation]);
 
   // Load context when conversation changes (skip if loadConversation was just called)
   useEffect(() => {
