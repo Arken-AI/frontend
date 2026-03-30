@@ -213,6 +213,10 @@ export function ChatProvider({ children }) {
   // On fresh login, clear any stale conversationId so the user
   // always lands on the welcome screen instead of a previous chat.
   const prevUsernameRef = useRef(undefined);
+  // True until the very first null→truthy username transition is consumed.
+  // That transition is always auth resolving on page reload, never a genuine
+  // fresh login (which follows a deliberate logout → null).
+  const isInitialAuthResolutionRef = useRef(true);
   // Stable refs so the effect below doesn't re-fire when callbacks change
   const refreshRef = useRef(refreshConversations);
   refreshRef.current = refreshConversations;
@@ -225,12 +229,29 @@ export function ChatProvider({ children }) {
       // still authenticated) we intentionally keep the persisted
       // conversationId so the user returns to where they left off.
       prevUsernameRef.current = username;
-      if (username) refreshRef.current();
+      if (username) {
+        // Auth was already resolved on first render — no null→truthy transition
+        // will follow, so the initial-auth flag can be consumed now.
+        isInitialAuthResolutionRef.current = false;
+        refreshRef.current();
+      }
       return;
     }
     if (!prevUsernameRef.current && username) {
-      // Transition from logged-out → logged-in: fresh session
-      createNewRef.current();
+      if (isInitialAuthResolutionRef.current) {
+        // First null→truthy after mount: auth resolved asynchronously on page
+        // reload.  Keep the persisted conversationId so the user returns to
+        // where they left off.  createNewConversation() is NOT called here.
+        isInitialAuthResolutionRef.current = false;
+      } else {
+        // Subsequent null→truthy: genuine fresh login after an explicit logout.
+        createNewRef.current();
+      }
+    }
+    if (prevUsernameRef.current && !username) {
+      // User logged out — reset the flag so the next login triggers a fresh
+      // conversation as expected.
+      isInitialAuthResolutionRef.current = true;
     }
     prevUsernameRef.current = username;
     if (username) refreshRef.current();

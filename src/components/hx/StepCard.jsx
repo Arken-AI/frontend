@@ -208,7 +208,11 @@ function OutputsTable({ outputs }) {
                 {key}
               </td>
               <td className="py-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                {typeof value === 'number' ? value.toPrecision(6) : String(value)}
+                {typeof value === 'number'
+                  ? value.toPrecision(6)
+                  : typeof value === 'object'
+                    ? <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
+                    : String(value)}
               </td>
             </tr>
           ))}
