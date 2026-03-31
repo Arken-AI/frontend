@@ -28,16 +28,16 @@ const HX_ENGINE_BASE = import.meta.env.VITE_HX_ENGINE_URL || "";
 // the frontend uses.  SSE events carry APPROVED/CORRECTED; restored records
 // carry PROCEED/CORRECT/WARN/ESCALATE (AIDecisionEnum).
 const AI_DECISION_MAP = {
-  PROCEED:  "APPROVED",
-  CORRECT:  "CORRECTED",
-  WARN:     "WARNING",
+  PROCEED: "APPROVED",
+  CORRECT: "CORRECTED",
+  WARN: "WARNING",
   ESCALATE: "ESCALATED",
   // Pass-through for values already in display form
-  APPROVED:  "APPROVED",
+  APPROVED: "APPROVED",
   CORRECTED: "CORRECTED",
-  WARNING:   "WARNING",
+  WARNING: "WARNING",
   ESCALATED: "ESCALATED",
-  ERROR:     "ERROR",
+  ERROR: "ERROR",
 };
 
 /**
@@ -54,32 +54,35 @@ function synthesizeDesignResult(hxSteps) {
 
   // Approximate confidence from step AI decisions
   const weights = {
-    PROCEED: 1, APPROVED: 1,
-    CORRECT: 0.7, CORRECTED: 0.7,
-    WARN: 0.5, WARNING: 0.5,
-    ESCALATE: 0.3, ESCALATED: 0.3,
+    PROCEED: 1,
+    APPROVED: 1,
+    CORRECT: 0.7,
+    CORRECTED: 0.7,
+    WARN: 0.5,
+    WARNING: 0.5,
+    ESCALATE: 0.3,
+    ESCALATED: 0.3,
     ERROR: 0,
   };
-  const scores = hxSteps.map(r => weights[r.ai_decision] ?? 0.8);
-  const confidence = scores.length > 0
-    ? scores.reduce((a, b) => a + b, 0) / scores.length
-    : 0.8;
+  const scores = hxSteps.map((r) => weights[r.ai_decision] ?? 0.8);
+  const confidence =
+    scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0.8;
 
   return {
-    pipeline_status: 'completed',
+    pipeline_status: "completed",
     confidence,
-    U_W_m2K:        outputs.U_W_m2K        ?? null,
-    A_m2:           outputs.A_m2           ?? null,
-    Q_W:            outputs.Q_W            ?? null,
-    LMTD_K:         outputs.LMTD_K         ?? null,
-    tema_type:       outputs.tema_type       ?? null,
-    overdesign_pct:  outputs.overdesign_pct  ?? null,
-    dP_shell:        outputs.dP_shell        ?? null,
-    dP_tube:         outputs.dP_tube         ?? null,
-    dP_shell_limit:  outputs.dP_shell_limit  ?? null,
-    dP_tube_limit:   outputs.dP_tube_limit   ?? null,
-    cost_usd:        outputs.cost_usd        ?? null,
-    vibration_safe:  outputs.vibration_safe  ?? null,
+    U_W_m2K: outputs.U_W_m2K ?? null,
+    A_m2: outputs.A_m2 ?? null,
+    Q_W: outputs.Q_W ?? null,
+    LMTD_K: outputs.LMTD_K ?? null,
+    tema_type: outputs.tema_type ?? null,
+    overdesign_pct: outputs.overdesign_pct ?? null,
+    dP_shell: outputs.dP_shell ?? null,
+    dP_tube: outputs.dP_tube ?? null,
+    dP_shell_limit: outputs.dP_shell_limit ?? null,
+    dP_tube_limit: outputs.dP_tube_limit ?? null,
+    cost_usd: outputs.cost_usd ?? null,
+    vibration_safe: outputs.vibration_safe ?? null,
   };
 }
 
@@ -91,33 +94,39 @@ function synthesizeDesignResult(hxSteps) {
  *   ai_review { reasoning, corrections, warnings, recommendation, options }
  */
 function stepRecordToEntry(record, stepNames) {
-  const stepId    = record.step_id;
-  const rawState  = record.ai_decision || (record.validation_passed ? "PROCEED" : "ERROR");
-  const state     = AI_DECISION_MAP[rawState] ?? "APPROVED";
-  const aiReview  = record.ai_review || {};
+  const stepId = record.step_id;
+  const rawState =
+    record.ai_decision || (record.validation_passed ? "PROCEED" : "ERROR");
+  const state = AI_DECISION_MAP[rawState] ?? "APPROVED";
+  const aiReview = record.ai_review || {};
 
   // Build the `data` payload that CardBody/OutputsTable/Reasoning use
   const data = {
-    outputs:   record.outputs || {},
+    outputs: record.outputs || {},
     reasoning: aiReview.reasoning || aiReview.observation || "",
   };
 
   if (state === "CORRECTED" && aiReview.corrections?.length) {
     const first = aiReview.corrections[0];
     data.from = String(first.old_value ?? "");
-    data.to   = String(first.new_value ?? "");
-    data.why  = first.reason || "";
+    data.to = String(first.new_value ?? "");
+    data.why = first.reason || "";
   }
 
   if (state === "WARNING") {
-    data.message = aiReview.recommendation || record.warnings?.[0] || "";
+    // Short one-liner above the KV table; reasoning goes in the collapsible section.
+    data.message =
+      aiReview.recommendation ||
+      aiReview.observation ||
+      record.warnings?.[0] ||
+      "";
   }
 
   return {
-    step:      stepId,
-    name:      record.step_name ?? stepNames[stepId - 1] ?? `Step ${stepId}`,
+    step: stepId,
+    name: record.step_name ?? stepNames[stepId - 1] ?? `Step ${stepId}`,
     state,
-    elapsed:   record.duration_s ?? null,
+    elapsed: record.duration_s ?? null,
     data,
     iteration: null,
   };
@@ -125,22 +134,22 @@ function stepRecordToEntry(record, stepNames) {
 
 function makeInitialSteps() {
   return STEP_NAMES.map((name, i) => ({
-    step:      i + 1,
+    step: i + 1,
     name,
-    state:     "PENDING",
-    elapsed:   null,
-    data:      null,
+    state: "PENDING",
+    elapsed: null,
+    data: null,
     iteration: null,
   }));
 }
 
 export function useHXStream({ conversationId, currentContext } = {}) {
-  const [steps,        setSteps]        = useState(makeInitialSteps);
-  const [isRunning,    setIsRunning]    = useState(false);
-  const [currentStep,  setCurrentStep]  = useState(null);
-  const [sessionId,    setSessionId]    = useState(null);
+  const [steps, setSteps] = useState(makeInitialSteps);
+  const [isRunning, setIsRunning] = useState(false);
+  const [currentStep, setCurrentStep] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const [designResult, setDesignResult] = useState(null);
-  const [error,        setError]        = useState(null);
+  const [error, setError] = useState(null);
   const eventSourceRef = useRef(null);
   // Track the hx_session_id we last restored so we don't re-apply on every render
   const restoredSessionRef = useRef(null);
@@ -148,158 +157,190 @@ export function useHXStream({ conversationId, currentContext } = {}) {
   // ── Internal step updater ──────────────────────────────────────────────────
 
   const updateStep = useCallback((stepId, patch) => {
-    setSteps(prev =>
-      prev.map(s => s.step === stepId ? { ...s, ...patch } : s)
+    setSteps((prev) =>
+      prev.map((s) => (s.step === stepId ? { ...s, ...patch } : s)),
     );
   }, []);
 
   // ── Event handler ──────────────────────────────────────────────────────────
 
-  const handleEvent = useCallback((eventType, data) => {
-    if (eventType === HX_EVENT_TYPES.DESIGN_COMPLETE) {
-      setDesignResult(data);
-      setIsRunning(false);
-      setCurrentStep(null);
-      eventSourceRef.current?.close();
-      return;
-    }
-
-    if (eventType === HX_EVENT_TYPES.ITERATION_PROGRESS) {
-      // IterationProgressEvent fields: iteration_number, max_iterations,
-      // delta_U_pct, constraints_met — map to StepCard's IterationProgress shape.
-      // step_id is optional (Step 12 convergence loop will add it).
-      if (data.step_id) {
-        updateStep(data.step_id, {
-          iteration: {
-            current:   data.iteration_number ?? 0,
-            total:     data.max_iterations   ?? 20,
-            deltaU:    data.delta_U_pct      ?? null,
-            converged: data.constraints_met  ?? false,
-          },
-        });
+  const handleEvent = useCallback(
+    (eventType, data) => {
+      if (eventType === HX_EVENT_TYPES.DESIGN_COMPLETE) {
+        setDesignResult(data);
+        setIsRunning(false);
+        setCurrentStep(null);
+        eventSourceRef.current?.close();
+        return;
       }
-      return;
-    }
 
-    const stepId = data.step_id;
-    if (!stepId) return;
-
-    const newState = eventToStepState(eventType);
-
-    if (newState === "RUNNING") {
-      setCurrentStep(stepId);
-      updateStep(stepId, { state: "RUNNING", elapsed: null, data: null });
-      return;
-    }
-
-    // Duration: HX Engine emits duration_ms (integer milliseconds).
-    // StepCard displays it as seconds with one decimal place.
-    const elapsed = data.duration_ms != null ? data.duration_ms / 1000 : null;
-
-    // Build state-specific data payload normalised for StepCard.
-    let patchData = { ...data };
-
-    if (newState === "ESCALATED") {
-      // StepEscalatedEvent: { message, options }
-      // StepCard's EscalatedBody reads data.question (not data.message).
-      if (patchData.message && !patchData.question) {
-        patchData.question = patchData.message;
+      if (eventType === HX_EVENT_TYPES.ITERATION_PROGRESS) {
+        // IterationProgressEvent fields: iteration_number, max_iterations,
+        // delta_U_pct, constraints_met — map to StepCard's IterationProgress shape.
+        // step_id is optional (Step 12 convergence loop will add it).
+        if (data.step_id) {
+          updateStep(data.step_id, {
+            iteration: {
+              current: data.iteration_number ?? 0,
+              total: data.max_iterations ?? 20,
+              deltaU: data.delta_U_pct ?? null,
+              converged: data.constraints_met ?? false,
+            },
+          });
+        }
+        return;
       }
-    } else if (newState === "CORRECTED") {
-      // StepCorrectedEvent.correction is a dict: { fieldName: { old, new }, ... }
-      // e.g. { "tube_diameter": { "old": 0.025, "new": 0.020 } }
-      // StepCard reads data.from / data.to / data.why.
-      const entries = Object.entries(data.correction || {});
-      if (entries.length > 0) {
-        const [field, vals] = entries[0];
-        patchData.from = `${field}: ${vals.old ?? ""}`;
-        patchData.to   = `${field}: ${vals.new ?? ""}`;
-      }
-      // why comes from the AI's reasoning
-      patchData.why = data.reasoning || "";
-    } else if (newState === "WARNING") {
-      // StepWarningEvent: { warning_message, ... }
-      // StepCard reads data.message.
-      if (data.warning_message && !data.message) {
-        patchData.message = data.warning_message;
-      }
-    }
 
-    setCurrentStep(prev => (prev === stepId ? null : prev));
-    updateStep(stepId, {
-      state: newState,
-      elapsed,
-      data:  patchData,
-    });
-  }, [updateStep]);
+      const stepId = data.step_id;
+      if (!stepId) return;
+
+      const newState = eventToStepState(eventType);
+
+      if (newState === "RUNNING") {
+        setCurrentStep(stepId);
+        updateStep(stepId, { state: "RUNNING", elapsed: null, data: null });
+        return;
+      }
+
+      // Duration: HX Engine emits duration_ms (integer milliseconds).
+      // StepCard displays it as seconds with one decimal place.
+      const elapsed = data.duration_ms != null ? data.duration_ms / 1000 : null;
+
+      // Build state-specific data payload normalised for StepCard.
+      let patchData = { ...data };
+
+      if (newState === "ESCALATED") {
+        // StepEscalatedEvent: { message, options }
+        // StepCard's EscalatedBody reads data.question (not data.message).
+        if (patchData.message && !patchData.question) {
+          patchData.question = patchData.message;
+        }
+      } else if (newState === "CORRECTED") {
+        // StepCorrectedEvent.correction is a dict: { fieldName: { old, new }, ... }
+        // e.g. { "tube_diameter": { "old": 0.025, "new": 0.020 } }
+        // StepCard reads data.from / data.to / data.why.
+        const entries = Object.entries(data.correction || {});
+        if (entries.length > 0) {
+          const [field, vals] = entries[0];
+          patchData.from = `${field}: ${vals.old ?? ""}`;
+          patchData.to = `${field}: ${vals.new ?? ""}`;
+        }
+        // why comes from the AI's reasoning
+        patchData.why = data.reasoning || "";
+      } else if (newState === "WARNING") {
+        // StepWarningEvent fields: warning_message (short), reasoning (full AI text),
+        // user_summary, outputs.  StepCard reads data.message + data.reasoning.
+        patchData.message = data.warning_message || data.user_summary || "";
+        patchData.reasoning = data.reasoning || "";
+        patchData.outputs = data.outputs || {};
+      }
+
+      // Ensure reasoning + outputs are always available for CardBody
+      if (!patchData.reasoning && data.reasoning) {
+        patchData.reasoning = data.reasoning;
+      }
+      if (!patchData.outputs && data.outputs) {
+        patchData.outputs = data.outputs;
+      }
+
+      setCurrentStep((prev) => (prev === stepId ? null : prev));
+      updateStep(stepId, {
+        state: newState,
+        elapsed,
+        data: patchData,
+      });
+    },
+    [updateStep],
+  );
 
   // ── Connect real EventSource ───────────────────────────────────────────────
 
-  const connectStream = useCallback((streamUrl, newSessionId) => {
-    eventSourceRef.current?.close();
+  const connectStream = useCallback(
+    (streamUrl, newSessionId) => {
+      eventSourceRef.current?.close();
 
-    setSteps(makeInitialSteps());
-    setIsRunning(true);
-    setCurrentStep(null);
-    setSessionId(newSessionId ?? null);
-    setDesignResult(null);
-    setError(null);
+      setSteps(makeInitialSteps());
+      setIsRunning(true);
+      setCurrentStep(null);
+      setSessionId(newSessionId ?? null);
+      setDesignResult(null);
+      setError(null);
 
-    // URL resolution:
-    // - absolute URL (starts with http/https) → use as-is
-    // - relative URL → prepend VITE_HX_ENGINE_URL (dev) or leave relative (prod/nginx)
-    const fullUrl = streamUrl.startsWith("http")
-      ? streamUrl
-      : `${HX_ENGINE_BASE}${streamUrl}`;
+      // URL resolution:
+      // - absolute URL (starts with http/https) → use as-is
+      // - relative URL → prepend VITE_HX_ENGINE_URL (dev) or leave relative (prod/nginx)
+      const fullUrl = streamUrl.startsWith("http")
+        ? streamUrl
+        : `${HX_ENGINE_BASE}${streamUrl}`;
 
-    const es = new EventSource(fullUrl);
-    eventSourceRef.current = es;
+      const es = new EventSource(fullUrl);
+      eventSourceRef.current = es;
 
-    Object.values(HX_EVENT_TYPES).forEach(eventType => {
-      es.addEventListener(eventType, e => {
-        try {
-          handleEvent(eventType, JSON.parse(e.data));
-        } catch (err) {
-          console.error("[useHXStream] Failed to parse SSE event:", err);
-        }
+      Object.values(HX_EVENT_TYPES).forEach((eventType) => {
+        es.addEventListener(eventType, (e) => {
+          try {
+            handleEvent(eventType, JSON.parse(e.data));
+          } catch (err) {
+            console.error("[useHXStream] Failed to parse SSE event:", err);
+          }
+        });
       });
-    });
 
-    es.onerror = () => {
-      console.error("[useHXStream] SSE connection error");
-      setError("Connection lost. Please refresh.");
-      setIsRunning(false);
-      es.close();
-    };
-  }, [handleEvent]);
+      es.onerror = () => {
+        console.error("[useHXStream] SSE connection error");
+        setError("Connection lost. Please refresh.");
+        setIsRunning(false);
+        es.close();
+      };
+    },
+    [handleEvent],
+  );
 
   // ── Respond to an ESCALATED step ──────────────────────────────────────────
 
-  const respondToEscalation = useCallback(async (sid, response) => {
-    const id = sid ?? sessionId;
-    if (!id) {
-      console.error("[useHXStream] respondToEscalation called with no sessionId");
-      return;
-    }
-    // The respond endpoint lives on the HX Engine, not the backend.
-    // Using HX_ENGINE_BASE ensures the request reaches the correct service.
-    try {
-      const res = await fetch(`${HX_ENGINE_BASE}/api/v1/hx/design/${id}/respond`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        // HX Engine UserResponse schema: { type, values: { user_input } }
-        body: JSON.stringify({ type: "override", values: { user_input: response } }),
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => res.status);
-        console.error(`[useHXStream] respondToEscalation failed (${res.status}):`, text);
-        setError(`Failed to send response (${res.status}). Please try again.`);
+  const respondToEscalation = useCallback(
+    async (sid, response) => {
+      const id = sid ?? sessionId;
+      if (!id) {
+        console.error(
+          "[useHXStream] respondToEscalation called with no sessionId",
+        );
+        return;
       }
-    } catch (err) {
-      console.error("[useHXStream] respondToEscalation network error:", err);
-      setError("Network error sending response. Please check your connection.");
-    }
-  }, [sessionId]);
+      // The respond endpoint lives on the HX Engine, not the backend.
+      // Using HX_ENGINE_BASE ensures the request reaches the correct service.
+      try {
+        const res = await fetch(
+          `${HX_ENGINE_BASE}/api/v1/hx/design/${id}/respond`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // HX Engine UserResponse schema: { type, values: { user_input } }
+            body: JSON.stringify({
+              type: "override",
+              values: { user_input: response },
+            }),
+          },
+        );
+        if (!res.ok) {
+          const text = await res.text().catch(() => res.status);
+          console.error(
+            `[useHXStream] respondToEscalation failed (${res.status}):`,
+            text,
+          );
+          setError(
+            `Failed to send response (${res.status}). Please try again.`,
+          );
+        }
+      } catch (err) {
+        console.error("[useHXStream] respondToEscalation network error:", err);
+        setError(
+          "Network error sending response. Please check your connection.",
+        );
+      }
+    },
+    [sessionId],
+  );
 
   // ── Reset on conversation change ───────────────────────────────────────────
   // Always clear the restore guard so the next context load re-applies the
@@ -333,8 +374,8 @@ export function useHXStream({ conversationId, currentContext } = {}) {
   // the backend has written the session ID into the conversation context.
 
   useEffect(() => {
-    const hxSessionId  = currentContext?.hx_session_id;
-    const hxSteps      = currentContext?.hx_steps;
+    const hxSessionId = currentContext?.hx_session_id;
+    const hxSteps = currentContext?.hx_steps;
 
     // Nothing to restore, or already restored this session
     if (!hxSessionId || !hxSteps?.length) return;
@@ -345,12 +386,15 @@ export function useHXStream({ conversationId, currentContext } = {}) {
     restoredSessionRef.current = hxSessionId;
     setSessionId(hxSessionId);
 
-    setSteps(prev => {
+    setSteps((prev) => {
       const restored = new Map(
-        hxSteps.map(r => [r.step_id, stepRecordToEntry(r, STEP_NAMES)])
+        hxSteps.map((r) => [r.step_id, stepRecordToEntry(r, STEP_NAMES)]),
       );
-      return prev.map(s => restored.get(s.step) ?? s);
+      return prev.map((s) => restored.get(s.step) ?? s);
     });
+
+    // Restore the design summary so DesignSummary renders after page refresh
+    setDesignResult(synthesizeDesignResult(hxSteps));
   }, [currentContext?.hx_session_id, currentContext?.hx_steps, isRunning]);
 
   // ── Reset ──────────────────────────────────────────────────────────────────
