@@ -33,7 +33,7 @@ function generateConversationId() {
   return `conv_${hex}`;
 }
 
-function ChatContainer({ onHXDesignStarted }) {
+function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onReportConsumed }) {
   const {
     conversationId,
     setConversationId,
@@ -43,6 +43,30 @@ function ChatContainer({ onHXDesignStarted }) {
     username,
   } = useChatContext();
   const [state, dispatch] = useChatState();
+
+  // ── Design report injection ────────────────────────────────────────────────
+  // pendingReport is set by ChatPage after polling the backend for the
+  // design_report message. We dispatch ADD_MESSAGE directly here because the
+  // normal LOAD_MESSAGES path is blocked by the isThinking guard (the chat
+  // SSE client's waitForCompletion timeout may still be pending).
+  useEffect(() => {
+    if (!pendingReport) return;
+    // Guard: don't add duplicate if already in messages
+    const alreadyShown = state.messages.some(
+      (m) => m.role === 'assistant' && m.content === pendingReport,
+    );
+    if (!alreadyShown) {
+      dispatch({
+        type: 'ADD_MESSAGE',
+        payload: {
+          role: 'assistant',
+          content: pendingReport,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+    onReportConsumed?.();
+  }, [pendingReport, dispatch, onReportConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
   const { scrollRef, bottomRef, showScrollButton, scrollToBottom } = useAutoScroll([
     state.messages,
     state.streamingMessage,
@@ -559,6 +583,7 @@ function ChatContainer({ onHXDesignStarted }) {
             onRetry={handleRetry}
             onEditMessage={handleEditMessage}
             editingMessageIndex={state.editingMessageIndex}
+            reportPending={reportPending}
             bottomRef={bottomRef}
           />
         )}

@@ -143,16 +143,25 @@ function makeInitialSteps() {
   }));
 }
 
-export function useHXStream({ conversationId, currentContext } = {}) {
+export function useHXStream({
+  conversationId,
+  currentContext,
+  onDesignComplete,
+} = {}) {
   const [steps, setSteps] = useState(makeInitialSteps);
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [designResult, setDesignResult] = useState(null);
   const [error, setError] = useState(null);
+  // True while waiting for the backend to persist the design report
+  const [reportPending, setReportPending] = useState(false);
   const eventSourceRef = useRef(null);
   // Track the hx_session_id we last restored so we don't re-apply on every render
   const restoredSessionRef = useRef(null);
+  // Stable ref for the callback so handleEvent doesn't re-create on every render
+  const onDesignCompleteRef = useRef(onDesignComplete);
+  onDesignCompleteRef.current = onDesignComplete;
 
   // ── Internal step updater ──────────────────────────────────────────────────
 
@@ -170,7 +179,11 @@ export function useHXStream({ conversationId, currentContext } = {}) {
         setDesignResult(data);
         setIsRunning(false);
         setCurrentStep(null);
+        setReportPending(true);
         eventSourceRef.current?.close();
+        // Notify parent so it can trigger a context re-fetch to pick up the
+        // backend-persisted design report.
+        onDesignCompleteRef.current?.();
         return;
       }
 
@@ -265,6 +278,7 @@ export function useHXStream({ conversationId, currentContext } = {}) {
       setSessionId(newSessionId ?? null);
       setDesignResult(null);
       setError(null);
+      setReportPending(false);
 
       // URL resolution:
       // - absolute URL (starts with http/https) → use as-is
@@ -407,7 +421,24 @@ export function useHXStream({ conversationId, currentContext } = {}) {
     setSessionId(null);
     setDesignResult(null);
     setError(null);
+    setReportPending(false);
   }, []);
+
+  // ── Clear reportPending when report arrives in context ─────────────────────
+  useEffect(() => {
+    if (!reportPending) return;
+    // Check both the dedicated field AND messages for the report
+    const hasReportField = !!currentContext?.hx_design_report;
+    const hasReportMessage = (currentContext?.messages || []).some(
+      (m) =>
+        m.role === "assistant" &&
+        (m.metadata?.type === "design_report" ||
+          m.content?.startsWith("### Design Complete")),
+    );
+    if (hasReportField || hasReportMessage) {
+      setReportPending(false);
+    }
+  }, [reportPending, currentContext]);
 
   return {
     steps,
@@ -416,6 +447,7 @@ export function useHXStream({ conversationId, currentContext } = {}) {
     sessionId,
     designResult,
     error,
+    reportPending,
     connectStream,
     reset,
     respondToEscalation,

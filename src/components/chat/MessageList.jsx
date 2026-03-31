@@ -26,6 +26,7 @@ export default function MessageList({
   onRetry,
   onEditMessage,
   editingMessageIndex = null,
+  reportPending = false,
   bottomRef,        // scroll anchor — provided by parent via useAutoScroll
 }) {
   // Show welcome screen if no messages
@@ -195,6 +196,18 @@ export default function MessageList({
                 <span className="inline-block w-1.5 h-4 ml-0.5 bg-blue-500 animate-pulse rounded-sm align-text-bottom" />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Design report pending indicator — shown while backend generates LLM report */}
+        {reportPending && !isThinking && !messages.some(
+          (m) => m.role === 'assistant' && (m.metadata?.type === 'design_report' || m.content?.startsWith('### Design Complete'))
+        ) && (
+          <div className="mt-2 mb-4 flex items-center gap-2 px-2 py-1.5 text-xs"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ backgroundColor: 'var(--color-accent, #3b82f6)' }} />
+            Generating design report…
           </div>
         )}
 
