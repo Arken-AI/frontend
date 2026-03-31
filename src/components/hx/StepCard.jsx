@@ -1,7 +1,7 @@
 /**
  * StepCard — one of the 16 steps in the HX design pipeline.
  *
- * States (§13.5):
+ * States:
  *   PENDING    — not started yet
  *   RUNNING    — executing (spinner + animated bar)
  *   APPROVED   — AI reviewed, no corrections needed
@@ -12,22 +12,16 @@
  *
  * Props:
  *   step       {number}  1–16
- *   name       {string}  e.g. "Fluid Properties"
- *   state      {string}  one of the states above
- *   elapsed    {number}  seconds (shown when state !== PENDING)
- *   data       {object}  state-specific payload — see below
- *     RUNNING:   { progress: 0–1 }                (optional)
- *     APPROVED:  { reasoning: string }             (collapsed by default)
- *     CORRECTED: { from: string, to: string, why: string, reasoning: string }
- *     WARNING:   { message: string, reasoning: string }
- *     ESCALATED: { question: string, onRespond: fn(answer) }
- *     ERROR:     { message: string, onRetry: fn }
- *   iteration  {object}  for Step 12 only — { current, total, deltaU, converged }
+ *   name       {string}
+ *   state      {string}
+ *   elapsed    {number}  seconds
+ *   data       {object}  state-specific payload
+ *   iteration  {object}  Step 12 only — { current, total, deltaU, converged }
  */
 
 import { useState, useEffect } from 'react';
 
-// ── State config ────────────────────────────────────────────────────────────
+// ── State config ─────────────────────────────────────────────────────────────
 
 const STATE_CONFIG = {
   PENDING: {
@@ -62,9 +56,9 @@ const STATE_CONFIG = {
     borderColor:    'var(--color-warning)',
   },
   ESCALATED: {
-    indicator: '?',
+    indicator: '△',
     indicatorColor: 'var(--color-escalated)',
-    headerColor:    'var(--color-text-primary)',
+    headerColor:    'var(--color-escalated)',
     borderColor:    'var(--color-escalated)',
   },
   ERROR: {
@@ -76,7 +70,61 @@ const STATE_CONFIG = {
   },
 };
 
-// ── Sub-components ───────────────────────────────────────────────────────────
+// ── Field metadata ────────────────────────────────────────────────────────────
+// Maps raw field names → { label?, unit } for display in the KV table.
+
+const FIELD_META = {
+  // Step outputs
+  Q_W:               { unit: 'W' },
+  T_hot_in_C:        { unit: '°C' },
+  T_hot_out_C:       { unit: '°C' },
+  T_cold_in_C:       { unit: '°C' },
+  T_cold_out_C:      { unit: '°C' },
+  m_dot_hot_kg_s:    { unit: 'kg/s' },
+  m_dot_cold_kg_s:   { unit: 'kg/s' },
+  T_mean_hot_C:      { unit: '°C' },
+  T_mean_cold_C:     { unit: '°C' },
+  LMTD_K:           { unit: 'K' },
+  F_factor:          { unit: '' },
+  U_W_m2K:          { unit: 'W/m²K' },
+  A_m2:             { unit: 'm²' },
+  P_hot_Pa:         { unit: 'Pa' },
+  P_cold_Pa:        { unit: 'Pa' },
+  R_f_hot_m2KW:     { unit: 'm²K/W' },
+  R_f_cold_m2KW:    { unit: 'm²K/W' },
+  tema_type:        { unit: '' },
+  tema_class:       { unit: '' },
+  tema_preference:  { unit: '' },
+  shell_side_fluid: { unit: '' },
+  // Fluid props (nested)
+  density_kg_m3:        { label: 'density',     unit: 'kg/m³' },
+  viscosity_Pa_s:       { label: 'viscosity',   unit: 'Pa·s' },
+  cp_J_kgK:            { label: 'cp',           unit: 'J/kg·K' },
+  k_W_mK:              { label: 'k',            unit: 'W/m·K' },
+  Pr:                  { label: 'Pr',           unit: '' },
+  property_source:     { label: 'source',       unit: '' },
+  property_confidence: { label: 'confidence',   unit: '' },
+  // Geometry (nested)
+  baffle_spacing_m:    { label: 'baffle_spacing',  unit: 'm' },
+  pitch_ratio:         { label: 'pitch_ratio',     unit: '' },
+  shell_diameter_m:    { label: 'shell_diameter',  unit: 'm' },
+  tube_od_m:           { label: 'tube_OD',         unit: 'm' },
+  tube_id_m:           { label: 'tube_ID',         unit: 'm' },
+  tube_length_m:       { label: 'tube_length',     unit: 'm' },
+  baffle_cut:          { label: 'baffle_cut',      unit: '' },
+  n_tubes:             { label: 'n_tubes',         unit: '' },
+  n_passes:            { label: 'n_passes',        unit: '' },
+  pitch_layout:        { label: 'pitch_layout',    unit: '' },
+  shell_passes:        { label: 'shell_passes',    unit: '' },
+};
+
+function formatNum(v) {
+  if (Number.isInteger(v)) return v.toLocaleString('en-US');
+  if (Math.abs(v) < 1e-5 && v !== 0) return v.toExponential(3);
+  return parseFloat(v.toPrecision(6)).toString();
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function AnimatedBar({ color }) {
   return (
@@ -85,7 +133,7 @@ function AnimatedBar({ color }) {
       style={{ backgroundColor: 'var(--color-border)' }}
     >
       <div
-        className="h-full progress-bar-active"
+        className="h-full"
         style={{
           width:           '40%',
           backgroundColor: color,
@@ -157,10 +205,7 @@ function IterationProgress({ iteration }) {
 
   if (converged) {
     return (
-      <div
-        className="mt-2 text-xs"
-        style={{ color: 'var(--color-approved)', fontFamily: 'var(--font-mono)' }}
-      >
+      <div className="mt-2 text-xs" style={{ color: 'var(--color-approved)', fontFamily: 'var(--font-mono)' }}>
         ✓ Converged in {current} iteration{current !== 1 ? 's' : ''}
       </div>
     );
@@ -172,13 +217,10 @@ function IterationProgress({ iteration }) {
         className="flex justify-between text-xs mb-1"
         style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-mono)' }}
       >
-        <span>Convergence iteration  {current} / {total}</span>
+        <span>Convergence iteration {current} / {total}</span>
         {deltaU != null && <span>ΔU = {deltaU.toFixed(1)}%  (target: &lt; 1%)</span>}
       </div>
-      <div
-        className="h-1 w-full rounded-sm overflow-hidden"
-        style={{ backgroundColor: 'var(--color-border)' }}
-      >
+      <div className="h-1 w-full rounded-sm overflow-hidden" style={{ backgroundColor: 'var(--color-border)' }}>
         <div
           className="h-full transition-all duration-300"
           style={{ width: `${pct * 100}%`, backgroundColor: 'var(--color-running)' }}
@@ -188,41 +230,239 @@ function IterationProgress({ iteration }) {
   );
 }
 
-// ── Outputs table ────────────────────────────────────────────────────────────
+// ── KV table (replaces raw OutputsTable) ─────────────────────────────────────
 
-function OutputsTable({ outputs }) {
-  if (!outputs || typeof outputs !== 'object') return null;
-  const entries = Object.entries(outputs).filter(([, v]) => v != null);
+function KVRow({ fieldKey, value }) {
+  const meta   = FIELD_META[fieldKey] || {};
+  const label  = meta.label ?? fieldKey;
+  const unit   = meta.unit ?? '';
+  const isNum  = typeof value === 'number';
+
+  return (
+    <tr>
+      <td
+        style={{
+          fontFamily:    'var(--font-mono)',
+          fontSize:      '11px',
+          color:         'var(--color-text-muted)',
+          paddingRight:  '16px',
+          paddingTop:    '2px',
+          paddingBottom: '2px',
+          whiteSpace:    'nowrap',
+          width:         '200px',
+          verticalAlign: 'top',
+        }}
+      >
+        {label}
+      </td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', paddingTop: '2px', paddingBottom: '2px' }}>
+        {isNum ? (
+          <span style={{ color: 'var(--color-corrected)' }}>
+            {formatNum(value)}
+            {unit && <span style={{ color: 'var(--color-text-muted)' }}> {unit}</span>}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--color-text-secondary)' }}>
+            {String(value)}
+            {unit && <span style={{ color: 'var(--color-text-muted)' }}> {unit}</span>}
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function FluidSection({ label, props }) {
+  if (!props || typeof props !== 'object') return null;
+  const entries = Object.entries(props).filter(([, v]) => v != null);
   if (entries.length === 0) return null;
 
   return (
+    <>
+      <tr>
+        <td
+          colSpan={2}
+          style={{
+            fontFamily:     'var(--font-mono)',
+            fontSize:       '10px',
+            color:          'var(--color-running)',
+            textTransform:  'uppercase',
+            letterSpacing:  '0.07em',
+            paddingTop:     '8px',
+            paddingBottom:  '3px',
+            borderTop:      '1px solid rgba(59,130,246,0.12)',
+          }}
+        >
+          {label}
+        </td>
+      </tr>
+      {entries.map(([k, v]) => <KVRow key={k} fieldKey={k} value={v} />)}
+    </>
+  );
+}
+
+function KVTable({ outputs }) {
+  if (!outputs || typeof outputs !== 'object') return null;
+
+  const hotName  = outputs.hot_fluid_name;
+  const coldName = outputs.cold_fluid_name;
+  const rows     = [];
+
+  for (const [key, value] of Object.entries(outputs)) {
+    if (value == null) continue;
+    // Skip fluid name fields — they appear in section headers
+    if (key === 'hot_fluid_name' || key === 'cold_fluid_name') continue;
+
+    if (key === 'hot_fluid_props' && typeof value === 'object') {
+      const sectionLabel = hotName
+        ? `HOT FLUID — ${hotName.replace(/_/g, ' ').toUpperCase()}`
+        : 'HOT FLUID';
+      rows.push(<FluidSection key={key} label={sectionLabel} props={value} />);
+    } else if (key === 'cold_fluid_props' && typeof value === 'object') {
+      const sectionLabel = coldName
+        ? `COLD FLUID — ${coldName.replace(/_/g, ' ').toUpperCase()}`
+        : 'COLD FLUID';
+      rows.push(<FluidSection key={key} label={sectionLabel} props={value} />);
+    } else if (key === 'geometry' && typeof value === 'object') {
+      rows.push(<FluidSection key={key} label="GEOMETRY" props={value} />);
+    } else if (typeof value !== 'object') {
+      rows.push(<KVRow key={key} fieldKey={key} value={value} />);
+    }
+    // Skip unknown nested objects
+  }
+
+  if (rows.length === 0) return null;
+
+  return (
     <div className="mt-2">
-      <table className="w-full text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
-        <tbody>
-          {entries.map(([key, value]) => (
-            <tr key={key}>
-              <td
-                className="pr-3 py-0.5 whitespace-nowrap"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
-                {key}
-              </td>
-              <td className="py-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                {typeof value === 'number'
-                  ? value.toPrecision(6)
-                  : typeof value === 'object'
-                    ? <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
-                    : String(value)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <tbody>{rows}</tbody>
       </table>
     </div>
   );
 }
 
-// ── Body by state ─────────────────────────────────────────────────────────────
+// ── Escalated body ────────────────────────────────────────────────────────────
+
+function EscalatedBody({ question, onRespond }) {
+  const [answer, setAnswer] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (answer.trim() && onRespond) onRespond(answer.trim());
+  };
+
+  // Split text into paragraphs; highlight the last sentence that ends with '?'
+  const raw = question || '';
+  const paragraphs = raw.split(/\n\n|\n/).filter(Boolean);
+  const lastPara   = paragraphs[paragraphs.length - 1] ?? '';
+  const isQuestion = lastPara.trim().endsWith('?');
+  const bodyParas  = isQuestion ? paragraphs.slice(0, -1) : paragraphs;
+  const questionPara = isQuestion ? lastPara : null;
+
+  return (
+    <div
+      style={{
+        margin:       '4px 0 8px',
+        border:       '1px solid var(--color-escalated)',
+        borderRadius: '3px',
+        background:   'var(--color-surface)',
+        boxShadow:    '0 0 0 1px rgba(249,115,22,0.08), 0 4px 20px rgba(249,115,22,0.1)',
+        overflow:     'hidden',
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      {/* Header */}
+      <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ color: 'var(--color-escalated)', fontSize: '14px' }}>△</span>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-escalated)' }}>
+          Engineering Decision Required
+        </span>
+      </div>
+      <div style={{ height: '1px', background: 'rgba(249,115,22,0.2)', margin: '0 14px' }} />
+
+      {/* Body */}
+      <div style={{ padding: '12px 14px 14px' }}>
+        {bodyParas.map((p, i) => (
+          <p
+            key={i}
+            style={{
+              fontSize:     '13px',
+              color:        'var(--color-text-primary)',
+              lineHeight:   1.65,
+              marginBottom: i < bodyParas.length - 1 ? '10px' : 0,
+            }}
+          >
+            {p}
+          </p>
+        ))}
+
+        {questionPara && (
+          <p
+            style={{
+              fontSize:   '13px',
+              fontWeight: 600,
+              color:      'var(--color-escalated)',
+              lineHeight: 1.55,
+              marginTop:  bodyParas.length > 0 ? '12px' : 0,
+              marginBottom: '12px',
+            }}
+          >
+            {questionPara}
+          </p>
+        )}
+
+        {/* Divider */}
+        <div style={{ height: '1px', background: 'var(--color-border)', marginBottom: '12px' }} />
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px' }}>
+          <input
+            type="text"
+            value={answer}
+            onChange={e => setAnswer(e.target.value)}
+            placeholder="e.g. proceed with AES floating head type"
+            aria-label={`Respond to escalation: ${question}`}
+            style={{
+              flex:         1,
+              background:   'var(--color-bg)',
+              border:       '1px solid var(--color-escalated)',
+              color:        'var(--color-text-primary)',
+              fontFamily:   'var(--font-mono)',
+              fontSize:     '12px',
+              padding:      '9px 12px',
+              borderRadius: '2px',
+              outline:      'none',
+            }}
+            onFocus={e  => e.currentTarget.style.boxShadow = '0 0 0 2px rgba(249,115,22,0.2)'}
+            onBlur={e   => e.currentTarget.style.boxShadow = 'none'}
+          />
+          <button
+            type="submit"
+            style={{
+              background:   'transparent',
+              border:       '1px solid var(--color-escalated)',
+              color:        'var(--color-escalated)',
+              fontFamily:   'var(--font-mono)',
+              fontSize:     '12px',
+              padding:      '9px 18px',
+              borderRadius: '2px',
+              cursor:       'pointer',
+              whiteSpace:   'nowrap',
+              transition:   'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            Submit Answer
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Card body by state ────────────────────────────────────────────────────────
 
 function CardBody({ state, data, iteration }) {
   if (state === 'PENDING') return null;
@@ -239,7 +479,7 @@ function CardBody({ state, data, iteration }) {
   if (state === 'APPROVED') {
     return (
       <>
-        <OutputsTable outputs={data?.outputs} />
+        <KVTable outputs={data?.outputs} />
         <Reasoning text={data?.reasoning} forceOpen={false} />
       </>
     );
@@ -250,10 +490,7 @@ function CardBody({ state, data, iteration }) {
     return (
       <div className="mt-2 space-y-1.5">
         {from && to && (
-          <div
-            className="text-xs"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
+          <div className="text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
             <span style={{ color: 'var(--color-text-muted)' }}>Changed </span>
             <span style={{ color: 'var(--color-error)' }}>{from}</span>
             <span style={{ color: 'var(--color-text-muted)' }}> → </span>
@@ -261,14 +498,9 @@ function CardBody({ state, data, iteration }) {
           </div>
         )}
         {why && (
-          <p
-            className="text-xs"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            {why}
-          </p>
+          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{why}</p>
         )}
-        <OutputsTable outputs={data?.outputs} />
+        <KVTable outputs={data?.outputs} />
         <Reasoning text={reasoning} forceOpen={false} />
       </div>
     );
@@ -281,7 +513,7 @@ function CardBody({ state, data, iteration }) {
         {message && (
           <p className="text-xs" style={{ color: 'var(--color-warning)' }}>{message}</p>
         )}
-        <OutputsTable outputs={data?.outputs} />
+        <KVTable outputs={data?.outputs} />
         <Reasoning text={reasoning} forceOpen={true} />
       </div>
     );
@@ -289,9 +521,7 @@ function CardBody({ state, data, iteration }) {
 
   if (state === 'ESCALATED') {
     const { question, onRespond } = data || {};
-    return (
-      <EscalatedBody question={question} onRespond={onRespond} />
-    );
+    return <EscalatedBody question={question} onRespond={onRespond} />;
   }
 
   if (state === 'ERROR') {
@@ -327,95 +557,40 @@ function CardBody({ state, data, iteration }) {
   return null;
 }
 
-function EscalatedBody({ question, onRespond }) {
-  const [answer, setAnswer] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (answer.trim() && onRespond) {
-      onRespond(answer.trim());
-    }
-  };
-
-  return (
-    <div className="mt-2 space-y-2" role="status" aria-live="polite">
-      {question && (
-        <p className="text-xs" style={{ color: 'var(--color-escalated)' }}>{question}</p>
-      )}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={answer}
-          onChange={e => setAnswer(e.target.value)}
-          placeholder="Your answer…"
-          aria-label={`Respond to escalation: ${question}`}
-          className="flex-1 text-xs px-2 py-1.5 border bg-transparent"
-          style={{
-            fontFamily:   'var(--font-mono)',
-            color:        'var(--color-text-primary)',
-            borderColor:  'var(--color-escalated)',
-            borderRadius: '2px',
-            outline:      'none',
-          }}
-          onFocus={e => e.currentTarget.style.borderColor = 'var(--color-escalated)'}
-        />
-        <button
-          type="submit"
-          className="text-xs px-3 py-1.5 border transition-colors"
-          style={{
-            fontFamily:      'var(--font-mono)',
-            color:           'var(--color-escalated)',
-            borderColor:     'var(--color-escalated)',
-            backgroundColor: 'transparent',
-            borderRadius:    '2px',
-          }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(249,115,22,0.08)'}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-        >
-          send
-        </button>
-      </form>
-    </div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function StepCard({ step, name, state = 'PENDING', elapsed, data, iteration }) {
-  const cfg = STATE_CONFIG[state] ?? STATE_CONFIG.PENDING;
-  const isPending = state === 'PENDING';
-  const isRunning = state === 'RUNNING';
+  const cfg        = STATE_CONFIG[state] ?? STATE_CONFIG.PENDING;
+  const isPending  = state === 'PENDING';
+  const isRunning  = state === 'RUNNING';
   const isEscalated = state === 'ESCALATED';
-  // Expand by default for RUNNING, ESCALATED, and ERROR; collapsed for completed
-  const [expanded, setExpanded] = useState(isRunning || isEscalated || state === 'ERROR');
-  const canToggle = !isPending && !isRunning;
+  const canToggle  = !isPending && !isRunning;
 
-  // Auto-expand when state changes to ESCALATED/ERROR, collapse when it settles to APPROVED/CORRECTED/WARNING
+  const [expanded, setExpanded] = useState(isRunning || isEscalated || state === 'ERROR');
+
   useEffect(() => {
     if (isEscalated || state === 'ERROR') {
       setExpanded(true);
-    } else if (isRunning) {
-      // Keep open while running — body handles animation
-    } else if (!isPending) {
+    } else if (!isPending && !isRunning) {
       setExpanded(false);
     }
   }, [state, isPending, isRunning, isEscalated]);
 
   return (
     <div
-      className="px-3 py-2.5 border-l-2 animate-step-in"
+      className="border-l-2 animate-step-in"
       style={{
         borderLeftColor:  cfg.borderColor,
         backgroundColor:  isPending ? 'transparent' : 'var(--color-surface)',
-        borderBottom:     `1px solid var(--color-border)`,
-        opacity:          isPending ? 0.45 : 1,
+        borderBottom:     '1px solid var(--color-border)',
+        opacity:          isPending ? 0.38 : 1,
       }}
       role="status"
       aria-live="polite"
     >
-      {/* Header row — clickable for completed steps */}
+      {/* Header row */}
       <div
-        className="flex items-center gap-2"
+        className="flex items-center gap-2 px-4 py-2.5"
         style={{ cursor: canToggle ? 'pointer' : 'default' }}
         onClick={() => canToggle && setExpanded(e => !e)}
       >
@@ -428,13 +603,15 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
           {cfg.indicator}
         </span>
 
-        {/* Step number + name */}
+        {/* Step number */}
         <span
           className="text-xs"
           style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', minWidth: '3rem' }}
         >
           Step {step}
         </span>
+
+        {/* Step name */}
         <span
           className="text-sm flex-1"
           style={{
@@ -446,8 +623,28 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
           {name}
         </span>
 
-        {/* Elapsed time + expand chevron */}
-        {!isPending && state !== 'RUNNING' && <Elapsed seconds={elapsed} />}
+        {/* Right side: AWAITING INPUT badge, elapsed, or live */}
+        {isEscalated && (
+          <span
+            className="text-xs flex items-center gap-1"
+            style={{ color: 'var(--color-escalated)', fontFamily: 'var(--font-mono)' }}
+          >
+            △ AWAITING INPUT
+          </span>
+        )}
+        {!isPending && !isRunning && !isEscalated && (
+          <Elapsed seconds={elapsed} />
+        )}
+        {isRunning && (
+          <span
+            className="text-xs ml-auto"
+            style={{ color: 'var(--color-running)', fontFamily: 'var(--font-mono)' }}
+          >
+            live
+          </span>
+        )}
+
+        {/* Expand chevron */}
         {canToggle && (
           <span
             className="text-xs flex-shrink-0"
@@ -457,19 +654,11 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
             {expanded ? '▾' : '▸'}
           </span>
         )}
-        {state === 'RUNNING' && (
-          <span
-            className="text-xs ml-auto"
-            style={{ color: 'var(--color-running)', fontFamily: 'var(--font-mono)' }}
-          >
-            live
-          </span>
-        )}
       </div>
 
-      {/* Body (state-specific) — shown when expanded or always for RUNNING/ESCALATED */}
+      {/* Body */}
       {(expanded || isRunning) && (
-        <div className="ml-6">
+        <div className={isEscalated ? 'px-4 pb-0' : 'ml-10 pr-4 pb-2'}>
           <CardBody state={state} data={data} iteration={iteration} />
         </div>
       )}

@@ -41,6 +41,49 @@ const AI_DECISION_MAP = {
 };
 
 /**
+ * Synthesize a design result from persisted step records.
+ * Called when restoring after page refresh — hx_steps are only persisted
+ * after is_complete=True, so this always represents a finished pipeline.
+ */
+function synthesizeDesignResult(hxSteps) {
+  // Merge all step outputs into one flat dict (later steps overwrite earlier)
+  const outputs = {};
+  for (const r of hxSteps) {
+    Object.assign(outputs, r.outputs || {});
+  }
+
+  // Approximate confidence from step AI decisions
+  const weights = {
+    PROCEED: 1, APPROVED: 1,
+    CORRECT: 0.7, CORRECTED: 0.7,
+    WARN: 0.5, WARNING: 0.5,
+    ESCALATE: 0.3, ESCALATED: 0.3,
+    ERROR: 0,
+  };
+  const scores = hxSteps.map(r => weights[r.ai_decision] ?? 0.8);
+  const confidence = scores.length > 0
+    ? scores.reduce((a, b) => a + b, 0) / scores.length
+    : 0.8;
+
+  return {
+    pipeline_status: 'completed',
+    confidence,
+    U_W_m2K:        outputs.U_W_m2K        ?? null,
+    A_m2:           outputs.A_m2           ?? null,
+    Q_W:            outputs.Q_W            ?? null,
+    LMTD_K:         outputs.LMTD_K         ?? null,
+    tema_type:       outputs.tema_type       ?? null,
+    overdesign_pct:  outputs.overdesign_pct  ?? null,
+    dP_shell:        outputs.dP_shell        ?? null,
+    dP_tube:         outputs.dP_tube         ?? null,
+    dP_shell_limit:  outputs.dP_shell_limit  ?? null,
+    dP_tube_limit:   outputs.dP_tube_limit   ?? null,
+    cost_usd:        outputs.cost_usd        ?? null,
+    vibration_safe:  outputs.vibration_safe  ?? null,
+  };
+}
+
+/**
  * Convert a persisted StepRecord (from MongoDB via /context) into the shape
  * useHXStream uses for each step entry.
  *
@@ -258,9 +301,17 @@ export function useHXStream({ conversationId, currentContext } = {}) {
     }
   }, [sessionId]);
 
-  // ── Clear steps when conversation changes to null (New Chat) ──────────────
+  // ── Reset on conversation change ───────────────────────────────────────────
+  // Always clear the restore guard so the next context load re-applies the
+  // correct session's steps. Without this, switching A→B→A would leave
+  // restoredSessionRef pointing at A's session from a previous restore,
+  // making the restore effect bail out on the return visit to A.
 
   useEffect(() => {
+    // Clear the restore guard unconditionally so the restore effect always
+    // runs fresh for whatever context the new conversation provides.
+    restoredSessionRef.current = null;
+
     if (!conversationId) {
       eventSourceRef.current?.close();
       setSteps(makeInitialSteps());
@@ -269,7 +320,11 @@ export function useHXStream({ conversationId, currentContext } = {}) {
       setSessionId(null);
       setDesignResult(null);
       setError(null);
-      restoredSessionRef.current = null;
+    } else {
+      // Switching to a different conversation: reset steps immediately so the
+      // panel shows the pending/loading state while context fetches, rather than
+      // showing stale data from the previous conversation's live SSE stream.
+      setSteps(makeInitialSteps());
     }
   }, [conversationId]);
 

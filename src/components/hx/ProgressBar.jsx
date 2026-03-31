@@ -1,50 +1,67 @@
 /**
- * ProgressBar — slim bar visible while a design is running (§13.2).
- * Disappears when all 16 steps complete.
+ * ProgressBar — 3px fill bar + step label, visible while pipeline is running.
  *
  * Props:
  *   currentStep  {number}  1–16
  *   totalSteps   {number}  default 16
  *   stepName     {string}  current step description
- *   estSeconds   {number}  remaining seconds estimate (optional)
+ *   isEscalated  {boolean} show ⚠ awaiting input badge instead of ● live
  */
 
-export default function ProgressBar({ currentStep, totalSteps = 16, stepName, estSeconds }) {
+export default function ProgressBar({
+  currentStep,
+  totalSteps = 16,
+  stepName,
+  isEscalated = false,
+}) {
   const pct = Math.round((currentStep / totalSteps) * 100);
 
   return (
-    <div
-      className="px-4 py-2.5 border-b"
-      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-    >
-      {/* Label row */}
-      <div
-        className="flex justify-between text-xs mb-1.5"
-        style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}
-      >
-        <span>
-          Step {currentStep} / {totalSteps}
-          {stepName ? ` — ${stepName}` : ''}
-        </span>
-        <span style={{ color: 'var(--color-text-muted)' }}>
-          {pct}%{estSeconds != null ? `  est. ~${Math.round(estSeconds)}s` : ''}
-        </span>
-      </div>
-
-      {/* Bar track */}
-      <div
-        className="h-1 w-full rounded-sm overflow-hidden"
-        style={{ backgroundColor: 'var(--color-border)' }}
-      >
-        {/* Filled portion */}
+    <>
+      {/* Slim fill bar */}
+      <div style={{ height: '3px', background: 'var(--color-border)', flexShrink: 0 }}>
         <div
-          className="h-full transition-all duration-500 ease-out progress-bar-active"
+          className="transition-all duration-500 ease-out"
           style={{
+            height:          '100%',
             width:           `${pct}%`,
-            backgroundColor: 'var(--color-running)',
+            backgroundColor: isEscalated ? 'var(--color-escalated)' : 'var(--color-running)',
           }}
         />
       </div>
-    </div>
+
+      {/* Label row */}
+      <div
+        className="flex items-center gap-2 px-4"
+        style={{
+          height:          '32px',
+          borderBottom:    '1px solid var(--color-border)',
+          fontFamily:      'var(--font-mono)',
+          fontSize:        '11px',
+          flexShrink:      0,
+        }}
+      >
+        <span style={{ color: 'var(--color-text-primary)' }}>
+          Step {currentStep} / {totalSteps}
+        </span>
+        {stepName && (
+          <span style={{ color: 'var(--color-text-muted)' }}>
+            — {stepName}
+          </span>
+        )}
+
+        <span style={{ flex: 1 }} />
+
+        {isEscalated ? (
+          <span style={{ color: 'var(--color-escalated)' }}>⚠ awaiting input</span>
+        ) : (
+          <span
+            style={{ color: 'var(--color-running)', animation: 'pulse 1.5s ease-in-out infinite' }}
+          >
+            ● live
+          </span>
+        )}
+      </div>
+    </>
   );
 }

@@ -29,6 +29,118 @@ export const STEP_NAMES = [
   'Final Design Validation',
 ];
 
+// ── ResultsHeader ─────────────────────────────────────────────────────────────
+
+/**
+ * Scan completed steps for a specific output field.
+ * Returns the first numeric value found, or null.
+ */
+function findOutput(steps, field) {
+  if (!steps) return null;
+  for (const s of steps) {
+    if (!s.data?.outputs) continue;
+    const v = s.data.outputs[field];
+    if (v != null && typeof v === 'number') return v;
+  }
+  return null;
+}
+
+function ResultsCard({ label, value, unit, accent }) {
+  const accentColor = accent === 'amber' ? 'var(--color-corrected)' : 'var(--color-running)';
+  return (
+    <div
+      style={{
+        flex:         1,
+        padding:      '8px 12px',
+        borderRight:  '1px solid var(--color-border)',
+        minWidth:     0,
+      }}
+    >
+      <div
+        style={{
+          fontFamily:    'var(--font-mono)',
+          fontSize:      '9px',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color:         'var(--color-text-muted)',
+          marginBottom:  '4px',
+        }}
+      >
+        {label}
+      </div>
+      {value != null ? (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize:   '15px',
+              fontWeight: 600,
+              color:      accentColor,
+            }}
+          >
+            {value}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize:   '9px',
+              color:      'var(--color-text-muted)',
+            }}
+          >
+            {unit}
+          </span>
+        </div>
+      ) : (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize:   '13px',
+            color:      'var(--color-text-muted)',
+          }}
+        >
+          —
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ResultsHeader({ steps }) {
+  const qRaw   = findOutput(steps, 'Q_W');
+  const lmtd   = findOutput(steps, 'LMTD_K');
+  const uVal   = findOutput(steps, 'U_W_m2K') ?? findOutput(steps, 'U_overall');
+  const aVal   = findOutput(steps, 'A_m2')    ?? findOutput(steps, 'area_required');
+
+  const qKw = qRaw != null ? (qRaw / 1000).toFixed(1) : null;
+  const lmtdFmt = lmtd != null ? lmtd.toFixed(1) : null;
+  const uFmt    = uVal != null ? Math.round(uVal) : null;
+  const aFmt    = aVal != null ? aVal.toFixed(1)  : null;
+
+  return (
+    <div
+      style={{
+        display:         'flex',
+        borderBottom:    '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-surface)',
+        flexShrink:      0,
+      }}
+    >
+      <ResultsCard label="Heat Duty"  value={qKw}   unit="kW"     accent="amber" />
+      <ResultsCard label="LMTD"       value={lmtdFmt} unit="K"    accent="blue"  />
+      <ResultsCard label="Overall U"  value={uFmt}  unit="W/m²K"  accent="amber" />
+      <ResultsCard
+        label="Area"
+        value={aFmt}
+        unit="m²"
+        accent="blue"
+        style={{ borderRight: 'none' }}
+      />
+    </div>
+  );
+}
+
+// ── HXPanel ───────────────────────────────────────────────────────────────────
+
 /**
  * Props:
  *   steps       {Array}   from useHXStream
@@ -57,6 +169,7 @@ export default function HXPanel({
     return provided ?? { step: stepNum, name, state: 'PENDING' };
   });
 
+  const isEscalated = extSteps?.some(s => s.state === 'ESCALATED') ?? false;
   const showProgress = isRunning && currentStep != null;
   const showSummary  = !!design;
   const showIdle     = !hasData;
@@ -69,7 +182,13 @@ export default function HXPanel({
           currentStep={currentStep}
           totalSteps={16}
           stepName={STEP_NAMES[currentStep - 1]}
+          isEscalated={isEscalated}
         />
+      )}
+
+      {/* Results header — shown when any step has outputs */}
+      {hasData && (
+        <ResultsHeader steps={extSteps} />
       )}
 
       {/* Scrollable body */}
