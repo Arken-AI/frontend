@@ -176,6 +176,7 @@ export function useHXStream({
   const handleEvent = useCallback(
     (eventType, data) => {
       if (eventType === HX_EVENT_TYPES.DESIGN_COMPLETE) {
+        console.log("[useHXStream] DESIGN_COMPLETE received");
         setDesignResult(data);
         setIsRunning(false);
         setCurrentStep(null);
@@ -183,6 +184,10 @@ export function useHXStream({
         eventSourceRef.current?.close();
         // Notify parent so it can trigger a context re-fetch to pick up the
         // backend-persisted design report.
+        console.log(
+          "[useHXStream] calling onDesignComplete ref:",
+          !!onDesignCompleteRef.current,
+        );
         onDesignCompleteRef.current?.();
         return;
       }
@@ -223,11 +228,13 @@ export function useHXStream({
       let patchData = { ...data };
 
       if (newState === "ESCALATED") {
-        // StepEscalatedEvent: { message, options }
-        // StepCard's EscalatedBody reads data.question (not data.message).
+        // StepEscalatedEvent: { message, options, recommendation }
+        // ActionableDecisionBody reads data.question, data.options, data.recommendation.
         if (patchData.message && !patchData.question) {
           patchData.question = patchData.message;
         }
+        patchData.options = data.options || [];
+        patchData.recommendation = data.recommendation || null;
       } else if (newState === "CORRECTED") {
         // StepCorrectedEvent.correction is a dict: { fieldName: { old, new }, ... }
         // e.g. { "tube_diameter": { "old": 0.025, "new": 0.020 } }
@@ -242,10 +249,13 @@ export function useHXStream({
         patchData.why = data.reasoning || "";
       } else if (newState === "WARNING") {
         // StepWarningEvent fields: warning_message (short), reasoning (full AI text),
-        // user_summary, outputs.  StepCard reads data.message + data.reasoning.
+        // user_summary, outputs, options, recommendation.
+        // StepCard reads data.message + data.reasoning + data.options + data.recommendation.
         patchData.message = data.warning_message || data.user_summary || "";
         patchData.reasoning = data.reasoning || "";
         patchData.outputs = data.outputs || {};
+        patchData.options = data.options || [];
+        patchData.recommendation = data.recommendation || null;
       }
 
       // Ensure reasoning + outputs are always available for CardBody

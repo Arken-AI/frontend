@@ -344,16 +344,25 @@ function KVTable({ outputs }) {
 
 // ── Escalated body ────────────────────────────────────────────────────────────
 
-function EscalatedBody({ question, onRespond }) {
+function ActionableDecisionBody({ variant = 'escalated', options = [], recommendation, message, onRespond, onChatMessage, step }) {
   const [answer, setAnswer] = useState('');
+  const isEscalated = variant === 'escalated';
+  const color = isEscalated ? 'var(--color-escalated)' : 'var(--color-warning)';
+  const label = isEscalated ? 'Engineering Decision Required' : 'Action Recommended';
+  const indicator = isEscalated ? '△' : '⚠';
+  const glowRgb = isEscalated ? '249,115,22' : '234,179,8';
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (answer.trim() && onRespond) onRespond(answer.trim());
   };
 
+  const handleOptionClick = (opt) => {
+    if (onRespond) onRespond(opt);
+  };
+
   // Split text into paragraphs; highlight the last sentence that ends with '?'
-  const raw = question || '';
+  const raw = message || '';
   const paragraphs = raw.split(/\n\n|\n/).filter(Boolean);
   const lastPara   = paragraphs[paragraphs.length - 1] ?? '';
   const isQuestion = lastPara.trim().endsWith('?');
@@ -364,10 +373,10 @@ function EscalatedBody({ question, onRespond }) {
     <div
       style={{
         margin:       '4px 0 8px',
-        border:       '1px solid var(--color-escalated)',
+        border:       `1px solid ${color}`,
         borderRadius: '3px',
         background:   'var(--color-surface)',
-        boxShadow:    '0 0 0 1px rgba(249,115,22,0.08), 0 4px 20px rgba(249,115,22,0.1)',
+        boxShadow:    `0 0 0 1px rgba(${glowRgb},0.08), 0 4px 20px rgba(${glowRgb},0.1)`,
         overflow:     'hidden',
       }}
       role="status"
@@ -375,12 +384,12 @@ function EscalatedBody({ question, onRespond }) {
     >
       {/* Header */}
       <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ color: 'var(--color-escalated)', fontSize: '14px' }}>△</span>
-        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-escalated)' }}>
-          Engineering Decision Required
+        <span style={{ color, fontSize: '14px' }}>{indicator}</span>
+        <span style={{ fontSize: '14px', fontWeight: 700, color }}>
+          {label}
         </span>
       </div>
-      <div style={{ height: '1px', background: 'rgba(249,115,22,0.2)', margin: '0 14px' }} />
+      <div style={{ height: '1px', background: `rgba(${glowRgb},0.2)`, margin: '0 14px' }} />
 
       {/* Body */}
       <div style={{ padding: '12px 14px 14px' }}>
@@ -403,7 +412,7 @@ function EscalatedBody({ question, onRespond }) {
             style={{
               fontSize:   '13px',
               fontWeight: 600,
-              color:      'var(--color-escalated)',
+              color,
               lineHeight: 1.55,
               marginTop:  bodyParas.length > 0 ? '12px' : 0,
               marginBottom: '12px',
@@ -416,17 +425,64 @@ function EscalatedBody({ question, onRespond }) {
         {/* Divider */}
         <div style={{ height: '1px', background: 'var(--color-border)', marginBottom: '12px' }} />
 
+        {/* Option buttons */}
+        {options?.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+            {options.map((opt, i) => {
+              const isRec = opt === recommendation;
+              const letter = String.fromCharCode(65 + i); // A, B, C...
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleOptionClick(opt)}
+                  style={{
+                    display:        'flex',
+                    alignItems:     'center',
+                    gap:            '8px',
+                    background:     'transparent',
+                    border:         `1px solid ${isRec ? color : 'var(--color-border)'}`,
+                    color:          isRec ? color : 'var(--color-text-primary)',
+                    fontFamily:     'var(--font-mono)',
+                    fontSize:       '12px',
+                    padding:        '8px 12px',
+                    borderRadius:   '2px',
+                    cursor:         'pointer',
+                    textAlign:      'left',
+                    transition:     'background 0.15s, border-color 0.15s',
+                    fontWeight:     isRec ? 600 : 400,
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = `rgba(${glowRgb},0.08)`;
+                    e.currentTarget.style.borderColor = color;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.borderColor = isRec ? color : 'var(--color-border)';
+                  }}
+                >
+                  <span style={{ color: 'var(--color-text-muted)', minWidth: '16px' }}>{letter})</span>
+                  <span>{opt}</span>
+                  {isRec && (
+                    <span style={{ color, fontSize: '10px', marginLeft: 'auto' }}>(recommended)</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Free text input */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px' }}>
           <input
             type="text"
             value={answer}
             onChange={e => setAnswer(e.target.value)}
-            placeholder="e.g. proceed with AES floating head type"
-            aria-label={`Respond to escalation: ${question}`}
+            placeholder={isEscalated ? 'e.g. proceed with AES floating head type' : 'type your own override...'}
+            aria-label={`Respond to ${variant}: ${message}`}
             style={{
               flex:         1,
               background:   'var(--color-bg)',
-              border:       '1px solid var(--color-escalated)',
+              border:       `1px solid ${color}`,
               color:        'var(--color-text-primary)',
               fontFamily:   'var(--font-mono)',
               fontSize:     '12px',
@@ -434,15 +490,15 @@ function EscalatedBody({ question, onRespond }) {
               borderRadius: '2px',
               outline:      'none',
             }}
-            onFocus={e  => e.currentTarget.style.boxShadow = '0 0 0 2px rgba(249,115,22,0.2)'}
+            onFocus={e  => e.currentTarget.style.boxShadow = `0 0 0 2px rgba(${glowRgb},0.2)`}
             onBlur={e   => e.currentTarget.style.boxShadow = 'none'}
           />
           <button
             type="submit"
             style={{
               background:   'transparent',
-              border:       '1px solid var(--color-escalated)',
-              color:        'var(--color-escalated)',
+              border:       `1px solid ${color}`,
+              color,
               fontFamily:   'var(--font-mono)',
               fontSize:     '12px',
               padding:      '9px 18px',
@@ -451,12 +507,36 @@ function EscalatedBody({ question, onRespond }) {
               whiteSpace:   'nowrap',
               transition:   'background 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+            onMouseEnter={e => e.currentTarget.style.background = `rgba(${glowRgb},0.1)`}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            Submit Answer
+            Submit
           </button>
         </form>
+
+        {/* Explain tradeoffs in chat button */}
+        {onChatMessage && (
+          <button
+            onClick={() => onChatMessage(`Explain the tradeoffs for Step ${step}: ${raw}`)}
+            style={{
+              display:      'flex',
+              alignItems:   'center',
+              gap:          '6px',
+              background:   'transparent',
+              border:       'none',
+              color:        'var(--color-text-muted)',
+              fontFamily:   'var(--font-mono)',
+              fontSize:     '11px',
+              padding:      '8px 0 0',
+              cursor:       'pointer',
+              transition:   'color 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = color}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+          >
+            💬 Explain tradeoffs in chat
+          </button>
+        )}
       </div>
     </div>
   );
@@ -464,7 +544,7 @@ function EscalatedBody({ question, onRespond }) {
 
 // ── Card body by state ────────────────────────────────────────────────────────
 
-function CardBody({ state, data, iteration }) {
+function CardBody({ state, data, iteration, step, onChatMessage }) {
   if (state === 'PENDING') return null;
 
   if (state === 'RUNNING') {
@@ -507,7 +587,25 @@ function CardBody({ state, data, iteration }) {
   }
 
   if (state === 'WARNING') {
-    const { message, reasoning } = data || {};
+    const { message, reasoning, options, recommendation, onRespond } = data || {};
+    // Actionable WARNING — has options for the user to pick from
+    if (options?.length > 0 && onRespond) {
+      return (
+        <div className="mt-2 space-y-1">
+          <ActionableDecisionBody
+            variant="warning"
+            options={options}
+            recommendation={recommendation}
+            message={message || reasoning}
+            onRespond={onRespond}
+            onChatMessage={onChatMessage}
+            step={step}
+          />
+          <KVTable outputs={data?.outputs} />
+        </div>
+      );
+    }
+    // Informational WARNING — no options, passive text only
     return (
       <div className="mt-2 space-y-1">
         {message && (
@@ -520,8 +618,18 @@ function CardBody({ state, data, iteration }) {
   }
 
   if (state === 'ESCALATED') {
-    const { question, onRespond } = data || {};
-    return <EscalatedBody question={question} onRespond={onRespond} />;
+    const { question, options, recommendation, onRespond } = data || {};
+    return (
+      <ActionableDecisionBody
+        variant="escalated"
+        options={options || []}
+        recommendation={recommendation}
+        message={question}
+        onRespond={onRespond}
+        onChatMessage={onChatMessage}
+        step={step}
+      />
+    );
   }
 
   if (state === 'ERROR') {
@@ -559,22 +667,23 @@ function CardBody({ state, data, iteration }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function StepCard({ step, name, state = 'PENDING', elapsed, data, iteration }) {
+export default function StepCard({ step, name, state = 'PENDING', elapsed, data, iteration, onChatMessage }) {
   const cfg        = STATE_CONFIG[state] ?? STATE_CONFIG.PENDING;
   const isPending  = state === 'PENDING';
   const isRunning  = state === 'RUNNING';
   const isEscalated = state === 'ESCALATED';
+  const isActionableWarning = state === 'WARNING' && data?.options?.length > 0;
   const canToggle  = !isPending && !isRunning;
 
-  const [expanded, setExpanded] = useState(isRunning || isEscalated || state === 'ERROR');
+  const [expanded, setExpanded] = useState(isRunning || isEscalated || isActionableWarning || state === 'ERROR');
 
   useEffect(() => {
-    if (isEscalated || state === 'ERROR') {
+    if (isEscalated || isActionableWarning || state === 'ERROR') {
       setExpanded(true);
     } else if (!isPending && !isRunning) {
       setExpanded(false);
     }
-  }, [state, isPending, isRunning, isEscalated]);
+  }, [state, isPending, isRunning, isEscalated, isActionableWarning]);
 
   return (
     <div
@@ -632,7 +741,15 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
             △ AWAITING INPUT
           </span>
         )}
-        {!isPending && !isRunning && !isEscalated && (
+        {isActionableWarning && (
+          <span
+            className="text-xs flex items-center gap-1"
+            style={{ color: 'var(--color-warning)', fontFamily: 'var(--font-mono)' }}
+          >
+            ⚠ ACTION RECOMMENDED
+          </span>
+        )}
+        {!isPending && !isRunning && !isEscalated && !isActionableWarning && (
           <Elapsed seconds={elapsed} />
         )}
         {isRunning && (
@@ -658,8 +775,8 @@ export default function StepCard({ step, name, state = 'PENDING', elapsed, data,
 
       {/* Body */}
       {(expanded || isRunning) && (
-        <div className={isEscalated ? 'px-4 pb-0' : 'ml-10 pr-4 pb-2'}>
-          <CardBody state={state} data={data} iteration={iteration} />
+        <div className={isEscalated || isActionableWarning ? 'px-4 pb-0' : 'ml-10 pr-4 pb-2'}>
+          <CardBody state={state} data={data} iteration={iteration} step={step} onChatMessage={onChatMessage} />
         </div>
       )}
     </div>

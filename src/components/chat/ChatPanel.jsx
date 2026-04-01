@@ -8,13 +8,14 @@
 
 import ChatContainer from './ChatContainer';
 
-export default function ChatPanel({ onHXDesignStarted, reportPending, pendingReport, onReportConsumed }) {
+export default function ChatPanel({ onHXDesignStarted, reportPending, pendingReport, onReportConsumed, sendMessageRef }) {
   return (
     <ChatContainer
       onHXDesignStarted={onHXDesignStarted}
       reportPending={reportPending}
       pendingReport={pendingReport}
       onReportConsumed={onReportConsumed}
+      sendMessageRef={sendMessageRef}
     />
   );
 }

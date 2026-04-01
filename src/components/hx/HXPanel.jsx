@@ -150,6 +150,7 @@ function ResultsHeader({ steps }) {
  *   sessionId   {string|null}
  *   onOptimize  {fn}
  *   onRespond   {fn(sessionId, answer)} — for ESCALATED step inline response
+ *   onChatMessage {fn(text)} — for “Explain tradeoffs” button on ESCALATED/WARNING cards
  */
 export default function HXPanel({
   steps: extSteps,
@@ -159,6 +160,7 @@ export default function HXPanel({
   sessionId,
   onOptimize,
   onRespond,
+  onChatMessage,
 }) {
   const hasData = (extSteps && extSteps.length > 0) || isRunning || !!design;
 
@@ -231,9 +233,15 @@ export default function HXPanel({
                         ...s.data,
                         onRespond: (answer) => onRespond(sessionId, answer),
                       }
+                    : s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
+                    ? {
+                        ...s.data,
+                        onRespond: (answer) => onRespond(sessionId, answer),
+                      }
                     : s.data
                 }
                 iteration={s.iteration}
+                onChatMessage={onChatMessage}
               />
             ))}
           </>

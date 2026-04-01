@@ -33,7 +33,7 @@ function generateConversationId() {
   return `conv_${hex}`;
 }
 
-function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onReportConsumed }) {
+function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onReportConsumed, sendMessageRef }) {
   const {
     conversationId,
     setConversationId,
@@ -50,12 +50,15 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // normal LOAD_MESSAGES path is blocked by the isThinking guard (the chat
   // SSE client's waitForCompletion timeout may still be pending).
   useEffect(() => {
+    console.log('[ChatContainer] pendingReport effect, pendingReport:', pendingReport ? pendingReport.substring(0, 60) + '...' : null);
     if (!pendingReport) return;
     // Guard: don't add duplicate if already in messages
     const alreadyShown = state.messages.some(
       (m) => m.role === 'assistant' && m.content === pendingReport,
     );
+    console.log('[ChatContainer] alreadyShown:', alreadyShown, 'messages count:', state.messages.length);
     if (!alreadyShown) {
+      console.log('[ChatContainer] dispatching ADD_MESSAGE for design report');
       dispatch({
         type: 'ADD_MESSAGE',
         payload: {
@@ -557,6 +560,14 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
 
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
+
+  // Expose handleSendMessage to parent via ref for cross-panel communication
+  // (e.g. "Explain tradeoffs" button in HXPanel sends a chat message)
+  useEffect(() => {
+    if (sendMessageRef) {
+      sendMessageRef.current = handleSendMessage;
+    }
+  }, [handleSendMessage, sendMessageRef]);
 
   // Is request currently processing?
   const isProcessing = state.isThinking;
