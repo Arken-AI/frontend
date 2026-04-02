@@ -48,8 +48,10 @@ export default function ChatPage() {
         const ctx = await getContext(conversationId);
         const msgs = ctx?.messages || [];
         console.log('[ChatPage] got', msgs.length, 'messages. Last 3:', msgs.slice(-3).map(m => ({ role: m.role, metaType: m.metadata?.type, contentStart: m.content?.substring(0, 50) })));
-        // Find the design report message in the messages array
-        const reportMsg = msgs.find(
+        // Find the MOST RECENT design report message.
+        // Using findLast so a second run in the same conversation returns the
+        // new report, not the first-run report already in state.messages.
+        const reportMsg = [...msgs].reverse().find(
           (m) =>
             m.role === 'assistant' &&
             (m.metadata?.type === 'design_report' ||

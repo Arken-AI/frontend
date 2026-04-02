@@ -228,12 +228,17 @@ export default function HXPanel({
                 state={s.state}
                 elapsed={s.elapsed}
                 data={
-                  s.state === 'ESCALATED' && onRespond
+                  // Only wire onRespond while the pipeline is actively running.
+                  // Once DESIGN_COMPLETE fires (isRunning=false), steps that are
+                  // still in ESCALATED or WARNING state must not show interactive
+                  // buttons — the pipeline is done and the HX Engine won't process
+                  // any more responses.
+                  isRunning && s.state === 'ESCALATED' && onRespond
                     ? {
                         ...s.data,
                         onRespond: (answer) => onRespond(sessionId, answer),
                       }
-                    : s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
+                    : isRunning && s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
                     ? {
                         ...s.data,
                         onRespond: (answer) => onRespond(sessionId, answer),
