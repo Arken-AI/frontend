@@ -261,9 +261,11 @@ export function useHXStream({
           const [field, vals] = entries[0];
           patchData.from = `${field}: ${vals.old ?? ""}`;
           patchData.to = `${field}: ${vals.new ?? ""}`;
+          // why is the short per-correction reason (same as the restore path uses
+          // first.reason), NOT the full reasoning string — that's already shown
+          // in the collapsible <Reasoning> block and would duplicate otherwise.
+          patchData.why = vals.why || vals.reason || data.why || "";
         }
-        // why comes from the AI's reasoning
-        patchData.why = data.reasoning || "";
       } else if (newState === "WARNING") {
         // StepWarningEvent fields: warning_message (short), reasoning (full AI text),
         // user_summary, outputs, options, recommendation.

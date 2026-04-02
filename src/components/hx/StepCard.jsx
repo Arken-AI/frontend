@@ -651,8 +651,12 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
 
   if (state === 'ESCALATED') {
     const { question, options, option_ratings, recommendation, onRespond } = data || {};
+    // key on the options content so a fresh escalation (different options) always
+    // mounts a new ActionableDecisionBody with submitted=false.
+    const bodyKey = (options || []).join('|') || 'escalated';
     return (
       <ActionableDecisionBody
+        key={bodyKey}
         variant="escalated"
         options={options || []}
         option_ratings={option_ratings || []}
