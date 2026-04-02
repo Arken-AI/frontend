@@ -120,6 +120,19 @@ function stepRecordToEntry(record, stepNames) {
       aiReview.observation ||
       record.warnings?.[0] ||
       "";
+    data.options = aiReview.options || [];
+    data.option_ratings = aiReview.option_ratings || [];
+    data.recommendation = aiReview.recommendation || null;
+  }
+
+  if (state === "ESCALATED") {
+    // Reconstruct the full escalation payload from the persisted ai_review.
+    // ActionableDecisionBody reads data.question, data.options, data.option_ratings,
+    // data.recommendation — all come from the ai_review stored in the StepRecord.
+    data.question = aiReview.reasoning || aiReview.observation || "";
+    data.options = aiReview.options || [];
+    data.option_ratings = aiReview.option_ratings || [];
+    data.recommendation = aiReview.recommendation || null;
   }
 
   return {
@@ -150,6 +163,7 @@ export function useHXStream({
 } = {}) {
   const [steps, setSteps] = useState(makeInitialSteps);
   const [isRunning, setIsRunning] = useState(false);
+  const [waitingForUser, setWaitingForUser] = useState(false);
   const [currentStep, setCurrentStep] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [designResult, setDesignResult] = useState(null);
@@ -179,6 +193,7 @@ export function useHXStream({
         console.log("[useHXStream] DESIGN_COMPLETE received");
         setDesignResult(data);
         setIsRunning(false);
+        setWaitingForUser(false);
         setCurrentStep(null);
         setReportPending(true);
         eventSourceRef.current?.close();
@@ -216,6 +231,7 @@ export function useHXStream({
 
       if (newState === "RUNNING") {
         setCurrentStep(stepId);
+        setWaitingForUser(false); // pipeline resumed — no longer waiting
         updateStep(stepId, { state: "RUNNING", elapsed: null, data: null });
         return;
       }
@@ -266,6 +282,14 @@ export function useHXStream({
       }
       if (!patchData.outputs && data.outputs) {
         patchData.outputs = data.outputs;
+      }
+
+      // Mark pipeline as waiting for user input on actionable ESCALATED/WARNING
+      if (
+        newState === "ESCALATED" ||
+        (newState === "WARNING" && patchData.options?.length > 0)
+      ) {
+        setWaitingForUser(true);
       }
 
       setCurrentStep((prev) => (prev === stepId ? null : prev));
@@ -322,11 +346,67 @@ export function useHXStream({
     [handleEvent],
   );
 
+  /**
+   * Re-open the SSE stream after a page refresh WITHOUT resetting the already-
+   * restored step list.  Used only in the restore effect when the pipeline was
+   * paused waiting for user input.
+   */
+  const reconnectStream = useCallback(
+    (hxSessionId) => {
+      eventSourceRef.current?.close();
+
+      const streamPath = `/api/v1/hx/design/${hxSessionId}/stream`;
+      const fullUrl = `${HX_ENGINE_BASE}${streamPath}`;
+      console.log("[RECONNECT] Opening SSE at:", fullUrl);
+
+      const es = new EventSource(fullUrl);
+      eventSourceRef.current = es;
+
+      es.onopen = () => {
+        console.log("[RECONNECT] SSE connection opened successfully");
+      };
+
+      Object.values(HX_EVENT_TYPES).forEach((eventType) => {
+        es.addEventListener(eventType, (e) => {
+          console.log(
+            "[RECONNECT] SSE event received:",
+            eventType,
+            e.data?.slice?.(0, 120),
+          );
+          try {
+            handleEvent(eventType, JSON.parse(e.data));
+          } catch (err) {
+            console.error("[useHXStream] Failed to parse SSE event:", err);
+          }
+        });
+      });
+
+      es.onerror = (err) => {
+        console.error(
+          "[RECONNECT] SSE error:",
+          err,
+          "readyState:",
+          es.readyState,
+        );
+        setError("Connection lost. Please refresh.");
+        setIsRunning(false);
+        es.close();
+      };
+    },
+    [handleEvent],
+  );
+
   // ── Respond to an ESCALATED step ──────────────────────────────────────────
 
   const respondToEscalation = useCallback(
     async (sid, response) => {
       const id = sid ?? sessionId;
+      console.log("[RESPOND] respondToEscalation called", {
+        sid,
+        sessionId,
+        id,
+        response,
+      });
       if (!id) {
         console.error(
           "[useHXStream] respondToEscalation called with no sessionId",
@@ -335,28 +415,60 @@ export function useHXStream({
       }
       // The respond endpoint lives on the HX Engine, not the backend.
       // Using HX_ENGINE_BASE ensures the request reaches the correct service.
+      const respondUrl = `${HX_ENGINE_BASE}/api/v1/hx/design/${id}/respond`;
+      console.log("[RESPOND] POSTing to:", respondUrl, "body:", response);
       try {
-        const res = await fetch(
-          `${HX_ENGINE_BASE}/api/v1/hx/design/${id}/respond`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            // HX Engine UserResponse schema: { type, values: { user_input } }
-            body: JSON.stringify({
-              type: "override",
-              values: { user_input: response },
-            }),
-          },
+        const res = await fetch(respondUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // HX Engine UserResponse schema: { type, values: { user_input } }
+          body: JSON.stringify({
+            type: "override",
+            values: { user_input: response },
+          }),
+        });
+        console.log(
+          "[RESPOND] response status:",
+          res.status,
+          res.ok ? "OK" : "FAILED",
         );
         if (!res.ok) {
-          const text = await res.text().catch(() => res.status);
+          const text = await res.text().catch(() => String(res.status));
           console.error(
             `[useHXStream] respondToEscalation failed (${res.status}):`,
             text,
           );
-          setError(
-            `Failed to send response (${res.status}). Please try again.`,
-          );
+          if (res.status === 410) {
+            // Response window expired — the HX Engine future timed out.
+            // Mark the escalated step as ERROR so the card updates visually
+            // and the user knows they need to re-run the design.
+            setWaitingForUser(false);
+            setIsRunning(false);
+            eventSourceRef.current?.close();
+            // Find and mark the ESCALATED step as error
+            setSteps((prev) =>
+              prev.map((s) =>
+                s.state === "ESCALATED" || s.state === "WARNING"
+                  ? {
+                      ...s,
+                      state: "ERROR",
+                      data: {
+                        ...s.data,
+                        message:
+                          "Session expired — the response window closed while you were away. Please re-run the design to continue.",
+                      },
+                    }
+                  : s,
+              ),
+            );
+            setError(
+              "Session expired. Please re-run the design to continue from Step 6.",
+            );
+          } else {
+            setError(
+              `Failed to send response (${res.status}). Please try again.`,
+            );
+          }
         }
       } catch (err) {
         console.error("[useHXStream] respondToEscalation network error:", err);
@@ -403,25 +515,103 @@ export function useHXStream({
     const hxSessionId = currentContext?.hx_session_id;
     const hxSteps = currentContext?.hx_steps;
 
+    console.log("[RESTORE] effect fired", {
+      hxSessionId,
+      hxStepsCount: hxSteps?.length ?? 0,
+      hx_waiting_for_user: currentContext?.hx_waiting_for_user,
+      isRunning,
+      restoredRef: restoredSessionRef.current,
+    });
+
     // Nothing to restore, or already restored this session
-    if (!hxSessionId || !hxSteps?.length) return;
-    if (restoredSessionRef.current === hxSessionId) return;
+    if (!hxSessionId || !hxSteps?.length) {
+      console.log("[RESTORE] bail: no sessionId or no steps");
+      return;
+    }
+    if (restoredSessionRef.current === hxSessionId) {
+      console.log("[RESTORE] bail: already restored this session", hxSessionId);
+      return;
+    }
     // Don't overwrite an active live stream
-    if (isRunning) return;
+    if (isRunning) {
+      console.log("[RESTORE] bail: isRunning=true, skipping restore");
+      return;
+    }
 
     restoredSessionRef.current = hxSessionId;
     setSessionId(hxSessionId);
 
+    const entries = hxSteps.map((r) => stepRecordToEntry(r, STEP_NAMES));
+    console.log(
+      "[RESTORE] entries mapped:",
+      entries.map((e) => ({ step: e.step, state: e.state })),
+    );
+
     setSteps((prev) => {
-      const restored = new Map(
-        hxSteps.map((r) => [r.step_id, stepRecordToEntry(r, STEP_NAMES)]),
-      );
+      const restored = new Map(entries.map((e) => [e.step, e]));
       return prev.map((s) => restored.get(s.step) ?? s);
     });
 
-    // Restore the design summary so DesignSummary renders after page refresh
-    setDesignResult(synthesizeDesignResult(hxSteps));
-  }, [currentContext?.hx_session_id, currentContext?.hx_steps, isRunning]);
+    // Restore waitingForUser: true if any restored step is ESCALATED or an
+    // actionable WARNING.  Primary signal: hx_waiting_for_user flag in context.
+    // Fallback: if the pipeline never finished (< 16 steps persisted) and an
+    // ESCALATED step exists, the backend flag may be stale/missing — treat it
+    // as waiting anyway so the user can still respond.
+    const contextWaiting = currentContext?.hx_waiting_for_user === true;
+    const pipelineIncomplete = entries.length < 16;
+    const hasActiveEscalation = entries.some(
+      (e) =>
+        e.state === "ESCALATED" ||
+        (e.state === "WARNING" && e.data?.options?.length > 0),
+    );
+    console.log(
+      "[RESTORE] contextWaiting:",
+      contextWaiting,
+      "hasActiveEscalation:",
+      hasActiveEscalation,
+      "pipelineIncomplete:",
+      pipelineIncomplete,
+    );
+    const escalatedSteps = entries.filter(
+      (e) =>
+        e.state === "ESCALATED" ||
+        (e.state === "WARNING" && e.data?.options?.length > 0),
+    );
+    console.log(
+      "[RESTORE] escalated steps:",
+      escalatedSteps.map((e) => ({
+        step: e.step,
+        state: e.state,
+        dataKeys: Object.keys(e.data || {}),
+      })),
+    );
+
+    // Treat as waiting if the flag is set OR if the pipeline is incomplete with an escalation
+    const shouldWait =
+      hasActiveEscalation && (contextWaiting || pipelineIncomplete);
+    if (shouldWait) {
+      console.log(
+        "[RESTORE] → reconnecting SSE stream for session:",
+        hxSessionId,
+      );
+      setWaitingForUser(true);
+      setIsRunning(true);
+      // Re-open the SSE stream so the frontend receives step_started / step_approved
+      // events after the user submits their response.  reconnectStream does NOT
+      // reset the restored steps — it only opens the EventSource.
+      reconnectStream(hxSessionId);
+    } else {
+      // Restore the design summary so DesignSummary renders after page refresh
+      console.log("[RESTORE] → no escalation, synthesizing design result");
+      setDesignResult(synthesizeDesignResult(hxSteps));
+    }
+  }, [
+    currentContext?.hx_session_id,
+    currentContext?.hx_steps,
+    currentContext?.hx_waiting_for_user,
+    isRunning,
+    reconnectStream,
+  ]);
 
   // ── Reset ──────────────────────────────────────────────────────────────────
 
@@ -429,6 +619,7 @@ export function useHXStream({
     eventSourceRef.current?.close();
     setSteps(makeInitialSteps());
     setIsRunning(false);
+    setWaitingForUser(false);
     setCurrentStep(null);
     setSessionId(null);
     setDesignResult(null);
@@ -455,6 +646,7 @@ export function useHXStream({
   return {
     steps,
     isRunning,
+    waitingForUser,
     currentStep,
     sessionId,
     designResult,

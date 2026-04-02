@@ -89,6 +89,7 @@ export default function ChatPage() {
   const {
     steps,
     isRunning,
+    waitingForUser,
     currentStep,
     sessionId,
     designResult,
@@ -121,6 +122,7 @@ export default function ChatPage() {
       <HXPanel
         steps={steps}
         isRunning={isRunning}
+        waitingForUser={waitingForUser}
         currentStep={currentStep}
         design={designResult}
         sessionId={sessionId}

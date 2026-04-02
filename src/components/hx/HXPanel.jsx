@@ -155,6 +155,7 @@ function ResultsHeader({ steps }) {
 export default function HXPanel({
   steps: extSteps,
   isRunning,
+  waitingForUser,
   currentStep,
   design,
   sessionId,
@@ -228,17 +229,17 @@ export default function HXPanel({
                 state={s.state}
                 elapsed={s.elapsed}
                 data={
-                  // Only wire onRespond while the pipeline is actively running.
-                  // Once DESIGN_COMPLETE fires (isRunning=false), steps that are
-                  // still in ESCALATED or WARNING state must not show interactive
-                  // buttons — the pipeline is done and the HX Engine won't process
-                  // any more responses.
-                  isRunning && s.state === 'ESCALATED' && onRespond
+                  // Wire onRespond when the pipeline is actively running OR when
+                  // it is paused waiting for user input (waitingForUser=true, which
+                  // is also set on restore after page refresh so the Submit works).
+                  // Once DESIGN_COMPLETE fires (isRunning=false, waitingForUser=false),
+                  // the buttons are removed — the pipeline won't accept responses.
+                  (isRunning || waitingForUser) && s.state === 'ESCALATED' && onRespond
                     ? {
                         ...s.data,
                         onRespond: (answer) => onRespond(sessionId, answer),
                       }
-                    : isRunning && s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
+                    : (isRunning || waitingForUser) && s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
                     ? {
                         ...s.data,
                         onRespond: (answer) => onRespond(sessionId, answer),

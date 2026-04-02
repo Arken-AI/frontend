@@ -357,6 +357,7 @@ function KVTable({ outputs }) {
 
 function ActionableDecisionBody({ variant = 'escalated', options = [], option_ratings = [], recommendation, message, onRespond, onChatMessage, step }) {
   const [answer, setAnswer] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const isEscalated = variant === 'escalated';
   const color = isEscalated ? 'var(--color-escalated)' : 'var(--color-warning)';
   const label = isEscalated ? 'Engineering Decision Required' : 'Action Recommended';
@@ -365,11 +366,15 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], option_ra
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (answer.trim() && onRespond) onRespond(answer.trim());
+    if (!answer.trim() || !onRespond || submitted) return;
+    setSubmitted(true);
+    onRespond(answer.trim());
   };
 
   const handleOptionClick = (opt) => {
-    if (onRespond) onRespond(opt);
+    if (!onRespond || submitted) return;
+    setSubmitted(true);
+    onRespond(opt);
   };
 
   // Split text into paragraphs; highlight the last sentence that ends with '?'
@@ -495,11 +500,12 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], option_ra
         )}
 
         {/* Free text input */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px', opacity: submitted ? 0.5 : 1 }}>
           <input
             type="text"
-            value={answer}
-            onChange={e => setAnswer(e.target.value)}
+            value={submitted ? '…sending' : answer}
+            onChange={e => !submitted && setAnswer(e.target.value)}
+            disabled={submitted}
             placeholder={isEscalated ? 'e.g. proceed with AES floating head type' : 'type your own override...'}
             aria-label={`Respond to ${variant}: ${message}`}
             style={{
@@ -512,12 +518,14 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], option_ra
               padding:      '9px 12px',
               borderRadius: '2px',
               outline:      'none',
+              cursor:       submitted ? 'not-allowed' : 'text',
             }}
-            onFocus={e  => e.currentTarget.style.boxShadow = `0 0 0 2px rgba(${glowRgb},0.2)`}
+            onFocus={e  => !submitted && (e.currentTarget.style.boxShadow = `0 0 0 2px rgba(${glowRgb},0.2)`)}
             onBlur={e   => e.currentTarget.style.boxShadow = 'none'}
           />
           <button
             type="submit"
+            disabled={submitted}
             style={{
               background:   'transparent',
               border:       `1px solid ${color}`,
@@ -526,14 +534,14 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], option_ra
               fontSize:     '12px',
               padding:      '9px 18px',
               borderRadius: '2px',
-              cursor:       'pointer',
+              cursor:       submitted ? 'not-allowed' : 'pointer',
               whiteSpace:   'nowrap',
               transition:   'background 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = `rgba(${glowRgb},0.1)`}
+            onMouseEnter={e => !submitted && (e.currentTarget.style.background = `rgba(${glowRgb},0.1)`)}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            Submit
+            {submitted ? '…' : 'Submit'}
           </button>
         </form>
 
