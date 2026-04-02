@@ -112,6 +112,14 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // SET_THINKING(true) from turn N+1 where LOAD_MESSAGES could fire.
   const isSendingRef = useRef(false);
 
+  // Mirror of state.isThinking as a ref so handleSendMessage/handleRetry/
+  // handleEditMessage entry guards always read the current value even when
+  // the useCallback closure is stale. state.isThinking inside a memoized
+  // callback can read true long after SET_THINKING(false) was dispatched if
+  // the callback hasn't been recreated yet (stale closure bug).
+  const isThinkingRef = useRef(false);
+  isThinkingRef.current = state.isThinking;
+
   // Handle SSE events (for tool progress updates only)
   const onSSEEvent = useCallback(
     (event) => {
@@ -146,12 +154,17 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // Send message handler - now synchronous with direct response
   const handleSendMessage = useCallback(
     async (content, attachments = null) => {
-      if ((!content.trim() && (!attachments || attachments.length === 0)) || state.isThinking) return;
+      console.log('[ChatContainer][handleSendMessage] ENTRY — content:', content.trim().substring(0, 40), '| isThinkingRef:', isThinkingRef.current, '| isSendingRef:', isSendingRef.current, '| msgCount:', state.messages.length);
+      if ((!content.trim() && (!attachments || attachments.length === 0)) || isThinkingRef.current) {
+        console.warn('[ChatContainer][handleSendMessage] BLOCKED AT ENTRY — empty content or isThinkingRef=true', { isThinkingRef: isThinkingRef.current, isSendingRef: isSendingRef.current });
+        return;
+      }
 
       // Block LOAD_MESSAGES immediately — before any dispatch or React state
       // update. This prevents the race where currentContext updates between
       // turns and LOAD_MESSAGES fires while isThinking is still false.
       isSendingRef.current = true;
+      console.log('[ChatContainer][handleSendMessage] isSendingRef=true, msgCount=', state.messages.length, 'isThinking=', state.isThinking);
 
       // Clear any leftover tool state from the previous turn FIRST,
       // before the user message is added and before SSE events start arriving.
@@ -166,6 +179,7 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
+      console.log('[ChatContainer][handleSendMessage] dispatched ADD_MESSAGE (user), content:', content.trim().substring(0, 60));
 
       // For new conversations, pre-generate the conversation_id and set it
       // NOW — before isThinking becomes true — so the SSE hook can connect
@@ -250,6 +264,7 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
         // `arguments`) is fully populated when ADD_MESSAGE runs. The reducer
         // adopts the live SSE cards onto the message.
         if (response.status === "completed" && response.message) {
+          console.log('[ChatContainer][handleSendMessage] dispatching ADD_MESSAGE (assistant), response length:', response.message?.length);
           dispatch({
             type: "ADD_MESSAGE",
             payload: {
@@ -310,6 +325,7 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
         dispatch({ type: "SET_THINKING", payload: false });
       } finally {
         isSendingRef.current = false;
+        console.log('[ChatContainer][handleSendMessage] isSendingRef=false (finally)');
       }
     },
     [
@@ -369,11 +385,14 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // isThinking is false but a new send has already been initiated.  The ref is
   // set synchronously at the top of handleSendMessage before any dispatch fires.
   useEffect(() => {
+    console.log('[ChatContainer][LOAD_MESSAGES effect] currentContext updated. isSendingRef=', isSendingRef.current, 'isThinking=', state.isThinking, 'msgCount=', state.messages.length, 'contextMsgCount=', currentContext?.messages?.length ?? 0);
     if (isSendingRef.current) {
       // Send/retry/edit in-flight — don't overwrite live state with stale DB history.
+      console.warn('[ChatContainer][LOAD_MESSAGES effect] BLOCKED — isSendingRef is true, skipping LOAD_MESSAGES');
       return;
     }
     if (currentContext && currentContext.messages) {
+      console.log('[ChatContainer][LOAD_MESSAGES effect] FIRING LOAD_MESSAGES with', currentContext.messages.length, 'messages');
       dispatch({
         type: "LOAD_MESSAGES",
         payload: { messages: currentContext.messages },
@@ -407,7 +426,7 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // Retry: ask the backend to delete the stale tail messages from DB,
   // then re-run the same user message through Claude from scratch.
   const handleRetry = useCallback(async () => {
-    if (!conversationId || state.isThinking) return;
+    if (!conversationId || isThinkingRef.current) return;
 
     // Find the last user message (for optimistic UI)
     const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
@@ -489,7 +508,7 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // Edit: truncate conversation from the edited message onward and re-process
   // with the new content. Same SSE + HTTP pattern as send and retry.
   const handleEditMessage = useCallback(async (messageIndex, newContent, attachments = null) => {
-    if (!conversationId || state.isThinking) return;
+    if (!conversationId || isThinkingRef.current) return;
 
     isSendingRef.current = true;
 
