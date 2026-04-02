@@ -87,7 +87,8 @@ const FIELD_META = {
   LMTD_K:           { unit: 'K' },
   F_factor:          { unit: '' },
   U_W_m2K:          { unit: 'W/m²K' },
-  A_m2:             { unit: 'm²' },
+  A_m2:             { unit: 'm²', label: 'A_required' },
+  Q_per_shell_W:    { label: 'Q_per_shell',  unit: 'W' },
   P_hot_Pa:         { unit: 'Pa' },
   P_cold_Pa:        { unit: 'Pa' },
   R_f_hot_m2KW:     { unit: 'm²K/W' },
@@ -96,6 +97,12 @@ const FIELD_META = {
   tema_class:       { unit: '' },
   tema_preference:  { unit: '' },
   shell_side_fluid: { unit: '' },
+  // Step 6 multi-shell outputs (top-level, not nested in geometry)
+  n_tubes_required:        { label: 'n_tubes_required',   unit: '' },
+  n_tubes_per_shell:       { label: 'n_tubes_per_shell',  unit: '' },
+  n_shells:                { label: 'n_shells',            unit: '' },
+  multi_shell_arrangement: { label: 'arrangement',         unit: '' },
+  A_provided_m2:           { label: 'A_provided',          unit: 'm²' },
   // Fluid props (nested)
   density_kg_m3:        { label: 'density',     unit: 'kg/m³' },
   viscosity_Pa_s:       { label: 'viscosity',   unit: 'Pa·s' },
@@ -324,7 +331,11 @@ function KVTable({ outputs }) {
         : 'COLD FLUID';
       rows.push(<FluidSection key={key} label={sectionLabel} props={value} />);
     } else if (key === 'geometry' && typeof value === 'object') {
-      rows.push(<FluidSection key={key} label="GEOMETRY" props={value} />);
+      // Exclude n_shells from the geometry sub-section — it is already rendered
+      // as a top-level row via the n_shells FIELD_META entry, so drop it here
+      // to avoid the value appearing twice in the KV table.
+      const { n_shells: _omit, ...geoDisplay } = value;
+      rows.push(<FluidSection key={key} label="GEOMETRY" props={geoDisplay} />);
     } else if (typeof value !== 'object') {
       rows.push(<KVRow key={key} fieldKey={key} value={value} />);
     }
