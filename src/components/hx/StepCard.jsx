@@ -344,7 +344,7 @@ function KVTable({ outputs }) {
 
 // ── Escalated body ────────────────────────────────────────────────────────────
 
-function ActionableDecisionBody({ variant = 'escalated', options = [], recommendation, message, onRespond, onChatMessage, step }) {
+function ActionableDecisionBody({ variant = 'escalated', options = [], option_ratings = [], recommendation, message, onRespond, onChatMessage, step }) {
   const [answer, setAnswer] = useState('');
   const isEscalated = variant === 'escalated';
   const color = isEscalated ? 'var(--color-escalated)' : 'var(--color-warning)';
@@ -431,6 +431,7 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], recommend
             {options.map((opt, i) => {
               const isRec = opt === recommendation;
               const letter = String.fromCharCode(65 + i); // A, B, C...
+              const rating = option_ratings[i];
               return (
                 <button
                   key={i}
@@ -461,10 +462,21 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], recommend
                   }}
                 >
                   <span style={{ color: 'var(--color-text-muted)', minWidth: '16px' }}>{letter})</span>
-                  <span>{opt}</span>
-                  {isRec && (
-                    <span style={{ color, fontSize: '10px', marginLeft: 'auto' }}>(recommended)</span>
-                  )}
+                  <span style={{ flex: 1 }}>{opt}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexShrink: 0 }}>
+                    {rating != null && (
+                      <span style={{
+                        color:        isRec ? color : 'var(--color-text-muted)',
+                        fontSize:     '10px',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        {rating}/10
+                      </span>
+                    )}
+                    {isRec && (
+                      <span style={{ color, fontSize: '10px' }}>(recommended)</span>
+                    )}
+                  </span>
                 </button>
               );
             })}
@@ -595,6 +607,7 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
           <ActionableDecisionBody
             variant="warning"
             options={options}
+            option_ratings={data?.option_ratings || []}
             recommendation={recommendation}
             message={message || reasoning}
             onRespond={onRespond}
@@ -618,11 +631,12 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
   }
 
   if (state === 'ESCALATED') {
-    const { question, options, recommendation, onRespond } = data || {};
+    const { question, options, option_ratings, recommendation, onRespond } = data || {};
     return (
       <ActionableDecisionBody
         variant="escalated"
         options={options || []}
+        option_ratings={option_ratings || []}
         recommendation={recommendation}
         message={question}
         onRespond={onRespond}

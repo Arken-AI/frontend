@@ -234,6 +234,7 @@ export function useHXStream({
           patchData.question = patchData.message;
         }
         patchData.options = data.options || [];
+        patchData.option_ratings = data.option_ratings || [];
         patchData.recommendation = data.recommendation || null;
       } else if (newState === "CORRECTED") {
         // StepCorrectedEvent.correction is a dict: { fieldName: { old, new }, ... }
@@ -255,6 +256,7 @@ export function useHXStream({
         patchData.reasoning = data.reasoning || "";
         patchData.outputs = data.outputs || {};
         patchData.options = data.options || [];
+        patchData.option_ratings = data.option_ratings || [];
         patchData.recommendation = data.recommendation || null;
       }
 
