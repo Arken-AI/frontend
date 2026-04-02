@@ -103,6 +103,15 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // event and never replays events from previous turns.
   const lastSequenceRef = useRef(0);
 
+  // Set synchronously at the very start of handleSendMessage (and retry/edit)
+  // BEFORE any dispatch fires. Cleared in the finally block of each handler.
+  // Unlike isThinking (a React state value), this ref is updated outside React's
+  // render cycle, so the LOAD_MESSAGES guard in useEffect([currentContext]) sees
+  // it immediately — even before SET_THINKING(true) has been committed by React.
+  // This closes the race window between SET_THINKING(false) from turn N and
+  // SET_THINKING(true) from turn N+1 where LOAD_MESSAGES could fire.
+  const isSendingRef = useRef(false);
+
   // Handle SSE events (for tool progress updates only)
   const onSSEEvent = useCallback(
     (event) => {
@@ -138,6 +147,11 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   const handleSendMessage = useCallback(
     async (content, attachments = null) => {
       if ((!content.trim() && (!attachments || attachments.length === 0)) || state.isThinking) return;
+
+      // Block LOAD_MESSAGES immediately — before any dispatch or React state
+      // update. This prevents the race where currentContext updates between
+      // turns and LOAD_MESSAGES fires while isThinking is still false.
+      isSendingRef.current = true;
 
       // Clear any leftover tool state from the previous turn FIRST,
       // before the user message is added and before SSE events start arriving.
@@ -294,6 +308,8 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
           },
         });
         dispatch({ type: "SET_THINKING", payload: false });
+      } finally {
+        isSendingRef.current = false;
       }
     },
     [
@@ -341,18 +357,20 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   }, [conversationId, dispatch]);
 
   // Load messages from context when conversation changes.
-  // IMPORTANT: Skip if a request is in-flight (isThinking). The backend saves
-  // the user message to MongoDB BEFORE Claude responds, so mid-request the DB
+  // IMPORTANT: Skip if a send/retry/edit is in-flight. The backend saves the
+  // user message to MongoDB BEFORE Claude responds, so mid-request the DB
   // history ends with the old assistant message. If LOAD_MESSAGES fires now,
   // it replaces the live messages array with stale DB data — making the old
   // assistant response appear as the "new" response. When the real response
   // arrives via HTTP, it "replaces" the stale one. Skipping here avoids that.
-  const isThinkingRef = useRef(false);
-  isThinkingRef.current = state.isThinking;
-
+  //
+  // isSendingRef (not isThinking state) is used here because state updates are
+  // committed asynchronously by React — there is a window between turns where
+  // isThinking is false but a new send has already been initiated.  The ref is
+  // set synchronously at the top of handleSendMessage before any dispatch fires.
   useEffect(() => {
-    if (isThinkingRef.current) {
-      // Request in-flight — don't overwrite live state with stale DB history.
+    if (isSendingRef.current) {
+      // Send/retry/edit in-flight — don't overwrite live state with stale DB history.
       return;
     }
     if (currentContext && currentContext.messages) {
@@ -394,6 +412,8 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
     // Find the last user message (for optimistic UI)
     const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
+
+    isSendingRef.current = true;
 
     // ── Optimistic UI: strip the bad assistant response ─────────────
     // Use POP_LAST_ASSISTANT instead of LOAD_MESSAGES — it does NOT
@@ -461,6 +481,8 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
       console.error("Error retrying message:", error);
       dispatch({ type: "SET_ERROR", payload: error.message || "Failed to retry" });
       dispatch({ type: "SET_THINKING", payload: false });
+    } finally {
+      isSendingRef.current = false;
     }
   }, [conversationId, state.messages, state.isThinking, dispatch, onSSEEvent, refreshConversations]);
 
@@ -468,6 +490,8 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // with the new content. Same SSE + HTTP pattern as send and retry.
   const handleEditMessage = useCallback(async (messageIndex, newContent, attachments = null) => {
     if (!conversationId || state.isThinking) return;
+
+    isSendingRef.current = true;
 
     // ── Optimistic UI: truncate and show the edited user message ────
     dispatch({
@@ -555,6 +579,8 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
       dispatch({ type: "SET_ERROR", payload: errorMessage });
       dispatch({ type: "SET_THINKING", payload: false });
       dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+    } finally {
+      isSendingRef.current = false;
     }
   }, [conversationId, state.isThinking, dispatch, onSSEEvent, refreshConversations, updateLatestRunId]);
 
