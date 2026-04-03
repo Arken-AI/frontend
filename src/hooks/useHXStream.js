@@ -191,7 +191,22 @@ export function useHXStream({
     (eventType, data) => {
       if (eventType === HX_EVENT_TYPES.DESIGN_COMPLETE) {
         console.log("[useHXStream] DESIGN_COMPLETE received");
-        setDesignResult(data);
+        // data is the raw SSE event: { event_type, session_id, summary: { ... } }
+        // summary does NOT include confidence — synthesize it from the live steps
+        // so the DesignSummary renders the real value (same as the restore path).
+        setSteps((currentSteps) => {
+          const liveRecords = currentSteps
+            .filter((s) => s.state !== "PENDING" && s.state !== "RUNNING")
+            .map((s) => ({
+              ai_decision: s.state,
+              outputs: s.data?.outputs || {},
+            }));
+          const synthesized = synthesizeDesignResult(liveRecords);
+          // Merge backend summary fields on top so any server-computed values win
+          const summary = data?.summary || {};
+          setDesignResult({ ...synthesized, ...summary });
+          return currentSteps; // no change to steps
+        });
         setIsRunning(false);
         setWaitingForUser(false);
         setCurrentStep(null);
@@ -203,7 +218,7 @@ export function useHXStream({
           "[useHXStream] calling onDesignComplete ref:",
           !!onDesignCompleteRef.current,
         );
-        onDesignCompleteRef.current?.();
+        onDesignCompleteRef.current?.(data?.session_id);
         return;
       }
 

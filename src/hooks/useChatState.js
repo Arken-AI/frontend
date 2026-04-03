@@ -41,6 +41,7 @@ export const ACTIONS = {
   AGENT_TEXT: "AGENT_TEXT",
   MESSAGE_DELTA: "MESSAGE_DELTA",
   POP_LAST_ASSISTANT: "POP_LAST_ASSISTANT",
+  TRIM_AFTER_LAST_USER: "TRIM_AFTER_LAST_USER",
   EDIT_USER_MESSAGE: "EDIT_USER_MESSAGE",
   SET_EDITING_MESSAGE_INDEX: "SET_EDITING_MESSAGE_INDEX",
 };
@@ -487,6 +488,25 @@ function chatReducer(state, action) {
       return {
         ...state,
         messages: msgs,
+        streamingMessage: "",
+      };
+    }
+
+    case ACTIONS.TRIM_AFTER_LAST_USER: {
+      // Keep all messages up to and including the last user message.
+      // Removes every assistant message that followed it (design response + report).
+      // Does NOT touch isThinking — safe to call mid-retry.
+      let lastUserIdx = -1;
+      for (let i = state.messages.length - 1; i >= 0; i--) {
+        if (state.messages[i].role === "user") {
+          lastUserIdx = i;
+          break;
+        }
+      }
+      if (lastUserIdx === -1) return { ...state, streamingMessage: "" };
+      return {
+        ...state,
+        messages: state.messages.slice(0, lastUserIdx + 1),
         streamingMessage: "",
       };
     }

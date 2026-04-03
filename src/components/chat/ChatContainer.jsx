@@ -49,25 +49,31 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
   // design_report message. We dispatch ADD_MESSAGE directly here because the
   // normal LOAD_MESSAGES path is blocked by the isThinking guard (the chat
   // SSE client's waitForCompletion timeout may still be pending).
+  //
+  // Deduplication uses a ref (not content equality against state.messages) so:
+  //   a) React StrictMode double-invocation is safe (ref is set on first call)
+  //   b) A retry that produces the same report text still shows (ref is reset
+  //      at the start of handleRetry, so the new pendingReport isn't skipped)
+  const lastConsumedReportRef = useRef(null);
+
   useEffect(() => {
     console.log('[ChatContainer] pendingReport effect, pendingReport:', pendingReport ? pendingReport.substring(0, 60) + '...' : null);
     if (!pendingReport) return;
-    // Guard: don't add duplicate if already in messages
-    const alreadyShown = state.messages.some(
-      (m) => m.role === 'assistant' && m.content === pendingReport,
-    );
-    console.log('[ChatContainer] alreadyShown:', alreadyShown, 'messages count:', state.messages.length);
-    if (!alreadyShown) {
-      console.log('[ChatContainer] dispatching ADD_MESSAGE for design report');
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: {
-          role: 'assistant',
-          content: pendingReport,
-          timestamp: new Date().toISOString(),
-        },
-      });
+    if (pendingReport === lastConsumedReportRef.current) {
+      // Already dispatched this exact pendingReport value — skip.
+      console.log('[ChatContainer] pendingReport already consumed, skipping');
+      return;
     }
+    lastConsumedReportRef.current = pendingReport;
+    console.log('[ChatContainer] dispatching ADD_MESSAGE for design report');
+    dispatch({
+      type: 'ADD_MESSAGE',
+      payload: {
+        role: 'assistant',
+        content: pendingReport,
+        timestamp: new Date().toISOString(),
+      },
+    });
     onReportConsumed?.();
   }, [pendingReport, dispatch, onReportConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
   const { scrollRef, bottomRef, showScrollButton, scrollToBottom } = useAutoScroll([
@@ -432,12 +438,22 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
     const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
 
+    // Clear any stale pendingReport from the previous design run.
+    // Without this, a not-yet-consumed pendingReport would be injected into the
+    // freshly-trimmed message list as soon as React re-renders. Also reset the
+    // consumed-ref so the new run's report is never skipped by the dedup guard
+    // (even if it produces the same text as the previous run).
+    lastConsumedReportRef.current = null;
+    onReportConsumed?.();
+
     isSendingRef.current = true;
 
-    // ── Optimistic UI: strip the bad assistant response ─────────────
-    // Use POP_LAST_ASSISTANT instead of LOAD_MESSAGES — it does NOT
-    // reset isThinking, so the thinking indicator stays visible.
-    dispatch({ type: "POP_LAST_ASSISTANT" });
+    // ── Optimistic UI: strip all assistant messages after the last user message ──
+    // A completed HX design leaves TWO consecutive assistant messages (design
+    // response + report). TRIM_AFTER_LAST_USER removes everything after the last
+    // user message so both are cleared before the retry runs. Does NOT touch
+    // isThinking, so the thinking indicator stays visible.
+    dispatch({ type: "TRIM_AFTER_LAST_USER" });
     dispatch({ type: "CLEAR_ERROR" });
     dispatch({ type: "RESET_RESPONSE" });
     dispatch({ type: "SET_THINKING", payload: true });

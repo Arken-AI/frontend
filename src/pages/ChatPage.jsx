@@ -32,8 +32,8 @@ export default function ChatPage() {
   // Called when DESIGN_COMPLETE fires on the HX Engine SSE stream.
   // Polls the backend until the design_report message appears in context,
   // then passes the report text to ChatContainer via state.
-  const handleDesignComplete = useCallback(async () => {
-    console.log('[ChatPage] handleDesignComplete called, conversationId:', conversationId);
+  const handleDesignComplete = useCallback(async (sessionId) => {
+    console.log('[ChatPage] handleDesignComplete called, conversationId:', conversationId, 'sessionId:', sessionId);
     if (!conversationId) {
       console.warn('[ChatPage] handleDesignComplete: NO conversationId, aborting');
       return;
@@ -47,22 +47,27 @@ export default function ChatPage() {
         console.log('[ChatPage] polling getContext attempt', attempt + 1);
         const ctx = await getContext(conversationId);
         const msgs = ctx?.messages || [];
-        console.log('[ChatPage] got', msgs.length, 'messages. Last 3:', msgs.slice(-3).map(m => ({ role: m.role, metaType: m.metadata?.type, contentStart: m.content?.substring(0, 50) })));
-        // Find the MOST RECENT design report message.
-        // Using findLast so a second run in the same conversation returns the
-        // new report, not the first-run report already in state.messages.
-        const reportMsg = [...msgs].reverse().find(
-          (m) =>
-            m.role === 'assistant' &&
-            (m.metadata?.type === 'design_report' ||
-              m.content?.startsWith('### Design Complete')),
-        );
+        console.log('[ChatPage] got', msgs.length, 'messages. Last 3:', msgs.slice(-3).map(m => ({ role: m.role, metaType: m.metadata?.type, metaSession: m.metadata?.session_id, contentStart: m.content?.substring(0, 50) })));
+        // Find the report for THIS specific session_id so we don't return the
+        // old report from a previous run when the user resends a design message.
+        // Falls back to any design_report if sessionId is unavailable.
+        const reportMsg = [...msgs].reverse().find((m) => {
+          if (m.role !== 'assistant') return false;
+          if (sessionId) {
+            return m.metadata?.type === 'design_report' &&
+                   m.metadata?.session_id === sessionId;
+          }
+          return (
+            m.metadata?.type === 'design_report' ||
+            m.content?.startsWith('### Design Complete')
+          );
+        });
         if (reportMsg) {
-          console.log('[ChatPage] FOUND report message, length:', reportMsg.content.length);
+          console.log('[ChatPage] FOUND report message, session:', reportMsg.metadata?.session_id, 'length:', reportMsg.content.length);
           setPendingReport(reportMsg.content);
           return;
         }
-        console.log('[ChatPage] report NOT found yet');
+        console.log('[ChatPage] report NOT found yet for session', sessionId);
       } catch (err) {
         console.warn('[ChatPage] getContext error:', err);
       }
@@ -74,9 +79,15 @@ export default function ChatPage() {
     // Exhausted retries — force a context refresh so page-refresh will show it
     try {
       const ctx = await getContext(conversationId);
-      const reportMsg = (ctx?.messages || []).find(
-        (m) => m.role === 'assistant' && m.metadata?.type === 'design_report',
-      );
+      const msgs = ctx?.messages || [];
+      const reportMsg = msgs.reverse().find((m) => {
+        if (m.role !== 'assistant') return false;
+        if (sessionId) {
+          return m.metadata?.type === 'design_report' &&
+                 m.metadata?.session_id === sessionId;
+        }
+        return m.metadata?.type === 'design_report';
+      });
       if (reportMsg) {
         console.log('[ChatPage] FOUND report on final attempt');
         setPendingReport(reportMsg.content);
