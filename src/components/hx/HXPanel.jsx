@@ -237,12 +237,12 @@ export default function HXPanel({
                   (isRunning || waitingForUser) && s.state === 'ESCALATED' && onRespond
                     ? {
                         ...s.data,
-                        onRespond: (answer) => onRespond(sessionId, answer),
+                        onRespond: (answer, idx) => onRespond(sessionId, answer, idx),
                       }
                     : (isRunning || waitingForUser) && s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
                     ? {
                         ...s.data,
-                        onRespond: (answer) => onRespond(sessionId, answer),
+                        onRespond: (answer, idx) => onRespond(sessionId, answer, idx),
                       }
                     : s.data
                 }

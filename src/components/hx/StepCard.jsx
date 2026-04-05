@@ -371,10 +371,10 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], option_ra
     onRespond(answer.trim());
   };
 
-  const handleOptionClick = (opt) => {
+  const handleOptionClick = (opt, idx) => {
     if (!onRespond || submitted) return;
     setSubmitted(true);
-    onRespond(opt);
+    onRespond(opt, idx);
   };
 
   // Split text into paragraphs; highlight the last sentence that ends with '?'
@@ -451,7 +451,7 @@ function ActionableDecisionBody({ variant = 'escalated', options = [], option_ra
               return (
                 <button
                   key={i}
-                  onClick={() => handleOptionClick(opt)}
+                  onClick={() => handleOptionClick(opt, i)}
                   style={{
                     display:        'flex',
                     alignItems:     'center',
@@ -670,7 +670,9 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
   }
 
   if (state === 'ERROR') {
-    const { message, onRetry } = data || {};
+    const { message, observation, recommendation, onRetry } = data || {};
+    // Build a detailed explanation for the chat button
+    const fullExplanation = observation || message || '';
     return (
       <div className="mt-2 space-y-2">
         {message && (
@@ -693,6 +695,27 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
             onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             ↺ retry
+          </button>
+        )}
+        {onChatMessage && fullExplanation && (
+          <button
+            onClick={() => onChatMessage(
+              `Explain in detail why Step ${step} (${data?.step_name || ''}) failed. ` +
+              `Here is the error context:\n${fullExplanation}` +
+              (recommendation ? `\n\nRecommendation: ${recommendation}` : '')
+            )}
+            className="text-xs px-2 py-1 border transition-colors flex items-center gap-1"
+            style={{
+              fontFamily:      'var(--font-mono)',
+              color:           'var(--color-text-muted)',
+              borderColor:     'var(--color-border)',
+              backgroundColor: 'transparent',
+              borderRadius:    '2px',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-running)'; e.currentTarget.style.borderColor = 'var(--color-running)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+          >
+            💬 Explain failure in chat
           </button>
         )}
       </div>

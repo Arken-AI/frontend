@@ -244,6 +244,25 @@ export function useHXStream({
 
       const newState = eventToStepState(eventType);
 
+      // ── Pipeline halted by step error ─────────────────────────────────
+      // When the backend emits step_error (e.g. max escalations exhausted),
+      // the pipeline has stopped — mark the step, stop running, close stream.
+      // The backend orchestration will generate a detailed failure report via
+      // the LLM (with full step data + escalation history) and post it as a
+      // chat message automatically.
+      if (newState === "ERROR") {
+        updateStep(stepId, {
+          state: "ERROR",
+          elapsed: data.duration_ms != null ? data.duration_ms / 1000 : null,
+          data: { ...data },
+        });
+        setIsRunning(false);
+        setWaitingForUser(false);
+        setCurrentStep(null);
+        eventSourceRef.current?.close();
+        return;
+      }
+
       if (newState === "RUNNING") {
         setCurrentStep(stepId);
         setWaitingForUser(false); // pipeline resumed — no longer waiting
@@ -416,13 +435,14 @@ export function useHXStream({
   // ── Respond to an ESCALATED step ──────────────────────────────────────────
 
   const respondToEscalation = useCallback(
-    async (sid, response) => {
+    async (sid, response, optionIndex) => {
       const id = sid ?? sessionId;
       console.log("[RESPOND] respondToEscalation called", {
         sid,
         sessionId,
         id,
         response,
+        optionIndex,
       });
       if (!id) {
         console.error(
@@ -438,10 +458,13 @@ export function useHXStream({
         const res = await fetch(respondUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // HX Engine UserResponse schema: { type, values: { user_input } }
+          // HX Engine UserResponse schema: { type, values: { user_input, option_index } }
           body: JSON.stringify({
             type: "override",
-            values: { user_input: response },
+            values: {
+              user_input: response,
+              option_index: optionIndex ?? -1,
+            },
           }),
         });
         console.log(
