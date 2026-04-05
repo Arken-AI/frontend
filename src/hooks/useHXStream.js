@@ -630,16 +630,80 @@ export function useHXStream({
     const shouldWait =
       hasActiveEscalation && (contextWaiting || pipelineIncomplete);
     if (shouldWait) {
-      console.log(
-        "[RESTORE] → reconnecting SSE stream for session:",
-        hxSessionId,
-      );
-      setWaitingForUser(true);
-      setIsRunning(true);
-      // Re-open the SSE stream so the frontend receives step_started / step_approved
-      // events after the user submits their response.  reconnectStream does NOT
-      // reset the restored steps — it only opens the EventSource.
-      reconnectStream(hxSessionId);
+      // ── Issue 4 fix: verify live backend status before showing options ──
+      // The context snapshot may be stale (e.g. the USER_RESPONSE_TIMEOUT
+      // fired while the user was away).  Hit the live /status endpoint to
+      // confirm the session is actually still waiting for input.
+      const statusUrl = `${HX_ENGINE_BASE}/api/v1/hx/design/${hxSessionId}/status`;
+      console.log("[RESTORE] → verifying live status at:", statusUrl);
+      fetch(statusUrl)
+        .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+        .then((status) => {
+          console.log("[RESTORE] live status:", {
+            waiting_for_user: status.waiting_for_user,
+            pipeline_status: status.pipeline_status,
+          });
+          if (
+            status.waiting_for_user === true &&
+            status.pipeline_status !== "error"
+          ) {
+            // Session is genuinely still waiting — show options & reconnect SSE
+            console.log(
+              "[RESTORE] → session still active, reconnecting SSE stream:",
+              hxSessionId,
+            );
+            setWaitingForUser(true);
+            setIsRunning(true);
+            reconnectStream(hxSessionId);
+          } else {
+            // Session expired or errored — mark escalated steps as ERROR
+            console.log(
+              "[RESTORE] → session expired/errored, marking steps as ERROR",
+            );
+            setSteps((prev) =>
+              prev.map((s) =>
+                s.state === "ESCALATED" || s.state === "WARNING"
+                  ? {
+                      ...s,
+                      state: "ERROR",
+                      data: {
+                        ...s.data,
+                        message:
+                          "Session expired — the response window closed while you were away. Please re-run the design to continue.",
+                      },
+                    }
+                  : s,
+              ),
+            );
+            setWaitingForUser(false);
+            setIsRunning(false);
+          }
+        })
+        .catch((err) => {
+          // Status fetch failed (404 = session gone, network error, etc.)
+          // Treat as expired — safer than showing stale options.
+          console.warn(
+            "[RESTORE] status check failed, treating as expired:",
+            err,
+          );
+          setSteps((prev) =>
+            prev.map((s) =>
+              s.state === "ESCALATED" || s.state === "WARNING"
+                ? {
+                    ...s,
+                    state: "ERROR",
+                    data: {
+                      ...s.data,
+                      message:
+                        "Session expired — the response window closed while you were away. Please re-run the design to continue.",
+                    },
+                  }
+                : s,
+            ),
+          );
+          setWaitingForUser(false);
+          setIsRunning(false);
+        });
     } else {
       // Restore the design summary so DesignSummary renders after page refresh
       console.log("[RESTORE] → no escalation, synthesizing design result");
