@@ -667,13 +667,15 @@ export function useHXStream({
             setIsRunning(true);
             reconnectStream(hxSessionId);
           } else {
-            // Session expired or errored — mark escalated steps as ERROR
+            // Session expired or errored — mark only the blocking step as ERROR.
+            // Auto-resolved WARNING steps (pipeline continued past them) keep
+            // their original WARNING state so the audit trail is preserved.
             console.log(
-              "[RESTORE] → session expired/errored, marking steps as ERROR",
+              "[RESTORE] → session expired/errored, marking blocking step as ERROR",
             );
             setSteps((prev) =>
               prev.map((s) =>
-                s.state === "ESCALATED" || s.state === "WARNING"
+                isBlockingEntry(s, entries)
                   ? {
                       ...s,
                       state: "ERROR",
@@ -699,7 +701,7 @@ export function useHXStream({
           );
           setSteps((prev) =>
             prev.map((s) =>
-              s.state === "ESCALATED" || s.state === "WARNING"
+              isBlockingEntry(s, entries)
                 ? {
                     ...s,
                     state: "ERROR",

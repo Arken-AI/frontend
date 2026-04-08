@@ -1,11 +1,57 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { isBlockingEntry, useHXStream } from "../hooks/useHXStream";
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function makeHxSteps(descriptors) {
+  return descriptors.map(({ step_id, ai_decision, options = [] }) => ({
+    step_id,
+    step_name: `Step ${step_id}`,
+    ai_decision,
+    duration_s: 1.0,
+    outputs: { [`out_step_${step_id}`]: step_id * 10 },
+    ai_review: {
+      reasoning: `reasoning for step ${step_id}`,
+      recommendation: `rec for step ${step_id}`,
+      options,
+    },
+    warnings: [],
+    validation_passed: true,
+  }));
+}
+
 /**
- * Tests for useHXStream restore logic.
+ * Render useHXStream with the given context and wait until the restore effect
+ * has settled (fetch promise chain + both setSteps calls flushed).
  *
- * Phase 1: isBlockingEntry — the pure helper that decides whether a restored
- * step entry is an active pipeline blocker or an already-resolved warning.
+ * We use waitFor on a step that must change state after the fetch resolves,
+ * which ensures React has processed all batched state updates before we assert.
  */
-import { describe, it, expect } from "vitest";
-import { isBlockingEntry } from "../hooks/useHXStream";
+async function renderWithContext(context, { waitForStep, waitForState } = {}) {
+  const hookResult = renderHook(() =>
+    useHXStream({ conversationId: "conv-1", currentContext: context }),
+  );
+  // If the caller tells us which step should reach a terminal state, poll for it.
+  if (waitForStep !== undefined && waitForState !== undefined) {
+    await waitFor(() => {
+      const step = hookResult.result.current.steps.find(
+        (s) => s.step === waitForStep,
+      );
+      if (!step || step.state !== waitForState) {
+        throw new Error(
+          `Waiting for step ${waitForStep} to be ${waitForState}, got ${step?.state}`,
+        );
+      }
+    });
+  } else {
+    // Default: give the microtask queue enough time to flush the fetch chain
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+  return hookResult;
+}
 
 // ── isBlockingEntry ───────────────────────────────────────────────────────────
 
@@ -123,5 +169,128 @@ describe("isBlockingEntry", () => {
         expect(isBlockingEntry(e, entries)).toBe(false);
       });
     });
+  });
+});
+
+// ── Restore effect — expired-session step mapper ──────────────────────────────
+
+describe("restore effect — expired-session mapper", () => {
+  const SESSION_ID = "test-session-abc";
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("preserves WARNING state for auto-resolved steps when /status returns 404 (primary bug scenario)", async () => {
+    // Arrange: steps 7, 9, 11 WARNING with later steps after 7 and 9;
+    // step 11 is the last — it was the blocking step. Session has expired (404).
+    fetch.mockResolvedValue({ ok: false, status: 404 });
+
+    const hxSteps = makeHxSteps([
+      { step_id: 7,  ai_decision: "WARN",    options: ["opt-a"] },
+      { step_id: 8,  ai_decision: "PROCEED" },
+      { step_id: 9,  ai_decision: "WARN",    options: ["opt-b"] },
+      { step_id: 10, ai_decision: "PROCEED" },
+      { step_id: 11, ai_decision: "WARN",    options: ["opt-c"] },
+    ]);
+
+    // Act: render and wait until step 11 (the blocking step) reaches ERROR state
+    const { result } = await renderWithContext(
+      { hx_session_id: SESSION_ID, hx_steps: hxSteps, hx_waiting_for_user: true },
+      { waitForStep: 11, waitForState: "ERROR" },
+    );
+
+    // Assert
+    const step7  = result.current.steps.find((s) => s.step === 7);
+    const step9  = result.current.steps.find((s) => s.step === 9);
+    const step11 = result.current.steps.find((s) => s.step === 11);
+
+    expect(step7.state).toBe("WARNING");   // auto-resolved — must stay WARNING
+    expect(step9.state).toBe("WARNING");   // auto-resolved — must stay WARNING
+    expect(step11.state).toBe("ERROR");    // last step (blocking) — correctly expired
+    expect(step11.data.message).toMatch(/Session expired/);
+  });
+
+  it("preserves WARNING state when /status fetch throws a network error", async () => {
+    // Arrange: fetch rejects entirely (network down)
+    fetch.mockRejectedValue(new Error("network error"));
+
+    const hxSteps = makeHxSteps([
+      { step_id: 7,  ai_decision: "WARN",    options: ["opt-a"] },
+      { step_id: 8,  ai_decision: "PROCEED" },
+      { step_id: 9,  ai_decision: "WARN",    options: ["opt-c"] },
+    ]);
+
+    // Act: wait until step 9 (the blocking step) reaches ERROR state
+    const { result } = await renderWithContext(
+      { hx_session_id: SESSION_ID, hx_steps: hxSteps, hx_waiting_for_user: true },
+      { waitForStep: 9, waitForState: "ERROR" },
+    );
+
+    // Assert
+    const step7 = result.current.steps.find((s) => s.step === 7);
+    const step9 = result.current.steps.find((s) => s.step === 9);
+
+    expect(step7.state).toBe("WARNING");  // auto-resolved (step 8 came after)
+    expect(step9.state).toBe("ERROR");    // last step — expired
+  });
+
+  it("converts ESCALATED step to ERROR when session expired", async () => {
+    // Arrange: pipeline stopped at an ESCALATED step; session has expired
+    fetch.mockResolvedValue({ ok: false, status: 404 });
+
+    const hxSteps = makeHxSteps([
+      { step_id: 4, ai_decision: "PROCEED" },
+      { step_id: 5, ai_decision: "PROCEED" },
+      { step_id: 6, ai_decision: "ESCALATE", options: ["option A", "option B"] },
+    ]);
+
+    // Act: wait until step 6 (the ESCALATED blocking step) reaches ERROR state
+    const { result } = await renderWithContext(
+      { hx_session_id: SESSION_ID, hx_steps: hxSteps, hx_waiting_for_user: true },
+      { waitForStep: 6, waitForState: "ERROR" },
+    );
+
+    // Assert
+    const step6 = result.current.steps.find((s) => s.step === 6);
+    expect(step6.state).toBe("ERROR");
+    expect(step6.data.message).toMatch(/Session expired/);
+  });
+
+  it("never modifies APPROVED or CORRECTED steps in the expired-session mapper", async () => {
+    // Arrange: steps 4 CORRECTED, 5-8 APPROVED, step 9 WARNING (last)
+    fetch.mockResolvedValue({ ok: false, status: 404 });
+
+    const hxSteps = makeHxSteps([
+      { step_id: 4, ai_decision: "CORRECT" },
+      { step_id: 5, ai_decision: "PROCEED" },
+      { step_id: 6, ai_decision: "PROCEED" },
+      { step_id: 7, ai_decision: "PROCEED" },
+      { step_id: 8, ai_decision: "PROCEED" },
+      { step_id: 9, ai_decision: "WARN",    options: ["opt-x"] },
+    ]);
+
+    // Act: wait until step 9 (the only blocking step) reaches ERROR state
+    const { result } = await renderWithContext(
+      { hx_session_id: SESSION_ID, hx_steps: hxSteps, hx_waiting_for_user: true },
+      { waitForStep: 9, waitForState: "ERROR" },
+    );
+
+    // Assert — non-blocking steps keep their restored state
+    const step4 = result.current.steps.find((s) => s.step === 4);
+    const step5 = result.current.steps.find((s) => s.step === 5);
+    const step8 = result.current.steps.find((s) => s.step === 8);
+    const step9 = result.current.steps.find((s) => s.step === 9);
+
+    expect(step4.state).toBe("CORRECTED");
+    expect(step5.state).toBe("APPROVED");
+    expect(step8.state).toBe("APPROVED");
+    expect(step9.state).toBe("ERROR");     // the only blocking step
   });
 });
