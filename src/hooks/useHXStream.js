@@ -19,6 +19,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { HX_EVENT_TYPES, eventToStepState } from "../types/hxEvents";
 import { STEP_NAMES } from "../components/hx/HXPanel";
+import {
+  isBlockingEntry,
+  SESSION_EXPIRED_CARD_MESSAGE,
+  sessionExpiredErrorMessage,
+} from "../utils/pipelineUtils";
 
 // Direct HX Engine URL for dev (EventSource must go straight to the engine,
 // not through the backend). Empty in prod → nginx routes /api/v1/hx/... correctly.
@@ -154,23 +159,6 @@ function makeInitialSteps() {
     data: null,
     iteration: null,
   }));
-}
-
-/**
- * Returns true only if this entry is a genuine pipeline blocker on restore:
- * - ESCALATED always blocks — the pipeline pauses on every ESCALATE decision.
- * - WARNING only blocks if it is the last step that ran.  If a later step
- *   exists, the warning was informational and the pipeline already moved past it.
- *
- * Exported for direct unit testing.
- */
-export function isBlockingEntry(entry, allEntries) {
-  if (entry.state === "ESCALATED") return true;
-  if (entry.state === "WARNING") {
-    const hasLaterStep = allEntries.some((e) => e.step > entry.step);
-    return !hasLaterStep;
-  }
-  return false;
 }
 
 export function useHXStream({
@@ -452,7 +440,7 @@ export function useHXStream({
   // ── Respond to an ESCALATED step ──────────────────────────────────────────
 
   const respondToEscalation = useCallback(
-    async (sid, response, optionIndex) => {
+    async (sid, response, optionIndex, stepId) => {
       const id = sid ?? sessionId;
       console.log("[RESPOND] respondToEscalation called", {
         sid,
@@ -460,6 +448,7 @@ export function useHXStream({
         id,
         response,
         optionIndex,
+        stepId,
       });
       if (!id) {
         console.error(
@@ -497,29 +486,24 @@ export function useHXStream({
           );
           if (res.status === 410) {
             // Response window expired — the HX Engine future timed out.
-            // Mark the escalated step as ERROR so the card updates visually
-            // and the user knows they need to re-run the design.
+            // Mark only the specific step that was waiting as ERROR so the
+            // card updates visually and the user knows to re-run the design.
             setWaitingForUser(false);
             setIsRunning(false);
             eventSourceRef.current?.close();
-            // Find and mark the ESCALATED step as error
             setSteps((prev) =>
               prev.map((s) =>
-                s.state === "ESCALATED" || s.state === "WARNING"
+                s.step === stepId
                   ? {
                       ...s,
                       state: "ERROR",
-                      data: {
-                        ...s.data,
-                        message:
-                          "Session expired — the response window closed while you were away. Please re-run the design to continue.",
-                      },
+                      data: { ...s.data, message: SESSION_EXPIRED_CARD_MESSAGE },
                     }
                   : s,
               ),
             );
             setError(
-              "Session expired. Please re-run the design to continue from Step 6.",
+              sessionExpiredErrorMessage(stepId),
             );
           } else {
             setError(
@@ -679,11 +663,7 @@ export function useHXStream({
                   ? {
                       ...s,
                       state: "ERROR",
-                      data: {
-                        ...s.data,
-                        message:
-                          "Session expired — the response window closed while you were away. Please re-run the design to continue.",
-                      },
+                      data: { ...s.data, message: SESSION_EXPIRED_CARD_MESSAGE },
                     }
                   : s,
               ),
@@ -705,11 +685,7 @@ export function useHXStream({
                 ? {
                     ...s,
                     state: "ERROR",
-                    data: {
-                      ...s.data,
-                      message:
-                        "Session expired — the response window closed while you were away. Please re-run the design to continue.",
-                    },
+                    data: { ...s.data, message: SESSION_EXPIRED_CARD_MESSAGE },
                   }
                 : s,
             ),

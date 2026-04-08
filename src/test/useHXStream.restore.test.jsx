@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { isBlockingEntry, useHXStream } from "../hooks/useHXStream";
+import { useHXStream } from "../hooks/useHXStream";
+import { isBlockingEntry } from "../utils/pipelineUtils";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

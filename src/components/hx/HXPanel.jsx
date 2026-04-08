@@ -139,6 +139,23 @@ function ResultsHeader({ steps }) {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isActionableStep(s) {
+  return s.state === "ESCALATED" || (s.state === "WARNING" && s.data?.options?.length > 0);
+}
+
+// Attaches onRespond to the step's data when the pipeline is still accepting
+// responses. Once DESIGN_COMPLETE fires (pipelineActive=false), returns s.data
+// unchanged so the action buttons are removed.
+function stepDataWithRespond(s, pipelineActive, sessionId, onRespond) {
+  if (!pipelineActive || !onRespond || !isActionableStep(s)) return s.data;
+  return {
+    ...s.data,
+    onRespond: (answer, idx) => onRespond(sessionId, answer, idx, s.step),
+  };
+}
+
 // ── HXPanel ───────────────────────────────────────────────────────────────────
 
 /**
@@ -149,7 +166,7 @@ function ResultsHeader({ steps }) {
  *   design      {object|null}
  *   sessionId   {string|null}
  *   onOptimize  {fn}
- *   onRespond   {fn(sessionId, answer)} — for ESCALATED step inline response
+ *   onRespond   {fn(sessionId, answer, optionIndex, stepId)} — for ESCALATED/WARNING step inline response
  *   onChatMessage {fn(text)} — for “Explain tradeoffs” button on ESCALATED/WARNING cards
  */
 export default function HXPanel({
@@ -228,24 +245,7 @@ export default function HXPanel({
                 name={s.name ?? STEP_NAMES[s.step - 1]}
                 state={s.state}
                 elapsed={s.elapsed}
-                data={
-                  // Wire onRespond when the pipeline is actively running OR when
-                  // it is paused waiting for user input (waitingForUser=true, which
-                  // is also set on restore after page refresh so the Submit works).
-                  // Once DESIGN_COMPLETE fires (isRunning=false, waitingForUser=false),
-                  // the buttons are removed — the pipeline won't accept responses.
-                  (isRunning || waitingForUser) && s.state === 'ESCALATED' && onRespond
-                    ? {
-                        ...s.data,
-                        onRespond: (answer, idx) => onRespond(sessionId, answer, idx),
-                      }
-                    : (isRunning || waitingForUser) && s.state === 'WARNING' && s.data?.options?.length > 0 && onRespond
-                    ? {
-                        ...s.data,
-                        onRespond: (answer, idx) => onRespond(sessionId, answer, idx),
-                      }
-                    : s.data
-                }
+                data={stepDataWithRespond(s, isRunning || waitingForUser, sessionId, onRespond)}
                 iteration={s.iteration}
                 onChatMessage={onChatMessage}
               />
