@@ -76,7 +76,7 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
     });
     onReportConsumed?.();
   }, [pendingReport, dispatch, onReportConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { scrollRef, bottomRef, showScrollButton, scrollToBottom } = useAutoScroll([
+  const { scrollRef, bottomRef, showScrollButton, scrollToBottom, resetScroll } = useAutoScroll([
     state.messages,
     state.streamingMessage,
     state.isThinking,
@@ -373,10 +373,11 @@ function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onRepo
 
       dispatch({ type: "RESET" });
       lastSequenceRef.current = 0;
+      resetScroll();
     }
 
     previousConversationIdRef.current = conversationId;
-  }, [conversationId, dispatch]);
+  }, [conversationId, dispatch, resetScroll]);
 
   // Load messages from context when conversation changes.
   // IMPORTANT: Skip if a send/retry/edit is in-flight. The backend saves the

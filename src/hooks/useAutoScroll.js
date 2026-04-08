@@ -13,8 +13,8 @@ import { useRef, useState, useEffect, useCallback } from "react";
 const NEAR_BOTTOM_PX = 80; // px from bottom that counts as "at bottom"
 
 export function useAutoScroll(deps = []) {
-  const scrollRef = useRef(null);   // attach to the overflow-y-auto container
-  const bottomRef = useRef(null);   // attach to a zero-height anchor at the end of content
+  const scrollRef = useRef(null); // attach to the overflow-y-auto container
+  const bottomRef = useRef(null); // attach to a zero-height anchor at the end of content
   const userScrolledRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
@@ -51,5 +51,18 @@ export function useAutoScroll(deps = []) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  return { scrollRef, bottomRef, showScrollButton, scrollToBottom };
+  // Reset scroll state (e.g. on conversation switch) so stale
+  // "scroll to latest" button doesn't carry over to a new/empty chat.
+  const resetScroll = useCallback(() => {
+    userScrolledRef.current = false;
+    setShowScrollButton(false);
+  }, []);
+
+  return {
+    scrollRef,
+    bottomRef,
+    showScrollButton,
+    scrollToBottom,
+    resetScroll,
+  };
 }
