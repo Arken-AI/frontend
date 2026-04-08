@@ -156,6 +156,23 @@ function makeInitialSteps() {
   }));
 }
 
+/**
+ * Returns true only if this entry is a genuine pipeline blocker on restore:
+ * - ESCALATED always blocks — the pipeline pauses on every ESCALATE decision.
+ * - WARNING only blocks if it is the last step that ran.  If a later step
+ *   exists, the warning was informational and the pipeline already moved past it.
+ *
+ * Exported for direct unit testing.
+ */
+export function isBlockingEntry(entry, allEntries) {
+  if (entry.state === "ESCALATED") return true;
+  if (entry.state === "WARNING") {
+    const hasLaterStep = allEntries.some((e) => e.step > entry.step);
+    return !hasLaterStep;
+  }
+  return false;
+}
+
 export function useHXStream({
   conversationId,
   currentContext,
@@ -599,10 +616,8 @@ export function useHXStream({
     // as waiting anyway so the user can still respond.
     const contextWaiting = currentContext?.hx_waiting_for_user === true;
     const pipelineIncomplete = entries.length < 16;
-    const hasActiveEscalation = entries.some(
-      (e) =>
-        e.state === "ESCALATED" ||
-        (e.state === "WARNING" && e.data?.options?.length > 0),
+    const hasActiveEscalation = entries.some((e) =>
+      isBlockingEntry(e, entries),
     );
     console.log(
       "[RESTORE] contextWaiting:",
@@ -612,11 +627,7 @@ export function useHXStream({
       "pipelineIncomplete:",
       pipelineIncomplete,
     );
-    const escalatedSteps = entries.filter(
-      (e) =>
-        e.state === "ESCALATED" ||
-        (e.state === "WARNING" && e.data?.options?.length > 0),
-    );
+    const escalatedSteps = entries.filter((e) => isBlockingEntry(e, entries));
     console.log(
       "[RESTORE] escalated steps:",
       escalatedSteps.map((e) => ({
