@@ -2,8 +2,10 @@
  * Main App Component
  *
  * Sets up routing for the application:
- * - "/" : Chat interface
- * - "/login" : Login page
+ * - "/"           : Marketing homepage (public)
+ * - "/app"        : Chat interface (requires login)
+ * - "/login"      : Login page
+ * - "/share/:token": Shared design (public)
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -13,6 +15,8 @@ import { ChatProvider } from "./context/ChatContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import ChatPage from "./pages/ChatPage";
 import LoginPage from "./pages/LoginPage";
+import SharedDesignPage from "./pages/SharedDesignPage";
+import HomePage from "./pages/HomePage";
 
 function App() {
   return (
@@ -23,42 +27,28 @@ function App() {
           <Toaster
             position="bottom-right"
             toastOptions={{
-              // Default options for all toasts
               duration: 3000,
               style: {
-                background: "#fff",
-                color: "#333",
-                border: "1px solid #e5e7eb",
-                padding: "12px 16px",
-                borderRadius: "8px",
-                fontSize: "14px",
+                background:   "#1a1d27",
+                color:        "#e8eaf0",
+                border:       "1px solid #2a2d3a",
+                padding:      "10px 14px",
+                borderRadius: "2px",
+                fontSize:     "13px",
+                fontFamily:   "'JetBrains Mono', monospace",
               },
-              success: {
-                iconTheme: {
-                  primary: "#10b981",
-                  secondary: "#fff",
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: "#ef4444",
-                  secondary: "#fff",
-                },
-                duration: 4000, // Errors stay longer
-              },
-              loading: {
-                iconTheme: {
-                  primary: "#3b82f6",
-                  secondary: "#fff",
-                },
-              },
+              success: { iconTheme: { primary: "#22c55e", secondary: "#1a1d27" } },
+              error:   { iconTheme: { primary: "#ef4444", secondary: "#1a1d27" }, duration: 4000 },
+              loading: { iconTheme: { primary: "#3b82f6", secondary: "#1a1d27" } },
             }}
           />
 
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/"              element={<HomePage />} />
+            <Route path="/login"         element={<LoginPage />} />
+            <Route path="/share/:token"  element={<SharedDesignPage />} />
             <Route
-              path="/"
+              path="/app"
               element={
                 <ProtectedRoute>
                   <ChatPage />

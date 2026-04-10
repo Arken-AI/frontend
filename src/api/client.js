@@ -71,6 +71,7 @@ export async function sendMessage({
   username = null,
   extra_metadata = null,
   attachments = null,
+  signal = null,
 }) {
   const body = {
     conversation_id,
@@ -101,6 +102,7 @@ export async function sendMessage({
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {
@@ -114,6 +116,24 @@ export async function sendMessage({
 }
 
 /**
+ * Cancel an in-flight request for a conversation.
+ * Tells the backend to stop streaming Claude's response.
+ * Partial message persistence is handled server-side by the orchestration layer.
+ * @param {string} conversationId
+ */
+export async function cancelMessage(conversationId) {
+  try {
+    await fetch(`${API_BASE}/chat/${conversationId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch {
+    // Best-effort — ignore network errors on cancel
+  }
+}
+
+/**
  * Retry the last user message in a conversation.
  *
  * Tells the backend to delete the stale assistant response (and user msg)
@@ -122,10 +142,11 @@ export async function sendMessage({
  * @param {string} conversationId - Conversation to retry in
  * @returns {Promise<Object>} Same shape as sendMessage response
  */
-export async function retryMessage(conversationId) {
+export async function retryMessage(conversationId, signal = null) {
   const response = await fetch(`${API_BASE}/chat/${conversationId}/retry`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {
@@ -133,6 +154,60 @@ export async function retryMessage(conversationId) {
       .json()
       .catch(() => ({ error: "Network error" }));
     throw new Error(error.message || error.error || "Failed to retry message");
+  }
+
+  return response.json();
+}
+
+/**
+ * Edit a previously sent user message and regenerate the response.
+ *
+ * Truncates the conversation from the specified message index onward
+ * and re-processes with the new content through the LLM.
+ *
+ * @param {string} conversationId - Conversation to edit in
+ * @param {number} messageIndex - Zero-based index of the user message to edit
+ * @param {string} newContent - The edited message text
+ * @param {Array|null} attachments - Optional attachments
+ * @param {AbortSignal|null} signal - Optional abort signal
+ * @returns {Promise<Object>} Same shape as sendMessage response
+ */
+export async function editMessage(
+  conversationId,
+  messageIndex,
+  newContent,
+  attachments = null,
+  signal = null,
+) {
+  const body = {
+    message_index: messageIndex,
+    new_content: newContent.trim(),
+  };
+
+  if (attachments && attachments.length > 0) {
+    body.attachments = attachments.map((att) => ({
+      media_type: att.media_type,
+      data: att.data,
+      filename: att.filename || null,
+    }));
+  }
+
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/edit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    ...(signal ? { signal } : {}),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
+    const errorMsg = error.message || error.detail || error.error || "Failed to edit message";
+    const err = new Error(errorMsg);
+    err.status = response.status;
+    err.code = response.status === 400 ? "INVALID_EDIT" : response.status === 404 ? "CONVERSATION_NOT_FOUND" : "EDIT_FAILED";
+    throw err;
   }
 
   return response.json();
@@ -217,4 +292,59 @@ export async function checkHealth() {
  */
 export function getStreamUrl(conversationId, afterSequence = 0) {
   return `${API_BASE}/chat/${conversationId}/stream?after_sequence=${afterSequence}`;
+}
+
+/**
+ * Create a public share link for a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string|null} username - Owner username
+ * @returns {Promise<Object>} { share_url, token }
+ */
+export async function shareConversation(conversationId, username = null) {
+  const headers = { "Content-Type": "application/json" };
+  if (username) headers["X-Username"] = username.toLowerCase();
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/share`, {
+    method: "POST",
+    headers,
+  });
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to share" }));
+    throw new Error(error.detail || "Failed to create share link");
+  }
+  return response.json();
+}
+
+/**
+ * Revoke the public share link for a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string|null} username - Owner username
+ * @returns {Promise<void>}
+ */
+export async function revokeShare(conversationId, username = null) {
+  const headers = {};
+  if (username) headers["X-Username"] = username.toLowerCase();
+  const response = await fetch(`${API_BASE}/chat/${conversationId}/share`, {
+    method: "DELETE",
+    headers,
+  });
+  if (response.status !== 204 && !response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to revoke" }));
+    throw new Error(error.detail || "Failed to revoke share link");
+  }
+}
+
+/**
+ * Fetch a shared design by token (no auth required)
+ * @param {string} token - Share token UUID
+ * @returns {Promise<Object>} { title, created_at, messages, hx_steps }
+ */
+export async function getSharedDesign(token) {
+  const response = await fetch(`${API_BASE}/share/${token}`);
+  if (response.status === 404) throw new Error("not_found");
+  if (!response.ok) throw new Error("Failed to load shared design");
+  return response.json();
 }

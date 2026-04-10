@@ -24,6 +24,8 @@ import { useAuth } from "./AuthContext";
 // Create the context
 const ChatContext = createContext(null);
 
+const ERR_NOT_FOUND = "Conversation not found";
+
 /**
  * Chat Context Provider Component
  */
@@ -39,7 +41,7 @@ export function ChatProvider({ children }) {
 
   // Conversation list
   const [conversations, setConversations] = useState([]);
-  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
   const [conversationsError, setConversationsError] = useState(null);
 
   // Current conversation context (messages, state)
@@ -56,6 +58,7 @@ export function ChatProvider({ children }) {
    * Load conversation list from backend
    */
   const refreshConversations = useCallback(async () => {
+    if (!username) return;
     setConversationsLoading(true);
     setConversationsError(null);
 
@@ -88,7 +91,7 @@ export function ChatProvider({ children }) {
       } catch (error) {
         console.error("Failed to load conversation context:", error);
         // If conversation not found, clear it
-        if (error.message === "Conversation not found") {
+        if (error.message === ERR_NOT_FOUND) {
           setConversationId(null);
         }
         setCurrentContext(null);
@@ -207,10 +210,52 @@ export function ChatProvider({ children }) {
     [setConversationId],
   );
 
-  // Load conversations on mount
+  // On fresh login, clear any stale conversationId so the user
+  // always lands on the welcome screen instead of a previous chat.
+  const prevUsernameRef = useRef(undefined);
+  // True until the very first null→truthy username transition is consumed.
+  // That transition is always auth resolving on page reload, never a genuine
+  // fresh login (which follows a deliberate logout → null).
+  const isInitialAuthResolutionRef = useRef(true);
+  // Stable refs so the effect below doesn't re-fire when callbacks change
+  const refreshRef = useRef(refreshConversations);
+  refreshRef.current = refreshConversations;
+  const createNewRef = useRef(createNewConversation);
+  createNewRef.current = createNewConversation;
+
   useEffect(() => {
-    refreshConversations();
-  }, [refreshConversations]);
+    if (prevUsernameRef.current === undefined) {
+      // First render — if username is already set (page reload while
+      // still authenticated) we intentionally keep the persisted
+      // conversationId so the user returns to where they left off.
+      prevUsernameRef.current = username;
+      if (username) {
+        // Auth was already resolved on first render — no null→truthy transition
+        // will follow, so the initial-auth flag can be consumed now.
+        isInitialAuthResolutionRef.current = false;
+        refreshRef.current();
+      }
+      return;
+    }
+    if (!prevUsernameRef.current && username) {
+      if (isInitialAuthResolutionRef.current) {
+        // First null→truthy after mount: auth resolved asynchronously on page
+        // reload.  Keep the persisted conversationId so the user returns to
+        // where they left off.  createNewConversation() is NOT called here.
+        isInitialAuthResolutionRef.current = false;
+      } else {
+        // Subsequent null→truthy: genuine fresh login after an explicit logout.
+        createNewRef.current();
+      }
+    }
+    if (prevUsernameRef.current && !username) {
+      // User logged out — reset the flag so the next login triggers a fresh
+      // conversation as expected.
+      isInitialAuthResolutionRef.current = true;
+    }
+    prevUsernameRef.current = username;
+    if (username) refreshRef.current();
+  }, [username]); // Only re-run when username changes
 
   // Load context when conversation changes (skip if loadConversation was just called)
   useEffect(() => {
@@ -243,7 +288,7 @@ export function ChatProvider({ children }) {
         console.error("Failed to load conversation context:", error);
         if (isMounted) {
           // If conversation not found, clear it
-          if (error.message === "Conversation not found") {
+          if (error.message === ERR_NOT_FOUND) {
             setConversationId(null);
           }
           setCurrentContext(null);

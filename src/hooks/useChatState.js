@@ -18,6 +18,7 @@ const initialState = {
   agentSteps: [], // Ordered list of { type: "text"|"tool"|"tool_running", ... }
   error: null, // Current error message
   streamingMessage: "", // Accumulates message_delta chunks for live typing effect
+  editingMessageIndex: null, // Index of message currently being edited/processed
 };
 
 // Action types
@@ -40,6 +41,9 @@ export const ACTIONS = {
   AGENT_TEXT: "AGENT_TEXT",
   MESSAGE_DELTA: "MESSAGE_DELTA",
   POP_LAST_ASSISTANT: "POP_LAST_ASSISTANT",
+  TRIM_AFTER_LAST_USER: "TRIM_AFTER_LAST_USER",
+  EDIT_USER_MESSAGE: "EDIT_USER_MESSAGE",
+  SET_EDITING_MESSAGE_INDEX: "SET_EDITING_MESSAGE_INDEX",
 };
 
 // Reducer function
@@ -262,6 +266,10 @@ function chatReducer(state, action) {
             timestamp: action.payload.timestamp || new Date().toISOString(),
             metadata: action.payload.metadata,
             run_ids: action.payload.run_ids,
+            // Preserve status (error, cancelled, etc.)
+            status: action.payload.status,
+            cancelled:
+              action.payload.cancelled || action.payload.status === "cancelled",
             // Image attachments (user messages)
             attachments: action.payload.attachments,
             // Normalised array used by MessageList for inline rendering
@@ -333,6 +341,9 @@ function chatReducer(state, action) {
           content: msg.content,
           timestamp: msg.timestamp || new Date().toISOString(),
           metadata: msg.metadata,
+          // Preserve cancelled / status flags from DB
+          status: msg.status,
+          cancelled: msg.status === "cancelled" || msg.cancelled || false,
           // Carry forward image attachment metadata for display in MessageBubble
           attachments:
             msg.attachments || msg.metadata?.attachments || undefined,
@@ -403,14 +414,69 @@ function chatReducer(state, action) {
         error: null,
       };
 
-    case ACTIONS.CANCEL_REQUEST:
+    case ACTIONS.SET_EDITING_MESSAGE_INDEX:
       return {
         ...state,
+        editingMessageIndex: action.payload,
+      };
+
+    case ACTIONS.CANCEL_REQUEST: {
+      // If there's a partial streamed response, save it as a real message
+      // so the user sees what was generated before they clicked Stop.
+      // Include any tool executions and agent steps that occurred before cancel.
+      const partial = state.streamingMessage;
+      const cancelledToolExecs = state.toolExecutions.map((t) => ({
+        tool_name: t.name,
+        status: t.status,
+        duration_ms: t.duration,
+        summary: t.summary,
+        error: t.error,
+        arguments: t.args,
+        result: t.result || undefined,
+      }));
+      // Upgrade any still-running tool steps to "cancelled"
+      const cancelledSteps = state.agentSteps.map((step) =>
+        step.type === "tool_running"
+          ? { ...step, type: "tool", status: "cancelled" }
+          : step,
+      );
+      // Append the partial text as the final step if present
+      if (partial) {
+        cancelledSteps.push({
+          type: "text",
+          content: partial,
+          isFinal: true,
+        });
+      }
+      const messagesAfterCancel =
+        partial || cancelledToolExecs.length > 0
+          ? [
+              ...state.messages,
+              {
+                role: "assistant",
+                content: partial || "",
+                timestamp: new Date().toISOString(),
+                cancelled: true,
+                toolExecutions:
+                  cancelledToolExecs.length > 0
+                    ? cancelledToolExecs
+                    : undefined,
+                agentSteps:
+                  cancelledSteps.length > 1 ? cancelledSteps : undefined,
+              },
+            ]
+          : state.messages;
+      return {
+        ...state,
+        messages: messagesAfterCancel,
+        streamingMessage: "",
         isThinking: false,
         activeTool: null,
+        toolExecutions: [],
         agentSteps: [],
         runProgress: null,
       };
+    }
 
     case ACTIONS.POP_LAST_ASSISTANT: {
       // Remove the last message if it's an assistant message.
@@ -423,6 +489,48 @@ function chatReducer(state, action) {
         ...state,
         messages: msgs,
         streamingMessage: "",
+      };
+    }
+
+    case ACTIONS.TRIM_AFTER_LAST_USER: {
+      // Keep all messages up to and including the last user message.
+      // Removes every assistant message that followed it (design response + report).
+      // Does NOT touch isThinking — safe to call mid-retry.
+      let lastUserIdx = -1;
+      for (let i = state.messages.length - 1; i >= 0; i--) {
+        if (state.messages[i].role === "user") {
+          lastUserIdx = i;
+          break;
+        }
+      }
+      if (lastUserIdx === -1) return { ...state, streamingMessage: "" };
+      return {
+        ...state,
+        messages: state.messages.slice(0, lastUserIdx + 1),
+        streamingMessage: "",
+      };
+    }
+
+    case ACTIONS.EDIT_USER_MESSAGE: {
+      // Truncate messages from the edited index onward, then append
+      // the new user message with the edited content.
+      const editIndex = action.payload.messageIndex;
+      const truncated = state.messages.slice(0, editIndex);
+      truncated.push({
+        role: "user",
+        content: action.payload.newContent,
+        timestamp: new Date().toISOString(),
+        ...(action.payload.attachments
+          ? { attachments: action.payload.attachments }
+          : {}),
+      });
+      return {
+        ...state,
+        messages: truncated,
+        toolExecutions: [],
+        agentSteps: [],
+        streamingMessage: "",
+        error: null,
       };
     }
 

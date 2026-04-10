@@ -86,6 +86,8 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     sessionStorage.removeItem(STORAGE_KEYS.IS_AUTHENTICATED);
     sessionStorage.removeItem(STORAGE_KEYS.USERNAME);
+    // Clear persisted conversation so next login lands on a fresh page
+    localStorage.removeItem('currentConversationId');
     setIsAuthenticated(false);
     setUsername(null);
   }, []);

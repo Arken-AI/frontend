@@ -17,7 +17,7 @@ import { useCallback, useRef, useEffect } from "react";
 import { useChatContext } from "../../context/ChatContext";
 import { useChatState } from "../../hooks/useChatState";
 import { handleSSEEvent } from "../../utils/eventHandlers";
-import { sendMessage, retryMessage, getStreamUrl } from "../../api/client";
+import { sendMessage, retryMessage, editMessage, cancelMessage, getStreamUrl } from "../../api/client";
 import SSEClient from "../../utils/sseClient";
 import { useAutoScroll } from "../../hooks/useAutoScroll";
 
@@ -33,7 +33,7 @@ function generateConversationId() {
   return `conv_${hex}`;
 }
 
-function ChatContainer() {
+function ChatContainer({ onHXDesignStarted, reportPending, pendingReport, onReportConsumed, sendMessageRef }) {
   const {
     conversationId,
     setConversationId,
@@ -43,7 +43,40 @@ function ChatContainer() {
     username,
   } = useChatContext();
   const [state, dispatch] = useChatState();
-  const { scrollRef, bottomRef, showScrollButton, scrollToBottom } = useAutoScroll([
+
+  // ── Design report injection ────────────────────────────────────────────────
+  // pendingReport is set by ChatPage after polling the backend for the
+  // design_report message. We dispatch ADD_MESSAGE directly here because the
+  // normal LOAD_MESSAGES path is blocked by the isThinking guard (the chat
+  // SSE client's waitForCompletion timeout may still be pending).
+  //
+  // Deduplication uses a ref (not content equality against state.messages) so:
+  //   a) React StrictMode double-invocation is safe (ref is set on first call)
+  //   b) A retry that produces the same report text still shows (ref is reset
+  //      at the start of handleRetry, so the new pendingReport isn't skipped)
+  const lastConsumedReportRef = useRef(null);
+
+  useEffect(() => {
+    console.log('[ChatContainer] pendingReport effect, pendingReport:', pendingReport ? pendingReport.substring(0, 60) + '...' : null);
+    if (!pendingReport) return;
+    if (pendingReport === lastConsumedReportRef.current) {
+      // Already dispatched this exact pendingReport value — skip.
+      console.log('[ChatContainer] pendingReport already consumed, skipping');
+      return;
+    }
+    lastConsumedReportRef.current = pendingReport;
+    console.log('[ChatContainer] dispatching ADD_MESSAGE for design report');
+    dispatch({
+      type: 'ADD_MESSAGE',
+      payload: {
+        role: 'assistant',
+        content: pendingReport,
+        timestamp: new Date().toISOString(),
+      },
+    });
+    onReportConsumed?.();
+  }, [pendingReport, dispatch, onReportConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { scrollRef, bottomRef, showScrollButton, scrollToBottom, resetScroll } = useAutoScroll([
     state.messages,
     state.streamingMessage,
     state.isThinking,
@@ -66,10 +99,32 @@ function ChatContainer() {
   // Stored in a ref so it's accessible from the cancel handler.
   const sseClientRef = useRef(null);
 
+  // AbortController for the in-flight sendMessage fetch.
+  // Calling abort() immediately drops the HTTP connection so the backend
+  // cancel flag (set via POST /cancel) can stop the stream.
+  const abortControllerRef = useRef(null);
+
   // Tracks the highest event sequence number seen so far for this conversation.
   // Passed to each new SSEClient so the stream resumes after the last seen
   // event and never replays events from previous turns.
   const lastSequenceRef = useRef(0);
+
+  // Set synchronously at the very start of handleSendMessage (and retry/edit)
+  // BEFORE any dispatch fires. Cleared in the finally block of each handler.
+  // Unlike isThinking (a React state value), this ref is updated outside React's
+  // render cycle, so the LOAD_MESSAGES guard in useEffect([currentContext]) sees
+  // it immediately — even before SET_THINKING(true) has been committed by React.
+  // This closes the race window between SET_THINKING(false) from turn N and
+  // SET_THINKING(true) from turn N+1 where LOAD_MESSAGES could fire.
+  const isSendingRef = useRef(false);
+
+  // Mirror of state.isThinking as a ref so handleSendMessage/handleRetry/
+  // handleEditMessage entry guards always read the current value even when
+  // the useCallback closure is stale. state.isThinking inside a memoized
+  // callback can read true long after SET_THINKING(false) was dispatched if
+  // the callback hasn't been recreated yet (stale closure bug).
+  const isThinkingRef = useRef(false);
+  isThinkingRef.current = state.isThinking;
 
   // Handle SSE events (for tool progress updates only)
   const onSSEEvent = useCallback(
@@ -78,6 +133,13 @@ function ChatContainer() {
       // with ?after_sequence=N and never replays already-seen events.
       if (event.sequence) {
         lastSequenceRef.current = event.sequence;
+      }
+
+      // hx_design_started: wire up the HX Engine stream BEFORE the whitelist
+      // so this event is never silently dropped by the filter below.
+      if (event.event_type === "hx_design_started" && onHXDesignStarted) {
+        onHXDesignStarted(event.stream_url, event.session_id);
+        return;
       }
 
       if (
@@ -92,13 +154,23 @@ function ChatContainer() {
         handleSSEEvent(event, dispatch);
       }
     },
-    [dispatch],
+    [dispatch, onHXDesignStarted],
   );
 
   // Send message handler - now synchronous with direct response
   const handleSendMessage = useCallback(
     async (content, attachments = null) => {
-      if ((!content.trim() && (!attachments || attachments.length === 0)) || state.isThinking) return;
+      console.log('[ChatContainer][handleSendMessage] ENTRY — content:', content.trim().substring(0, 40), '| isThinkingRef:', isThinkingRef.current, '| isSendingRef:', isSendingRef.current, '| msgCount:', state.messages.length);
+      if ((!content.trim() && (!attachments || attachments.length === 0)) || isThinkingRef.current) {
+        console.warn('[ChatContainer][handleSendMessage] BLOCKED AT ENTRY — empty content or isThinkingRef=true', { isThinkingRef: isThinkingRef.current, isSendingRef: isSendingRef.current });
+        return;
+      }
+
+      // Block LOAD_MESSAGES immediately — before any dispatch or React state
+      // update. This prevents the race where currentContext updates between
+      // turns and LOAD_MESSAGES fires while isThinking is still false.
+      isSendingRef.current = true;
+      console.log('[ChatContainer][handleSendMessage] isSendingRef=true, msgCount=', state.messages.length, 'isThinking=', state.isThinking);
 
       // Clear any leftover tool state from the previous turn FIRST,
       // before the user message is added and before SSE events start arriving.
@@ -113,6 +185,7 @@ function ChatContainer() {
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       dispatch({ type: "ADD_MESSAGE", payload: userMessage });
+      console.log('[ChatContainer][handleSendMessage] dispatched ADD_MESSAGE (user), content:', content.trim().substring(0, 60));
 
       // For new conversations, pre-generate the conversation_id and set it
       // NOW — before isThinking becomes true — so the SSE hook can connect
@@ -139,6 +212,10 @@ function ChatContainer() {
       sseClientRef.current = sseClient;
       await sseClient.ready; // wait for TCP open (or timeout) before POST
 
+      // Create a fresh AbortController for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       try {
         // Send message to backend - waits for complete response
         const response = await sendMessage({
@@ -146,6 +223,7 @@ function ChatContainer() {
           conversation_id: activeConversationId,
           username,
           attachments: attachments || null,
+          signal: abortController.signal,
         });
 
         // ── Wait for SSE stream to finish ──────────────────────────────
@@ -192,6 +270,7 @@ function ChatContainer() {
         // `arguments`) is fully populated when ADD_MESSAGE runs. The reducer
         // adopts the live SSE cards onto the message.
         if (response.status === "completed" && response.message) {
+          console.log('[ChatContainer][handleSendMessage] dispatching ADD_MESSAGE (assistant), response length:', response.message?.length);
           dispatch({
             type: "ADD_MESSAGE",
             payload: {
@@ -209,11 +288,16 @@ function ChatContainer() {
             updateLatestRunId(response.run_ids);
           }
         } else if (response.status === "error") {
+          // Add the error as an assistant message so it persists in the
+          // conversation and survives page reloads (saved by the backend).
           dispatch({
-            type: "SET_ERROR",
-            payload:
-              response.message ||
-              "An error occurred while processing your request",
+            type: "ADD_MESSAGE",
+            payload: {
+              role: "assistant",
+              content: response.message || "An error occurred while processing your request",
+              timestamp: new Date().toISOString(),
+              status: "error",
+            },
           });
         }
 
@@ -226,14 +310,28 @@ function ChatContainer() {
 
         await refreshConversations();
       } catch (error) {
-        console.error("Error sending message:", error);
         sseClientRef.current?.close();
         sseClientRef.current = null;
+        abortControllerRef.current = null;
+        // AbortError is the expected path when the user clicks Stop — not an error
+        if (error.name === "AbortError") {
+          dispatch({ type: "SET_THINKING", payload: false });
+          return;
+        }
+        console.error("Error sending message:", error);
         dispatch({
-          type: "SET_ERROR",
-          payload: error.message || "Failed to send message",
+          type: "ADD_MESSAGE",
+          payload: {
+            role: "assistant",
+            content: error.message || "Failed to send message",
+            timestamp: new Date().toISOString(),
+            status: "error",
+          },
         });
         dispatch({ type: "SET_THINKING", payload: false });
+      } finally {
+        isSendingRef.current = false;
+        console.log('[ChatContainer][handleSendMessage] isSendingRef=false (finally)');
       }
     },
     [
@@ -275,27 +373,33 @@ function ChatContainer() {
 
       dispatch({ type: "RESET" });
       lastSequenceRef.current = 0;
+      resetScroll();
     }
 
     previousConversationIdRef.current = conversationId;
-  }, [conversationId, dispatch]);
+  }, [conversationId, dispatch, resetScroll]);
 
   // Load messages from context when conversation changes.
-  // IMPORTANT: Skip if a request is in-flight (isThinking). The backend saves
-  // the user message to MongoDB BEFORE Claude responds, so mid-request the DB
+  // IMPORTANT: Skip if a send/retry/edit is in-flight. The backend saves the
+  // user message to MongoDB BEFORE Claude responds, so mid-request the DB
   // history ends with the old assistant message. If LOAD_MESSAGES fires now,
   // it replaces the live messages array with stale DB data — making the old
   // assistant response appear as the "new" response. When the real response
   // arrives via HTTP, it "replaces" the stale one. Skipping here avoids that.
-  const isThinkingRef = useRef(false);
-  isThinkingRef.current = state.isThinking;
-
+  //
+  // isSendingRef (not isThinking state) is used here because state updates are
+  // committed asynchronously by React — there is a window between turns where
+  // isThinking is false but a new send has already been initiated.  The ref is
+  // set synchronously at the top of handleSendMessage before any dispatch fires.
   useEffect(() => {
-    if (isThinkingRef.current) {
-      // Request in-flight — don't overwrite live state with stale DB history.
+    console.log('[ChatContainer][LOAD_MESSAGES effect] currentContext updated. isSendingRef=', isSendingRef.current, 'isThinking=', state.isThinking, 'msgCount=', state.messages.length, 'contextMsgCount=', currentContext?.messages?.length ?? 0);
+    if (isSendingRef.current) {
+      // Send/retry/edit in-flight — don't overwrite live state with stale DB history.
+      console.warn('[ChatContainer][LOAD_MESSAGES effect] BLOCKED — isSendingRef is true, skipping LOAD_MESSAGES');
       return;
     }
     if (currentContext && currentContext.messages) {
+      console.log('[ChatContainer][LOAD_MESSAGES effect] FIRING LOAD_MESSAGES with', currentContext.messages.length, 'messages');
       dispatch({
         type: "LOAD_MESSAGES",
         payload: { messages: currentContext.messages },
@@ -310,24 +414,47 @@ function ChatContainer() {
 
   // Cancel/stop request handler
   const handleCancelRequest = useCallback(() => {
+    // 1. Tell the backend to stop streaming — include the partial text the
+    //    frontend has accumulated so the backend can persist it to MongoDB.
+    //    This ensures the cancelled partial response survives page reloads.
+    if (conversationId) {
+      cancelMessage(conversationId);
+    }
+    // 2. Abort the in-flight HTTP fetch so the frontend doesn't process the response
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    // 3. Close the SSE connection
     sseClientRef.current?.close();
     sseClientRef.current = null;
+    // 4. Reset UI state — this saves the partial text as a local message
     dispatch({ type: "CANCEL_REQUEST" });
-  }, [dispatch]);
+  }, [conversationId, dispatch, state.streamingMessage]);
 
   // Retry: ask the backend to delete the stale tail messages from DB,
   // then re-run the same user message through Claude from scratch.
   const handleRetry = useCallback(async () => {
-    if (!conversationId || state.isThinking) return;
+    if (!conversationId || isThinkingRef.current) return;
 
     // Find the last user message (for optimistic UI)
     const lastUserMsg = [...state.messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
 
-    // ── Optimistic UI: strip the bad assistant response ─────────────
-    // Use POP_LAST_ASSISTANT instead of LOAD_MESSAGES — it does NOT
-    // reset isThinking, so the thinking indicator stays visible.
-    dispatch({ type: "POP_LAST_ASSISTANT" });
+    // Clear any stale pendingReport from the previous design run.
+    // Without this, a not-yet-consumed pendingReport would be injected into the
+    // freshly-trimmed message list as soon as React re-renders. Also reset the
+    // consumed-ref so the new run's report is never skipped by the dedup guard
+    // (even if it produces the same text as the previous run).
+    lastConsumedReportRef.current = null;
+    onReportConsumed?.();
+
+    isSendingRef.current = true;
+
+    // ── Optimistic UI: strip all assistant messages after the last user message ──
+    // A completed HX design leaves TWO consecutive assistant messages (design
+    // response + report). TRIM_AFTER_LAST_USER removes everything after the last
+    // user message so both are cleared before the retry runs. Does NOT touch
+    // isThinking, so the thinking indicator stays visible.
+    dispatch({ type: "TRIM_AFTER_LAST_USER" });
     dispatch({ type: "CLEAR_ERROR" });
     dispatch({ type: "RESET_RESPONSE" });
     dispatch({ type: "SET_THINKING", payload: true });
@@ -338,10 +465,13 @@ function ChatContainer() {
     sseClientRef.current = sseClient;
     await sseClient.ready;
 
+    const retryAbortController = new AbortController();
+    abortControllerRef.current = retryAbortController;
+
     try {
       // Call the dedicated retry endpoint — it deletes stale DB messages
       // and re-processes the same user text through Claude.
-      const response = await retryMessage(conversationId);
+      const response = await retryMessage(conversationId, retryAbortController.signal);
 
       await sseClient.waitForCompletion();
 
@@ -377,85 +507,140 @@ function ChatContainer() {
       sseClientRef.current = null;
       await refreshConversations();
     } catch (error) {
-      console.error("Error retrying message:", error);
       sseClientRef.current?.close();
       sseClientRef.current = null;
+      abortControllerRef.current = null;
+      if (error.name === "AbortError") {
+        dispatch({ type: "SET_THINKING", payload: false });
+        return;
+      }
+      console.error("Error retrying message:", error);
       dispatch({ type: "SET_ERROR", payload: error.message || "Failed to retry" });
       dispatch({ type: "SET_THINKING", payload: false });
+    } finally {
+      isSendingRef.current = false;
     }
   }, [conversationId, state.messages, state.isThinking, dispatch, onSSEEvent, refreshConversations]);
 
+  // Edit: truncate conversation from the edited message onward and re-process
+  // with the new content. Same SSE + HTTP pattern as send and retry.
+  const handleEditMessage = useCallback(async (messageIndex, newContent, attachments = null) => {
+    if (!conversationId || isThinkingRef.current) return;
+
+    isSendingRef.current = true;
+
+    // ── Optimistic UI: truncate and show the edited user message ────
+    dispatch({
+      type: "EDIT_USER_MESSAGE",
+      payload: { messageIndex, newContent, attachments },
+    });
+    dispatch({ type: "RESET_RESPONSE" });
+    dispatch({ type: "SET_THINKING", payload: true });
+    dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: messageIndex });
+
+    // ── Open SSE before the edit POST ───────────────────────────────
+    const sseUrl = getStreamUrl(conversationId, lastSequenceRef.current);
+    const sseClient = new SSEClient(sseUrl, onSSEEvent);
+    sseClientRef.current = sseClient;
+    await sseClient.ready;
+
+    const editAbortController = new AbortController();
+    abortControllerRef.current = editAbortController;
+
+    try {
+      const response = await editMessage(
+        conversationId,
+        messageIndex,
+        newContent,
+        attachments,
+        editAbortController.signal,
+      );
+
+      await sseClient.waitForCompletion();
+
+      // Guard: user switched away while we were waiting
+      if (activeConvRef.current !== conversationId) {
+        sseClient.close();
+        sseClientRef.current = null;
+        await refreshConversations();
+        return;
+      }
+
+      if (response.status === "completed" && response.message) {
+        dispatch({
+          type: "ADD_MESSAGE",
+          payload: {
+            role: "assistant",
+            content: response.message,
+            timestamp: new Date().toISOString(),
+            run_ids: response.run_ids,
+            tool_executions: response.tool_executions,
+            token_usage: response.token_usage,
+          },
+        });
+
+        if (response.run_ids && response.run_ids.length > 0) {
+          updateLatestRunId(response.run_ids);
+        }
+      } else if (response.status === "error") {
+        dispatch({
+          type: "SET_ERROR",
+          payload: response.message || "Edit failed",
+        });
+      }
+
+      dispatch({ type: "SET_THINKING", payload: false });
+      dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+      sseClient.close();
+      sseClientRef.current = null;
+      await refreshConversations();
+    } catch (error) {
+      sseClientRef.current?.close();
+      sseClientRef.current = null;
+      abortControllerRef.current = null;
+      if (error.name === "AbortError") {
+        dispatch({ type: "SET_THINKING", payload: false });
+        dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+        return;
+      }
+      console.error("Error editing message:", error);
+      let errorMessage = error.message || "Failed to edit message";
+      if (error.code === "INVALID_EDIT") {
+        errorMessage = `Invalid edit: ${error.message}`;
+      } else if (error.code === "CONVERSATION_NOT_FOUND") {
+        errorMessage = "Conversation no longer exists";
+      } else if (error.status === 500) {
+        errorMessage = "Server error while editing. Please try again.";
+      }
+      dispatch({ type: "SET_ERROR", payload: errorMessage });
+      dispatch({ type: "SET_THINKING", payload: false });
+      dispatch({ type: "SET_EDITING_MESSAGE_INDEX", payload: null });
+    } finally {
+      isSendingRef.current = false;
+    }
+  }, [conversationId, state.isThinking, dispatch, onSSEEvent, refreshConversations, updateLatestRunId]);
+
   // Show welcome screen if no messages
   const showWelcome = state.messages.length === 0 && !state.isThinking;
+
+  // Expose handleSendMessage to parent via ref for cross-panel communication
+  // (e.g. "Explain tradeoffs" button in HXPanel sends a chat message)
+  useEffect(() => {
+    if (sendMessageRef) {
+      sendMessageRef.current = handleSendMessage;
+    }
+  }, [handleSendMessage, sendMessageRef]);
 
   // Is request currently processing?
   const isProcessing = state.isThinking;
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Error display */}
-      {state.error && (
-        <div
-          className={`text-sm px-4 py-3 text-center border-b flex items-center justify-center gap-3 ${
-            state.error.type === "rate_limit_error"
-              ? "bg-yellow-50 text-yellow-900 border-yellow-200"
-              : "bg-red-50 text-red-800 border-red-200"
-          }`}
-        >
-          <div className="flex-1 flex items-center justify-center gap-2">
-            {state.error.type === "rate_limit_error" ? (
-              <svg
-                className="w-5 h-5 text-yellow-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-5 h-5 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            )}
-            <div className="text-left">
-              <div className="font-medium">{state.error.message}</div>
-              {state.error.details?.suggestion && (
-                <div className="text-xs mt-1 opacity-75">
-                  {state.error.details.suggestion}
-                </div>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={() => dispatch({ type: "CLEAR_ERROR" })}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              state.error.type === "rate_limit_error"
-                ? "text-yellow-700 hover:bg-yellow-100"
-                : "text-red-700 hover:bg-red-100"
-            }`}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
+    <div
+      className="flex flex-col h-full"
+      style={{ backgroundColor: 'var(--color-bg)' }}
+    >
       {/* Main content area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto relative" style={{ scrollbarGutter: 'stable' }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
         {showWelcome ? (
           <WelcomeScreen onSend={handleSendMessage} />
         ) : (
@@ -467,48 +652,42 @@ function ChatContainer() {
             toolExecutions={state.toolExecutions}
             runProgress={state.runProgress}
             agentSteps={state.agentSteps}
-            error={state.error}
             streamingMessage={state.streamingMessage}
             onRetry={handleRetry}
+            onEditMessage={handleEditMessage}
+            editingMessageIndex={state.editingMessageIndex}
+            reportPending={reportPending}
             bottomRef={bottomRef}
           />
         )}
+      </div>
+
+      {/* Input area — relative wrapper lets the scroll button float above it */}
+      <div className="relative flex-shrink-0">
         {showScrollButton && (
           <button
             onClick={scrollToBottom}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full shadow-md text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 border text-xs transition-colors z-10"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              borderColor:     'var(--color-border)',
+              color:           'var(--color-text-muted)',
+              fontFamily:      'var(--font-mono)',
+              borderRadius:    '2px',
+            }}
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-            Scroll to latest
+            ↓ latest
           </button>
         )}
+        <MessageInput
+          onSend={handleSendMessage}
+          onCancel={handleCancelRequest}
+          disabled={false}
+          isProcessing={isProcessing}
+          placeholder="Describe your heat exchanger problem…"
+        />
       </div>
 
-      {/* Input area - always show */}
-      <MessageInput
-        onSend={handleSendMessage}
-        onCancel={handleCancelRequest}
-        disabled={false}
-        isProcessing={isProcessing}
-        placeholder="Ask about process simulations..."
-      />
-
-      {/* Status indicator — only show when no agent steps are visible yet */}
-      {state.isThinking && state.agentSteps.length === 0 && (
-        <div className="px-4 py-1.5">
-          <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 text-xs text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-              </span>
-              <span className="text-gray-400 text-xs">Processing</span>
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

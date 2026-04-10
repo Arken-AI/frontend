@@ -6,7 +6,6 @@
  * The parent passes a bottomRef which is rendered as a scroll anchor.
  */
 
-import { AlertCircle, RotateCcw } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import WelcomeScreen from './WelcomeScreen';
 import ThinkingIndicator from '../events/ThinkingIndicator';
@@ -24,8 +23,10 @@ export default function MessageList({
   agentSteps = [],
   onSuggestionClick,
   streamingMessage = "",
-  error = null,
   onRetry,
+  onEditMessage,
+  editingMessageIndex = null,
+  reportPending = false,
   bottomRef,        // scroll anchor — provided by parent via useAutoScroll
 }) {
   // Show welcome screen if no messages
@@ -44,8 +45,8 @@ export default function MessageList({
   );
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8">
+      <div className="max-w-2xl mx-auto">
         {/* Render all messages with their inline tool executions */}
         {messages.map((message, index) => (
           <div key={index}>
@@ -54,31 +55,13 @@ export default function MessageList({
               <MessageBubble
                 message={message}
                 onRetry={onRetry}
+                onEdit={onEditMessage}
+                messageIndex={index}
                 isLastUser={index === lastUserIndex}
+                isProcessing={isThinking}
+                editingMessageIndex={editingMessageIndex}
               />
             )}
-
-            {/* Inline error after the last user message when response failed */}
-            {message.role === 'user' &&
-              index === messages.length - 1 &&
-              !isThinking &&
-              error && (
-                <div className="flex justify-start mb-4">
-                  <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm max-w-[80%]">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span className="flex-1">{error.message || "Failed to get response"}</span>
-                    {onRetry && (
-                      <button
-                        onClick={onRetry}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors flex-shrink-0"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Retry
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
 
             {/* Assistant message — interleaved steps or fallback tool cards */}
             {message.role === 'assistant' && (
@@ -177,14 +160,13 @@ export default function MessageList({
 
             {/* Streaming assistant response (arrives via SSE message_delta) */}
             {streamingMessage && (
-              <div className="mb-4 w-full">
-                <div className="w-full">
-                  <div className="bg-surface px-6 py-4">
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <MarkdownRenderer content={streamingMessage} />
-                    </div>
-                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-blue-500 animate-pulse rounded-sm align-text-bottom" />
-                  </div>
+              <div className="mb-6 w-full">
+                <div className="prose prose-sm max-w-none dark:prose-invert" style={{ lineHeight: '1.7' }}>
+                  <MarkdownRenderer content={streamingMessage} />
+                  <span
+                    className="inline-block w-0.5 h-4 ml-0.5 animate-pulse align-text-bottom"
+                    style={{ backgroundColor: 'var(--color-text-muted)', borderRadius: '1px' }}
+                  />
                 </div>
               </div>
             )}
@@ -214,6 +196,18 @@ export default function MessageList({
                 <span className="inline-block w-1.5 h-4 ml-0.5 bg-blue-500 animate-pulse rounded-sm align-text-bottom" />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Design report pending indicator — shown while backend generates LLM report */}
+        {reportPending && !isThinking && !messages.some(
+          (m) => m.role === 'assistant' && (m.metadata?.type === 'design_report' || m.content?.startsWith('### Design Complete'))
+        ) && (
+          <div className="mt-2 mb-4 flex items-center gap-2 px-2 py-1.5 text-xs"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
+            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ backgroundColor: 'var(--color-accent, #3b82f6)' }} />
+            Generating design report…
           </div>
         )}
 

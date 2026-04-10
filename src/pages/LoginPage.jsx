@@ -13,7 +13,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading: authLoading, login } = useAuth();
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const usernameRef = useRef(null);
 
@@ -35,15 +36,15 @@ export default function LoginPage() {
   // Show loading while checking auth state
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-text-muted)' }} />
       </div>
     );
   }
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/app" replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -74,26 +75,55 @@ export default function LoginPage() {
     }
   };
 
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 12px',
+    backgroundColor: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    color: 'var(--color-text-primary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '13px',
+    borderRadius: '2px',
+    opacity: isSubmitting ? 0.5 : 1,
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        {/* Branded Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 tracking-tight">
-            Arken AI
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ backgroundColor: 'var(--color-bg)' }}
+    >
+      <div
+        className="w-full max-w-sm border p-8"
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          borderColor:     'var(--color-border)',
+          borderRadius:    '2px',
+        }}
+      >
+        {/* Wordmark */}
+        <div className="mb-8">
+          <h1
+            className="text-sm font-bold tracking-[0.12em] uppercase mb-1"
+            style={{ color: 'var(--color-text-primary)' }}
+          >
+            ARKEN
           </h1>
-          <p className="text-sm text-gray-500 mt-2">Sign in to continue</p>
+          <p
+            className="text-xs"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+          >
+            sign in to continue
+          </p>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Username */}
           <div>
             <label
               htmlFor="username"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-xs mb-1.5"
+              style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
             >
-              Username
+              username
             </label>
             <input
               ref={usernameRef}
@@ -101,63 +131,93 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
+              placeholder="your username"
               disabled={isSubmitting}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-md
-                       text-gray-900 placeholder-gray-400
-                       focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-colors duration-200"
+              style={inputStyle}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--color-border-focus)'}
+              onBlur={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
             />
           </div>
 
-          {/* Password */}
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-xs mb-1.5"
+              style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
             >
-              Password
+              password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              disabled={isSubmitting}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-md
-                       text-gray-900 placeholder-gray-400
-                       focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-colors duration-200"
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={isSubmitting}
+                style={{ ...inputStyle, paddingRight: '36px' }}
+                onFocus={e => e.currentTarget.style.borderColor = 'var(--color-border-focus)'}
+                onBlur={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
+              />
+              {password && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword(prev => !prev)}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword
+                    ? <EyeOff className="w-3.5 h-3.5" />
+                    : <Eye className="w-3.5 h-3.5" />
+                  }
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Error Message */}
           {error && (
-            <p className="text-red-500 text-sm text-center" role="alert">
-              {error}
+            <p
+              className="text-xs"
+              role="alert"
+              style={{ color: 'var(--color-error)', fontFamily: 'var(--font-mono)' }}
+            >
+              ✗ {error}
             </p>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 bg-gray-800 text-white font-medium rounded-md
-                     hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transition-colors duration-200
-                     flex items-center justify-center gap-2"
+            className="w-full py-3 text-sm transition-colors flex items-center justify-center gap-2"
+            style={{
+              backgroundColor: isSubmitting ? 'var(--color-border)' : 'var(--color-running)',
+              color:           'white',
+              border:          'none',
+              fontFamily:      'var(--font-mono)',
+              cursor:          isSubmitting ? 'not-allowed' : 'pointer',
+              borderRadius:    '2px',
+            }}
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Signing in...
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                signing in…
               </>
             ) : (
-              "Sign In"
+              'sign in'
             )}
           </button>
         </form>

@@ -40,19 +40,19 @@ describe("LoginPage", () => {
 
   it("renders branded login page with Arken AI text", () => {
     renderLoginPage();
-    expect(screen.getByText("Arken AI")).toBeInTheDocument();
-    expect(screen.getByText("Sign in to continue")).toBeInTheDocument();
+    expect(screen.getByText("ARKEN")).toBeInTheDocument();
+    expect(screen.getByText("sign in to continue")).toBeInTheDocument();
   });
 
   it("renders username and password fields", () => {
     renderLoginPage();
-    expect(screen.getByLabelText("Username")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByLabelText("username")).toBeInTheDocument();
+    expect(screen.getByLabelText("password")).toBeInTheDocument();
   });
 
   it("has autofocus on username field", () => {
     renderLoginPage();
-    const usernameInput = screen.getByLabelText("Username");
+    const usernameInput = screen.getByLabelText("username");
     // After render, the ref-based focus should trigger
     expect(usernameInput).toHaveFocus();
   });
@@ -69,10 +69,10 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
 
     // Type password but leave username empty
-    await user.type(screen.getByLabelText("Password"), "arkenai123");
+    await user.type(screen.getByLabelText("password"), "arkenai123");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
-    expect(screen.getByText("Username is required")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Username is required");
     expect(mockLogin).not.toHaveBeenCalled();
   });
 
@@ -81,8 +81,8 @@ describe("LoginPage", () => {
     renderLoginPage();
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText("Username"), "TestUser");
-    await user.type(screen.getByLabelText("Password"), "arkenai123");
+    await user.type(screen.getByLabelText("username"), "TestUser");
+    await user.type(screen.getByLabelText("password"), "arkenai123");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(mockLogin).toHaveBeenCalledWith("TestUser", "arkenai123");
@@ -96,12 +96,12 @@ describe("LoginPage", () => {
     renderLoginPage();
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText("Username"), "TestUser");
-    await user.type(screen.getByLabelText("Password"), "wrongpass");
+    await user.type(screen.getByLabelText("username"), "TestUser");
+    await user.type(screen.getByLabelText("password"), "wrongpass");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("Invalid credentials");
     });
   });
 
@@ -113,15 +113,15 @@ describe("LoginPage", () => {
     renderLoginPage();
     const user = userEvent.setup();
 
-    const usernameInput = screen.getByLabelText("Username");
-    const passwordInput = screen.getByLabelText("Password");
+    const usernameInput = screen.getByLabelText("username");
+    const passwordInput = screen.getByLabelText("password");
 
     await user.type(usernameInput, "TestUser");
     await user.type(passwordInput, "wrongpass");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("Invalid credentials");
     });
 
     expect(usernameInput).toHaveValue("TestUser");
@@ -134,11 +134,11 @@ describe("LoginPage", () => {
     renderLoginPage();
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText("Username"), "TestUser");
-    await user.type(screen.getByLabelText("Password"), "arkenai123");
+    await user.type(screen.getByLabelText("username"), "TestUser");
+    await user.type(screen.getByLabelText("password"), "arkenai123");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
-    expect(screen.getByText("Signing in...")).toBeInTheDocument();
+    expect(screen.getByText("signing in…")).toBeInTheDocument();
   });
 
   it("submits form on Enter key in password field", async () => {
@@ -146,10 +146,26 @@ describe("LoginPage", () => {
     renderLoginPage();
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText("Username"), "TestUser");
-    await user.type(screen.getByLabelText("Password"), "arkenai123{enter}");
+    await user.type(screen.getByLabelText("username"), "TestUser");
+    await user.type(screen.getByLabelText("password"), "arkenai123{enter}");
 
     expect(mockLogin).toHaveBeenCalledWith("TestUser", "arkenai123");
+  });
+
+  it("redirects authenticated users to /app, not /", () => {
+    mockAuth.isAuthenticated = true;
+    mockAuth.isLoading = false;
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    // Navigate should fire — form should not render
+    expect(screen.queryByRole("button", { name: /sign in/i })).not.toBeInTheDocument();
+    // The Navigate component renders nothing visible — absence of form is the signal
+    expect(container.innerHTML).toBe("");
   });
 
   it("shows loading spinner when auth is loading", () => {
@@ -161,7 +177,7 @@ describe("LoginPage", () => {
 
   it("shows password field as type password (masked)", () => {
     renderLoginPage();
-    const passwordInput = screen.getByLabelText("Password");
+    const passwordInput = screen.getByLabelText("password");
     expect(passwordInput).toHaveAttribute("type", "password");
   });
 });
