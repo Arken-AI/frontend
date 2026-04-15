@@ -9,6 +9,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Copy, Check, AlertCircle, XCircle, Loader2, FileText, RotateCcw, Pencil } from 'lucide-react';
 import MarkdownRenderer from '../markdown/MarkdownRenderer';
+import ImageLightbox from '../modals/ImageLightbox';
+import { resolveImageSrc } from '../../utils/imageSource';
 
 function MessageStatusIndicator({ status }) {
   if (!status || status === 'complete') return null;
@@ -65,6 +67,7 @@ export default function MessageBubble({ message, onRetry, onEdit, messageIndex, 
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
+  const [lightboxImage, setLightboxImage] = useState(null);
   const editTextareaRef = useRef(null);
 
   const isUser = message.role === 'user';
@@ -165,14 +168,15 @@ export default function MessageBubble({ message, onRetry, onEdit, messageIndex, 
                   }
 
                   if (hasImageData) {
+                    const imgSrc = resolveImageSrc(att);
                     return (
                       <img
                         key={idx}
-                        src={att.preview || `data:${att.media_type};base64,${att.data}`}
+                        src={imgSrc}
                         alt={att.filename || 'attachment'}
-                        className="max-w-[240px] max-h-[180px] min-w-[100px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        style={{ borderRadius: '8px' }}
-                        onClick={() => window.open(att.preview || `data:${att.media_type};base64,${att.data}`, '_blank')}
+                        className="max-w-[240px] max-h-[180px] min-w-[100px] object-cover hover:opacity-90 transition-opacity"
+                        style={{ borderRadius: '8px', cursor: imgSrc ? 'pointer' : 'default' }}
+                        onClick={imgSrc ? () => setLightboxImage({ src: imgSrc, alt: att.filename || 'attachment' }) : undefined}
                       />
                     );
                   }
@@ -264,6 +268,15 @@ export default function MessageBubble({ message, onRetry, onEdit, messageIndex, 
                 </ActionButton>
               )}
             </div>
+          )}
+
+          {/* Image lightbox overlay */}
+          {lightboxImage && (
+            <ImageLightbox
+              src={lightboxImage.src}
+              alt={lightboxImage.alt}
+              onClose={() => setLightboxImage(null)}
+            />
           )}
         </div>
       </div>
