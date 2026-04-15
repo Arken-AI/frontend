@@ -16,19 +16,30 @@ import { X } from 'lucide-react';
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
 const ZOOM_STEP = 0.15;
+const INITIAL_TRANSLATE = { x: 0, y: 0 };
+
+/**
+ * Custom hook — holds a value as both React state (for rendering) and a ref
+ * (for reading the latest value inside event handlers without stale closures).
+ * Eliminates the need for separate useState + useRef + useEffect sync.
+ */
+function useStateRef(initial) {
+  const [value, setValue] = useState(initial);
+  const ref = useRef(initial);
+  const set = (next) => {
+    const resolved = typeof next === 'function' ? next(ref.current) : next;
+    ref.current = resolved;
+    setValue(resolved);
+  };
+  return [value, set, ref];
+}
 
 export default function ImageLightbox({ src, alt, onClose }) {
-  const [scale, setScale] = useState(MIN_SCALE);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [scale, setScale, scaleRef] = useStateRef(MIN_SCALE);
+  const [translate, setTranslate, translateRef] = useStateRef(INITIAL_TRANSLATE);
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const translateStart = useRef({ x: 0, y: 0 });
-  const translateRef = useRef(translate);
-  const scaleRef = useRef(scale);
-
-  // Keep refs in sync with state for use in event handlers
-  useEffect(() => { translateRef.current = translate; }, [translate]);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
 
   // Close on Escape (matches ShareModal.jsx pattern)
   useEffect(() => {
@@ -47,7 +58,7 @@ export default function ImageLightbox({ src, alt, onClose }) {
 
   const handleDoubleClick = () => {
     setScale(MIN_SCALE);
-    setTranslate({ x: 0, y: 0 });
+    setTranslate(INITIAL_TRANSLATE);
   };
 
   const handleMouseDown = (e) => {
@@ -76,7 +87,7 @@ export default function ImageLightbox({ src, alt, onClose }) {
 
   // Reset translate when zooming back to 1x
   useEffect(() => {
-    if (scale <= MIN_SCALE) setTranslate({ x: 0, y: 0 });
+    if (scale <= MIN_SCALE) setTranslate(INITIAL_TRANSLATE);
   }, [scale]);
 
   return (
