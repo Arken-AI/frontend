@@ -33,7 +33,7 @@ describe("loginUser", () => {
 
     const result = await loginUser({
       username: "TestUser",
-      password: "arkenai123",
+      password: "test-password-only",
     });
 
     expect(result.success).toBe(true);
@@ -59,7 +59,7 @@ describe("loginUser", () => {
 
     const result = await loginUser({
       username: "TestUser",
-      password: "arkenai123",
+      password: "test-password-only",
     });
 
     expect(result.success).toBe(false);
@@ -75,7 +75,7 @@ describe("loginUser", () => {
 
     const result = await loginUser({
       username: "TestUser",
-      password: "arkenai123",
+      password: "test-password-only",
     });
 
     expect(result.success).toBe(false);

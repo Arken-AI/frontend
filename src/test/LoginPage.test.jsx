@@ -69,7 +69,7 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
 
     // Type password but leave username empty
-    await user.type(screen.getByLabelText("password"), "arkenai123");
+    await user.type(screen.getByLabelText("password"), "test-password-only");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("Username is required");
@@ -82,10 +82,10 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("username"), "TestUser");
-    await user.type(screen.getByLabelText("password"), "arkenai123");
+    await user.type(screen.getByLabelText("password"), "test-password-only");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
-    expect(mockLogin).toHaveBeenCalledWith("TestUser", "arkenai123");
+    expect(mockLogin).toHaveBeenCalledWith("TestUser", "test-password-only");
   });
 
   it("shows error message on failed login", async () => {
@@ -135,7 +135,7 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("username"), "TestUser");
-    await user.type(screen.getByLabelText("password"), "arkenai123");
+    await user.type(screen.getByLabelText("password"), "test-password-only");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(screen.getByText("signing in…")).toBeInTheDocument();
@@ -147,9 +147,9 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("username"), "TestUser");
-    await user.type(screen.getByLabelText("password"), "arkenai123{enter}");
+    await user.type(screen.getByLabelText("password"), "test-password-only{enter}");
 
-    expect(mockLogin).toHaveBeenCalledWith("TestUser", "arkenai123");
+    expect(mockLogin).toHaveBeenCalledWith("TestUser", "test-password-only");
   });
 
   it("redirects authenticated users to /app, not /", () => {
