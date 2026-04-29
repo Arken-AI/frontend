@@ -9,19 +9,20 @@ import StepCard from './StepCard';
 import ProgressBar from './ProgressBar';
 import DesignSummary from './DesignSummary';
 
-// The 16 step names (§6 of master plan)
+// The 16 step names (§6 of master plan — must match engine PIPELINE_STEPS
+// in hx_design_engine/hx_engine/app/core/pipeline_runner.py)
 export const STEP_NAMES = [
   'Parse & Validate Requirements',
   'Calculate Heat Duty',
   'Fluid Properties',
+  'TEMA Type & Initial Geometry',
   'LMTD & Correction Factor',
-  'Preliminary Sizing',
-  'Tube Layout',
-  'Baffle Design',
-  'Shell-Side Heat Transfer',
+  'Initial U & Size',
   'Tube-Side Heat Transfer',
+  'Shell-Side Heat Transfer',
   'Overall Heat Transfer',
   'Pressure Drop Validation',
+  'Area & Overdesign',
   'Geometry Iteration',
   'Vibration Safety Check',
   'Mechanical Design',

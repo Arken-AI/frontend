@@ -18,25 +18,28 @@ import { getSharedDesign } from '../api/client';
 import MessageBubble from '../components/chat/MessageBubble';
 import StepCard from '../components/hx/StepCard';
 
-// ── Step name lookup (mirrors the HX pipeline) ────────────────────────────────
+// ── Step name lookup (mirrors the HX pipeline §6 of master plan) ────────────────────
+// Must stay in sync with engine PIPELINE_STEPS in
+// hx_design_engine/hx_engine/app/core/pipeline_runner.py and the
+// STEP_NAMES array in frontend/src/components/hx/HXPanel.jsx.
 
 const STEP_NAMES = {
-  FLUID_PROPERTIES:      'Fluid Properties',
-  DUTY_CALC:             'Duty Calculation',
-  LMTD:                  'LMTD / Correction Factor',
-  SHELL_SIZING:          'Shell Sizing',
-  TUBE_LAYOUT:           'Tube Layout',
-  BAFFLE_DESIGN:         'Baffle Design',
-  NOZZLE_SIZING:         'Nozzle Sizing',
-  TUBE_SIDE_H:           'Tube-Side h',
-  SHELL_SIDE_H:          'Shell-Side h (Bell-Delaware)',
-  OVERALL_U:             'Overall U',
-  AREA_MARGIN:           'Area & Margin',
-  CONVERGENCE:           'Convergence Check',
-  TUBE_SIDE_DP:          'Tube-Side ΔP',
-  SHELL_SIDE_DP:         'Shell-Side ΔP',
-  COST_ESTIMATE:         'Cost Estimate',
-  FINAL_SPEC:            'Final Specification',
+  1:  'Parse & Validate Requirements',
+  2:  'Calculate Heat Duty',
+  3:  'Fluid Properties',
+  4:  'TEMA Type & Initial Geometry',
+  5:  'LMTD & Correction Factor',
+  6:  'Initial U & Size',
+  7:  'Tube-Side Heat Transfer',
+  8:  'Shell-Side Heat Transfer',
+  9:  'Overall Heat Transfer',
+  10: 'Pressure Drop Validation',
+  11: 'Area & Overdesign',
+  12: 'Geometry Iteration',
+  13: 'Vibration Safety Check',
+  14: 'Mechanical Design',
+  15: 'Cost Estimate',
+  16: 'Final Design Validation',
 };
 
 function stepName(stepId) {
