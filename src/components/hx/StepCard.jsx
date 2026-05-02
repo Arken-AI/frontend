@@ -650,10 +650,13 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
   }
 
   if (state === 'ESCALATED') {
-    const { question, options, option_ratings, recommendation, onRespond } = data || {};
-    // key on the options content so a fresh escalation (different options) always
-    // mounts a new ActionableDecisionBody with submitted=false.
-    const bodyKey = (options || []).join('|') || 'escalated';
+    const { question, options, option_ratings, recommendation, onRespond, received_at } = data || {};
+    // Include received_at in the key so a fresh escalation event always
+    // mounts a new ActionableDecisionBody with submitted=false, even when
+    // the option text is identical to the previous escalation.  Falling
+    // back to options-content alone caused the "_sending" indicator to
+    // get stuck across re-escalations (bug_a78b6473).
+    const bodyKey = `${received_at ?? 'noseq'}:${(options || []).join('|') || 'escalated'}`;
     return (
       <ActionableDecisionBody
         key={bodyKey}

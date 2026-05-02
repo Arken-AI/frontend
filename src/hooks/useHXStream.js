@@ -271,7 +271,25 @@ export function useHXStream({
       if (newState === "RUNNING") {
         setCurrentStep(stepId);
         setWaitingForUser(false); // pipeline resumed — no longer waiting
-        updateStep(stepId, { state: "RUNNING", elapsed: null, data: null });
+        // Cross-step invariant: clearing the current step + sweeping any
+        // earlier ESCALATED stragglers prevents the "Step N stuck on
+        // AWAITING INPUT while Step N+1 is live" UI defect (see
+        // bug_a78b6473_xstack_pipeline_advances_past_unresolved_decision).
+        setSteps((prev) =>
+          prev.map((s) => {
+            if (s.step === stepId) {
+              return { ...s, state: "RUNNING", elapsed: null, data: null };
+            }
+            if (s.step < stepId && s.state === "ESCALATED") {
+              return {
+                ...s,
+                state: "APPROVED",
+                data: { ...(s.data || {}), _stale_escalation_cleared: true },
+              };
+            }
+            return s;
+          }),
+        );
         return;
       }
 
@@ -291,6 +309,14 @@ export function useHXStream({
         patchData.options = data.options || [];
         patchData.option_ratings = data.option_ratings || [];
         patchData.recommendation = data.recommendation || null;
+        // Stamp a per-event sequence number so ActionableDecisionBody's
+        // bodyKey changes for every fresh escalation event, forcing a
+        // remount that resets the local `submitted` (`…sending`) flag.
+        // Without this, a re-escalation with identical option text reuses
+        // the prior component instance and the "_sending" indicator
+        // gets stuck (see bug_a78b6473_xstack_pipeline_advances_past_
+        // unresolved_decision).
+        patchData.received_at = Date.now();
       } else if (newState === "CORRECTED") {
         // StepCorrectedEvent.correction is a dict: { fieldName: { old, new }, ... }
         // e.g. { "tube_diameter": { "old": 0.025, "new": 0.020 } }
@@ -334,11 +360,27 @@ export function useHXStream({
       }
 
       setCurrentStep((prev) => (prev === stepId ? null : prev));
-      updateStep(stepId, {
-        state: newState,
-        elapsed,
-        data: patchData,
-      });
+      // Cross-step invariant: any event for step M means the engine has
+      // moved past every earlier step. Clear stale ESCALATED state on
+      // steps < M so the UI can never show two AWAITING INPUT cards at
+      // once (see bug_a78b6473_xstack_pipeline_advances_past_unresolved
+      // _decision). The current step's update is folded into the same
+      // setSteps call so React renders both transitions atomically.
+      setSteps((prev) =>
+        prev.map((s) => {
+          if (s.step === stepId) {
+            return { ...s, state: newState, elapsed, data: patchData };
+          }
+          if (s.step < stepId && s.state === "ESCALATED") {
+            return {
+              ...s,
+              state: "APPROVED",
+              data: { ...(s.data || {}), _stale_escalation_cleared: true },
+            };
+          }
+          return s;
+        }),
+      );
     },
     [updateStep],
   );
