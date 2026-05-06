@@ -116,7 +116,7 @@ describe("useHXStream — escalation reducer invariants (bug_a78b6473)", () => {
         event_type: "step_corrected",
         step_id: 7,
         step_name: "Tube-Side h",
-        correction: { tube_diameter: { old: 0.025, new: 0.020 } },
+        correction: { tube_diameter: { old: 0.025, new: 0.02 } },
         duration_ms: 1200,
         outputs: { h_t: 4500 },
       });
