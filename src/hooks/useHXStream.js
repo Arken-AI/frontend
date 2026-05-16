@@ -309,6 +309,10 @@ export function useHXStream({
         patchData.options = data.options || [];
         patchData.option_ratings = data.option_ratings || [];
         patchData.recommendation = data.recommendation || null;
+        // EPIC-XSTACK-2026-007-S1: property-request escalation extras
+        patchData.event_subtype = data.event_subtype || null;
+        patchData.property_request_payload =
+          data.property_request_payload || null;
         // Stamp a per-event sequence number so ActionableDecisionBody's
         // bodyKey changes for every fresh escalation event, forcing a
         // remount that resets the local `submitted` (`…sending`) flag.
@@ -539,14 +543,15 @@ export function useHXStream({
                   ? {
                       ...s,
                       state: "ERROR",
-                      data: { ...s.data, message: SESSION_EXPIRED_CARD_MESSAGE },
+                      data: {
+                        ...s.data,
+                        message: SESSION_EXPIRED_CARD_MESSAGE,
+                      },
                     }
                   : s,
               ),
             );
-            setError(
-              sessionExpiredErrorMessage(stepId),
-            );
+            setError(sessionExpiredErrorMessage(stepId));
           } else {
             setError(
               `Failed to send response (${res.status}). Please try again.`,
@@ -705,7 +710,10 @@ export function useHXStream({
                   ? {
                       ...s,
                       state: "ERROR",
-                      data: { ...s.data, message: SESSION_EXPIRED_CARD_MESSAGE },
+                      data: {
+                        ...s.data,
+                        message: SESSION_EXPIRED_CARD_MESSAGE,
+                      },
                     }
                   : s,
               ),
