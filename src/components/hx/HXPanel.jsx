@@ -5,29 +5,29 @@
  * Idle:      shows a prompt to send a heat exchanger design request via chat.
  */
 
-import StepCard from './StepCard';
-import ProgressBar from './ProgressBar';
-import DesignSummary from './DesignSummary';
+import StepCard from "./StepCard";
+import ProgressBar from "./ProgressBar";
+import DesignSummary from "./DesignSummary";
 
 // The 16 step names (§6 of master plan — must match engine PIPELINE_STEPS
 // in hx_design_engine/hx_engine/app/core/pipeline_runner.py)
 export const STEP_NAMES = [
-  'Parse & Validate Requirements',
-  'Calculate Heat Duty',
-  'Fluid Properties',
-  'TEMA Type & Initial Geometry',
-  'LMTD & Correction Factor',
-  'Initial U & Size',
-  'Tube-Side Heat Transfer',
-  'Shell-Side Heat Transfer',
-  'Overall Heat Transfer',
-  'Pressure Drop Validation',
-  'Area & Overdesign',
-  'Geometry Iteration',
-  'Vibration Safety Check',
-  'Mechanical Design',
-  'Cost Estimate',
-  'Final Design Validation',
+  "Parse & Validate Requirements",
+  "Calculate Heat Duty",
+  "Fluid Properties",
+  "TEMA Type & Initial Geometry",
+  "LMTD & Correction Factor",
+  "Initial U & Size",
+  "Tube-Side Heat Transfer",
+  "Shell-Side Heat Transfer",
+  "Overall Heat Transfer",
+  "Pressure Drop Validation",
+  "Area & Overdesign",
+  "Geometry Iteration",
+  "Vibration Safety Check",
+  "Mechanical Design",
+  "Cost Estimate",
+  "Final Design Validation",
 ];
 
 // ── ResultsHeader ─────────────────────────────────────────────────────────────
@@ -41,51 +41,52 @@ function findOutput(steps, field) {
   for (const s of steps) {
     if (!s.data?.outputs) continue;
     const v = s.data.outputs[field];
-    if (v != null && typeof v === 'number') return v;
+    if (v != null && typeof v === "number") return v;
   }
   return null;
 }
 
 function ResultsCard({ label, value, unit, accent }) {
-  const accentColor = accent === 'amber' ? 'var(--color-corrected)' : 'var(--color-running)';
+  const accentColor =
+    accent === "amber" ? "var(--color-corrected)" : "var(--color-running)";
   return (
     <div
       style={{
-        flex:         1,
-        padding:      '8px 12px',
-        borderRight:  '1px solid var(--color-border)',
-        minWidth:     0,
+        flex: 1,
+        padding: "8px 12px",
+        borderRight: "1px solid var(--color-border)",
+        minWidth: 0,
       }}
     >
       <div
         style={{
-          fontFamily:    'var(--font-mono)',
-          fontSize:      '9px',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color:         'var(--color-text-muted)',
-          marginBottom:  '4px',
+          fontFamily: "var(--font-mono)",
+          fontSize: "9px",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: "var(--color-text-muted)",
+          marginBottom: "4px",
         }}
       >
         {label}
       </div>
       {value != null ? (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "3px" }}>
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize:   '15px',
+              fontFamily: "var(--font-mono)",
+              fontSize: "15px",
               fontWeight: 600,
-              color:      accentColor,
+              color: accentColor,
             }}
           >
             {value}
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize:   '9px',
-              color:      'var(--color-text-muted)',
+              fontFamily: "var(--font-mono)",
+              fontSize: "9px",
+              color: "var(--color-text-muted)",
             }}
           >
             {unit}
@@ -94,9 +95,9 @@ function ResultsCard({ label, value, unit, accent }) {
       ) : (
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize:   '13px',
-            color:      'var(--color-text-muted)',
+            fontFamily: "var(--font-mono)",
+            fontSize: "13px",
+            color: "var(--color-text-muted)",
           }}
         >
           —
@@ -107,34 +108,34 @@ function ResultsCard({ label, value, unit, accent }) {
 }
 
 function ResultsHeader({ steps }) {
-  const qRaw   = findOutput(steps, 'Q_W');
-  const lmtd   = findOutput(steps, 'LMTD_K');
-  const uVal   = findOutput(steps, 'U_W_m2K') ?? findOutput(steps, 'U_overall');
-  const aVal   = findOutput(steps, 'A_m2')    ?? findOutput(steps, 'area_required');
+  const qRaw = findOutput(steps, "Q_W");
+  const lmtd = findOutput(steps, "LMTD_K");
+  const uVal = findOutput(steps, "U_W_m2K") ?? findOutput(steps, "U_overall");
+  const aVal = findOutput(steps, "A_m2") ?? findOutput(steps, "area_required");
 
   const qKw = qRaw != null ? (qRaw / 1000).toFixed(1) : null;
   const lmtdFmt = lmtd != null ? lmtd.toFixed(1) : null;
-  const uFmt    = uVal != null ? Math.round(uVal) : null;
-  const aFmt    = aVal != null ? aVal.toFixed(1)  : null;
+  const uFmt = uVal != null ? Math.round(uVal) : null;
+  const aFmt = aVal != null ? aVal.toFixed(1) : null;
 
   return (
     <div
       style={{
-        display:         'flex',
-        borderBottom:    '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-surface)',
-        flexShrink:      0,
+        display: "flex",
+        borderBottom: "1px solid var(--color-border)",
+        backgroundColor: "var(--color-surface)",
+        flexShrink: 0,
       }}
     >
-      <ResultsCard label="Heat Duty"  value={qKw}   unit="kW"     accent="amber" />
-      <ResultsCard label="LMTD"       value={lmtdFmt} unit="K"    accent="blue"  />
-      <ResultsCard label="Overall U"  value={uFmt}  unit="W/m²K"  accent="amber" />
+      <ResultsCard label="Heat Duty" value={qKw} unit="kW" accent="amber" />
+      <ResultsCard label="LMTD" value={lmtdFmt} unit="K" accent="blue" />
+      <ResultsCard label="Overall U" value={uFmt} unit="W/m²K" accent="amber" />
       <ResultsCard
         label="Area"
         value={aFmt}
         unit="m²"
         accent="blue"
-        style={{ borderRight: 'none' }}
+        style={{ borderRight: "none" }}
       />
     </div>
   );
@@ -143,7 +144,10 @@ function ResultsHeader({ steps }) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isActionableStep(s) {
-  return s.state === "ESCALATED" || (s.state === "WARNING" && s.data?.options?.length > 0);
+  return (
+    s.state === "ESCALATED" ||
+    (s.state === "WARNING" && s.data?.options?.length > 0)
+  );
 }
 
 // Attaches onRespond to the step's data when the pipeline is still accepting
@@ -153,6 +157,7 @@ function stepDataWithRespond(s, pipelineActive, sessionId, onRespond) {
   if (!pipelineActive || !onRespond || !isActionableStep(s)) return s.data;
   return {
     ...s.data,
+    sessionId,
     onRespond: (answer, idx) => onRespond(sessionId, answer, idx, s.step),
   };
 }
@@ -186,17 +191,20 @@ export default function HXPanel({
   // Build full 16-step list: fill PENDING for steps not yet in extSteps
   const allSteps = STEP_NAMES.map((name, i) => {
     const stepNum = i + 1;
-    const provided = extSteps?.find(s => s.step === stepNum);
-    return provided ?? { step: stepNum, name, state: 'PENDING' };
+    const provided = extSteps?.find((s) => s.step === stepNum);
+    return provided ?? { step: stepNum, name, state: "PENDING" };
   });
 
-  const isEscalated = extSteps?.some(s => s.state === 'ESCALATED') ?? false;
+  const isEscalated = extSteps?.some((s) => s.state === "ESCALATED") ?? false;
   const showProgress = isRunning && currentStep != null;
-  const showSummary  = !!design;
-  const showIdle     = !hasData;
+  const showSummary = !!design;
+  const showIdle = !hasData;
 
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div
+      className="flex flex-col h-full"
+      style={{ backgroundColor: "var(--color-bg)" }}
+    >
       {/* Progress bar (running) */}
       {showProgress && (
         <ProgressBar
@@ -208,9 +216,7 @@ export default function HXPanel({
       )}
 
       {/* Results header — shown when any step has outputs */}
-      {hasData && (
-        <ResultsHeader steps={extSteps} />
-      )}
+      {hasData && <ResultsHeader steps={extSteps} />}
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
@@ -219,15 +225,22 @@ export default function HXPanel({
           <div className="flex flex-col items-center justify-center h-full gap-4">
             <h2
               className="text-xs font-normal tracking-widest uppercase"
-              style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+              style={{
+                color: "var(--color-text-muted)",
+                fontFamily: "var(--font-mono)",
+              }}
             >
               Bell-Delaware · 16-Step Pipeline
             </h2>
             <p
               className="text-xs text-center max-w-xs"
-              style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}
+              style={{
+                color: "var(--color-text-muted)",
+                fontFamily: "var(--font-mono)",
+              }}
             >
-              Send a heat exchanger design request in the chat to start the pipeline
+              Send a heat exchanger design request in the chat to start the
+              pipeline
             </p>
           </div>
         )}
@@ -239,14 +252,19 @@ export default function HXPanel({
               <DesignSummary design={design} onOptimize={onOptimize} />
             )}
 
-            {allSteps.map(s => (
+            {allSteps.map((s) => (
               <StepCard
                 key={s.step}
                 step={s.step}
                 name={s.name ?? STEP_NAMES[s.step - 1]}
                 state={s.state}
                 elapsed={s.elapsed}
-                data={stepDataWithRespond(s, isRunning || waitingForUser, sessionId, onRespond)}
+                data={stepDataWithRespond(
+                  s,
+                  isRunning || waitingForUser,
+                  sessionId,
+                  onRespond,
+                )}
                 iteration={s.iteration}
                 onChatMessage={onChatMessage}
               />
