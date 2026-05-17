@@ -792,12 +792,21 @@ function CardBody({ state, data, iteration, step, onChatMessage }) {
       received_at,
       event_subtype,
       property_request_payload,
+      sessionId,
     } = data || {};
     const bodyKey = `${received_at ?? "noseq"}:${(options || []).join("|") || "escalated"}`;
+    const showPropertyCard =
+      event_subtype === "property_request" ||
+      event_subtype === "ai_property_suggestion";
     return (
       <>
-        {event_subtype === "property_request" && (
-          <PropertyRequestCard payload={property_request_payload} />
+        {showPropertyCard && (
+          <PropertyRequestCard
+            payload={property_request_payload}
+            sessionId={sessionId}
+            onRespond={onRespond}
+            escalationSubtype={event_subtype}
+          />
         )}
         <ActionableDecisionBody
           key={bodyKey}

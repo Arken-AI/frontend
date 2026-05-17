@@ -29,6 +29,11 @@ import {
 // not through the backend). Empty in prod → nginx routes /api/v1/hx/... correctly.
 const HX_ENGINE_BASE = import.meta.env.VITE_HX_ENGINE_URL || "";
 
+// Backend base URL for API calls routed through the backend (e.g. respond proxy).
+const BACKEND_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/api$/, "")
+  : "http://localhost:8001";
+
 // Map HX Engine internal enum values (stored in MongoDB) to the display strings
 // the frontend uses.  SSE events carry APPROVED/CORRECTED; restored records
 // carry PROCEED/CORRECT/WARN/ESCALATE (AIDecisionEnum).
@@ -502,14 +507,20 @@ export function useHXStream({
         );
         return;
       }
-      // The respond endpoint lives on the HX Engine, not the backend.
-      // Using HX_ENGINE_BASE ensures the request reaches the correct service.
-      const respondUrl = `${HX_ENGINE_BASE}/api/v1/hx/design/${id}/respond`;
+      // Route all escalation responses through the backend proxy so that
+      // user-provided property values can be pre-validated before forwarding
+      // to the HX Engine (EPIC-XSTACK-2026-007-S2).
+      const respondUrl = `${BACKEND_BASE}/api/hx/design/${id}/respond`;
       console.log("[RESPOND] POSTing to:", respondUrl, "body:", response);
+      // Attach the X-Username header so the backend proxy can authenticate.
+      // The username is written to sessionStorage by AuthContext on login.
+      const storedUsername = sessionStorage.getItem("auth_username") || "";
+      const respondHeaders = { "Content-Type": "application/json" };
+      if (storedUsername) respondHeaders["X-Username"] = storedUsername;
       try {
         const res = await fetch(respondUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: respondHeaders,
           // HX Engine UserResponse schema: { type, values: { user_input, option_index } }
           body: JSON.stringify({
             type: "override",
