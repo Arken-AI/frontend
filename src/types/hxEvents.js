@@ -3,6 +3,37 @@
  * Mirrors hx_engine/app/models/sse_events.py
  */
 
+/**
+ * design_complete event — summary.property_provenance shape (EPIC-XSTACK-2026-007-S3)
+ *
+ * summary.property_provenance: {
+ *   hot_fluid: {
+ *     fluid_name: string,
+ *     source: string,          // e.g. "iapws", "user_provided", "llm_estimated"
+ *     label: string,           // human-readable label from SOURCE_LABELS vocabulary
+ *     confidence: number|null, // 0.0–1.0; null for database sources
+ *     properties: {
+ *       density_kg_m3: PropertyEntry,
+ *       viscosity_Pa_s: PropertyEntry,
+ *       cp_J_kgK: PropertyEntry,
+ *       k_W_mK: PropertyEntry,
+ *       Pr: PropertyEntry,
+ *     }
+ *   },
+ *   cold_fluid: { ...same shape... }
+ * }
+ *
+ * PropertyEntry: {
+ *   value: number|null,
+ *   source: string,
+ *   label: string,
+ *   confidence: number|null,
+ *   unapproved_ai: boolean,   // true when source=="llm_estimated" with no approval_timestamp
+ *   timestamp: string|null,   // ISO-8601; present for user_provided / user_approved_estimate
+ *   note?: string,            // present on Pr derived entries
+ * }
+ */
+
 export const HX_EVENT_TYPES = {
   STEP_STARTED: "step_started",
   STEP_APPROVED: "step_approved",
